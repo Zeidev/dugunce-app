@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.app.dugunce"],
+        "components": [
+          {
+            "/": "/auth*",
+            "comment": "Magic link giriş bağlantısı"
+          },
+          {
+            "/": "/invite*",
+            "comment": "Davet kodu kabul bağlantısı"
+          }
+        ]
+      }
+    ]
+  }
+}
