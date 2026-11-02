@@ -101,6 +101,17 @@ export function createEmailClient(options: CreateEmailClientOptions): EmailClien
     throw new Error('Test ortamında e-posta transport\'u zorunlu (gerçek mail atılmasın)')
   }
 
+  // FAIL-FAST: üretimde API anahtarı yoksa sessizce devam etme.
+  //
+  // Boş anahtarla Brevo 401 döner, magic link hiç gönderilmez ve
+  // kullanıcı "e-posta gelmedi" der — sebebi loglarda kaybolur.
+  // Uygulamanın açılışta patlaması, sessizce giriş yapılamamasından iyidir.
+  if (!options.transport && env !== 'test' && !apiKey) {
+    throw new Error(
+      'BREVO_API_KEY tanımlı değil — e-posta gönderilemez, giriş çalışmaz',
+    )
+  }
+
   const transport = options.transport ?? brevoHttpTransport(apiKey)
 
   return {

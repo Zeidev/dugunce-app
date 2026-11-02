@@ -130,3 +130,46 @@ describe('createEmailClient — transport seçimi', () => {
     ).toThrow(/transport/i)
   })
 })
+
+describe('API anahtarı yoksa fail-fast', () => {
+  it('üretimde boş anahtar hata fırlatır (sessizce devam etmez)', () => {
+    // Boş anahtarla Brevo 401 döner, magic link hiç gitmez ve kullanıcı
+    // "e-posta gelmedi" der. Uygulamanın açılışta patlaması daha iyi.
+    expect(() =>
+      createEmailClient({
+        apiKey: '',
+        sender: { name: 'Düğünce', email: 'noreply@dugunce.com.tr' },
+        env: 'production',
+      }),
+    ).toThrow(/BREVO_API_KEY/)
+  })
+
+  it('test ortamında transport varsa anahtar gerekmez', () => {
+    const client = createEmailClient({
+      apiKey: '',
+      sender: { name: 'Düğünce', email: 'noreply@dugunce.com.tr' },
+      env: 'test',
+      transport: async () => ({}),
+    })
+    expect(client).toBeDefined()
+  })
+
+  it('transport enjekte edilirse üretimde de anahtar gerekmez', () => {
+    const client = createEmailClient({
+      apiKey: '',
+      sender: { name: 'Düğünce', email: 'noreply@dugunce.com.tr' },
+      env: 'production',
+      transport: async () => ({}),
+    })
+    expect(client).toBeDefined()
+  })
+
+  it('anahtar varsa sorunsuz oluşur', () => {
+    const client = createEmailClient({
+      apiKey: 'xkeysib-test',
+      sender: { name: 'Düğünce', email: 'noreply@dugunce.com.tr' },
+      env: 'production',
+    })
+    expect(client).toBeDefined()
+  })
+})
