@@ -62,8 +62,8 @@ ALTER TABLE task_messages
 |---|---|
 | 1 | Her yardımcıya **ayrı**, yüksek entropili (min 128 bit), tahmin edilemez token |
 | 2 | DB'de **ham token değil hash** sakla |
-| 3 | Kabul, süre sonu, yenileme, iptal akışları tanımlı olsun |
-| 4 | Token doğrulandıktan sonra **kısa ömürlü, iptal edilebilir oturum** oluştur |
+| 3 | Kabul, süre sonu, yenileme, iptal akışları tanımlı olsun | ✅ **KAPANDI (Aşama 5.5):** `helpers.expires_at` (90 gün), süresi dolan link 404. Yenileme = yeni yardımcı token'ı (eskisi ölür). İptal: `token_revoked_at` |
+| 4 | Token doğrulandıktan sonra **kısa ömürlü, iptal edilebilir oturum** oluştur | ✅ **KAPANDI (Aşama 5.5):** `POST /api/v1/helper/session` token'ı gövdede bir kez alır; 30 dk kayan pencereli, mutlak 12 saat tavanlı, sunucu tarafında iptal edilebilir oturum (`helper_sessions`, yalnız SHA-256) verir. Veri istekleri `HttpOnly` çerezle; CSRF double-submit (`h_csrf` + `X-CSRF-Token`) |
 | 5 | Yardımcı yalnızca **atanmış görevlere** ve o görevlerin mesajlarına erişsin |
 | 6 | Atama kaldırıldığında erişim **anında** kesilsin |
 

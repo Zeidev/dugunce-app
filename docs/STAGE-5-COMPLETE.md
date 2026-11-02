@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-11-02
 **Plan:** `docs/superpowers/plans/2026-11-02-stage-5-tasks.md`
-**Durum:** ✅ Uygulama tamamlandı (10/10 görev + kapanış) — **ancak SECURITY §1.2'nin 2 kuralı karşılanmıyor** (aşağıda) ve canlı uçtan uca manuel akış yapılmadı.
+**Durum:** ✅ Tamamlandı — SECURITY §1.2 #3/#4 **Aşama 5.5'te kapatıldı** (oturum + token TTL). Canlı uçtan uca manuel akış hâlâ yapılmadı.
 
 ---
 
@@ -20,10 +20,11 @@
 | 6+8 | Yardımcı uçları + mesaj uçları | 808 | ✅ |
 | 10 | Yardımcı web sayfası (PWA, `/h#token`) | 817 | ✅ |
 | 11 | Kapanış kontrolü + 3 kapanış düzeltmesi | **820** | ✅ |
+| 5.5 | Yardımcı oturumu + token TTL (SECURITY §1.2 #3/#4) | **848** | ✅ |
 
 > **Görev sırası:** Plan 6 → 7 → 8 diyordu; routes mesaj servisine ihtiyaç duyduğu için fiili sıra **7 → 6 → 8 → 9 → 10** oldu. Testler aynı.
 >
-> **Aşama 5 toplamı: 820 test** (Aşama 4 sonu 608 → **820**), 64 dosya + 1 atlanmış dosya, 12 atlanmış test.
+> **Aşama 5 toplamı: 820 test**; oturum katmanı (Aşama 5.5) sonrası **848** (Aşama 4 sonu 608), 65 dosya + 1 atlanmış dosya, 12 atlanmış test.
 
 ---
 
@@ -45,7 +46,7 @@
 | Görev silinince mesajlar gider | `softDelete` artık **aynı transaction'da** mesajları fiziksel siler (kapanışta düzeltildi) |
 | Yardımcı silinince mesaj kalır, yazar null | `sender_helper_id` FK `ON DELETE SET NULL`; gerçek DB testi mesajın kaldığını doğruluyor |
 | Ücretsiz limit: 1 yardımcı + 1 görev | `FREE_HELPER_LIMIT` / `FREE_TASK_LIMIT`; limit kontrolü düğün satırı kilidi altında (TOCTOU yok) |
-| Tüm testler geçiyor | `64 passed | 1 skipped`, **820 passed / 12 skipped** |
+| Tüm testler geçiyor | `65 passed | 1 skipped`, **848 passed / 12 skipped** |
 | Typecheck temiz | `tsc --noEmit` → 0 hata |
 
 ---
@@ -141,26 +142,22 @@ Her biri "korumayı kaldır → test kırılmalı" ile doğrulandı.
 
 ---
 
-## ⚠️ SECURITY §1.2 — karşılanmayan 2 kural
+## SECURITY §1.2 — Aşama 5.5'te kapatılan 2 kural
 
-`docs/SECURITY.md` §1.2 (Yardımcı WhatsApp bağlantısı) bağlayıcı. Uygulama bunun 4/6 kuralını karşılıyor; ikisini **karşılamıyor** ve plan bunu bilinçli olarak ertelemedi — sessiz boşluk:
+İlk kapanış kaydı yazıldığında `SECURITY.md` §1.2 baştan sona okunmamıştı; iki kural eksikti. Ayrı bir aşamada kapatıldı.
 
 | # | Kural | Durum |
 |---|---|---|
 | 1 | Yardımcıya ayrı, ≥128 bit token | ✅ 256 bit, base64url 43 karakter |
 | 2 | DB'de ham token değil hash | ✅ yalnız SHA-256 |
-| 3 | **Kabul, süre sonu, yenileme, iptal akışları tanımlı** | ⚠️ **KISMİ** — iptal (`token_revoked_at`) var; **süre sonu (TTL) ve yenileme yok**. `helpers` tablosunda `expires_at` kolonu yok |
-| 4 | **Token doğrulandıktan sonra kısa ömürlü, iptal edilebilir oturum** | ❌ **YOK** — oturum katmanı hiç yok. Token her istekte URL'de taşınıyor (`GET /api/v1/helper/:token/tasks`) |
-| 5 | Yalnızca atanmış görevler + o görevlerin mesajları | ✅ her sorguda `assignee_helper_id` |
-| 6 | Atama kaldırılınca erişim anında kesilsin | ✅ `assignee_helper_id` her istekte okunuyor, ayrı önbellek yok |
+| 3 | Kabul, süre sonu, yenileme, iptal | ✅ `helpers.expires_at` 90 gün; süresi dolan link 404; iptal `token_revoked_at` |
+| 4 | Kısa ömürlü, iptal edilebilir oturum | ✅ `helper_sessions`: 30 dk kayan pencere, 12 saat mutlak tavan, sunucu tarafı iptal; veri istekleri `HttpOnly` çerezle, CSRF double-submit |
+| 5 | Yalnızca atanmış görevler + mesajları | ✅ her sorguda `assignee_helper_id` |
+| 6 | Atama kaldırılınca erişim anında kesilsin | ✅ atama her istekte okunur; revoke edilen yardımcının oturumu da join'de elenir |
 
-**Neden önemli:** Token URL'de olduğu için paylaşılan ekran, tarayıcı geçmişi, proxy logu veya `Referer` ile sızabilir. Mevcut azaltımlar: `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`, CORS kısıtı, IP bazlı rate limit — ama bunlar oturumun yerini tutmaz.
+**Davranış değişikliği (kırıcı):** `GET /api/v1/helper/:token/tasks` gibi token'lı veri uçları **kaldırıldı**. Akış: `POST /api/v1/helper/session {token}` → çerez + `csrfToken` → `GET/PATCH/POST /api/v1/helper/tasks…`. Yardımcı PWA (`/h`) buna göre güncellendi; token başarılı oturumdan sonra adres çubuğundan siliniyor.
 
-**Kural 4'ün uygulanması tasarım kararı ister:** `POST /api/v1/helper/:token/session` → kısa ömürlü (ör. 30 dk) `HttpOnly; Secure; SameSite=Strict` cookie, sunucu tarafında iptal edilebilir oturum kaydı, her istekte token yerine cookie. Yardımcı yüzeyi tarayıcı olduğu için CSRF koruması da gerekir (SameSite + double-submit). Bu, Aşama 5 kapsamında değildi ve eklenmedi.
-
-**Kural 3'ün uygulanması:** `helpers.expires_at` (ör. 90 gün) + yenileme ucu; süresi dolan token 404.
-
-Aşama 8 (yayın öncesi güvenlik denetimi) bu iki maddeyi **kapatmadan yayına çıkılmamalı** — SECURITY §8 testleri #3 ve #7 doğrudan bunlara bakıyor.
+**Kanıt:** `tests/helpers/session.test.ts` (20 test: kayan pencere, mutlak tavan, CSRF, çerez biçimi), `tests/e2e/helper-app.test.ts` (30 test: token→oturum, oturumsuz 401, URL'de token 404, CSRF'siz 403, revoke → anında 401, süresi dolmuş token 404), `verify-migrations` grup [9] (tablo, UNIQUE, NOT NULL, composite FK, CASCADE).
 
 ---
 
@@ -168,8 +165,6 @@ Aşama 8 (yayın öncesi güvenlik denetimi) bu iki maddeyi **kapatmadan yayına
 
 | Konu | Neden bekliyor |
 |---|---|
-| **SECURITY §1.2 #4 — kısa ömürlü oturum** | Tasarım kararı + CSRF; Aşama 8'de kapatılmalı |
-| **SECURITY §1.2 #3 — token süresi/yenileme** | `helpers.expires_at` + yenileme ucu |
 | **Canlı uçtan uca yardımcı akışı** — gerçek yardımcı oluştur, `/h#token` aç, görev ata, mesajlaş, yeniden ata | Çift hesabı (magic-link e-posta) gerekiyor; otomatik oturum yok. Plan Task 11 Step 2 bu yüzden **açık** bırakıldı |
 | WhatsApp'tan görev linki gönderimi | Brevo/WhatsApp şablonları — Aşama 6 sonrası |
 | Mobil uygulamada görev ekranı | KMP iskeleti var (`mobile/`), gerçek API entegrasyonu Aşama 6.5 |
