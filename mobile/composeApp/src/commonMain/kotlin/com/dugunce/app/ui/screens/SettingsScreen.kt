@@ -66,6 +66,7 @@ fun SettingsScreen(
     themeMode: ThemeMode,
     onThemeChange: (ThemeMode) -> Unit,
     onLoggedOut: () -> Unit,
+    onInviteCoOwner: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var editing by remember { mutableStateOf(false) }
@@ -182,6 +183,36 @@ fun SettingsScreen(
                     loading = saving,
                     enabled = coupleNames.trim().isNotEmpty(),
                 )
+            }
+        }
+
+        // --- İkinci eş ---
+        item { SectionHeader("Düğün ortağı") }
+        item {
+            Surface(
+                shape = RoundedCornerShape(Radius.lg),
+                color = c.surface,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Text(
+                        "Eşini davet et, o da tam yetkili olsun",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = c.ink,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        "7 karakterlik bir kod üret. Eşin uygulamaya giriş yaptıktan " +
+                            "sonra kodu girer ve aynı düğünün ikinci sahibi olur.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.muted,
+                    )
+                    DugunceButton(
+                        "Davet kodu oluştur",
+                        onClick = onInviteCoOwner,
+                        variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
+                    )
+                }
             }
         }
 

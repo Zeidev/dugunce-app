@@ -57,6 +57,7 @@ fun LoginScreen(
     repository: Repository,
     onLinkSent: () -> Unit,
     onLoggedIn: () -> Unit,
+    onHasInviteCode: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var email by remember { mutableStateOf("") }
@@ -228,6 +229,9 @@ fun LoginScreen(
             if (showCode) "E-posta adresini değiştir" else "Kodum var, kodu gireyim",
             onClick = { showCode = !showCode; error = null },
         )
+        Spacer(Modifier.height(Spacing.sm))
+        // İkinci eş: davet koduyla katılma
+        TextAction("Davet kodum var", onClick = onHasInviteCode)
 
         Spacer(Modifier.height(Spacing.xxl))
 

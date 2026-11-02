@@ -49,6 +49,10 @@ enum class Screen {
     TASK_CHAT,
     HELPER_LIST,
     HELPER_INVITE,
+
+    // Davet kodları (2. eş)
+    CO_OWNER_INVITE,
+    ACCEPT_INVITE,
 }
 
 /** Alt sekme tanımı. */

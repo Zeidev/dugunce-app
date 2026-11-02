@@ -34,6 +34,8 @@ import com.dugunce.app.ui.nav.isTab
 import com.dugunce.app.ui.screens.BudgetScreen
 import com.dugunce.app.ui.screens.BudgetIntroScreen
 import com.dugunce.app.ui.screens.BulkGuestScreen
+import com.dugunce.app.ui.screens.AcceptInviteScreen
+import com.dugunce.app.ui.screens.CoOwnerInviteScreen
 import com.dugunce.app.ui.screens.CreateWeddingScreen
 import com.dugunce.app.ui.screens.DashboardScreen
 import com.dugunce.app.ui.screens.ExpenseDetailScreen
@@ -175,6 +177,7 @@ fun App(repository: Repository, tokens: TokenStore) {
 
                         Screen.LOGIN -> LoginScreen(
                             repository = repository,
+                            onHasInviteCode = { state.go(Screen.ACCEPT_INVITE) },
                             onLinkSent = { state.go(Screen.LINK_SENT) },
                             onLoggedIn = {
                                 scope.launch {
@@ -289,6 +292,7 @@ fun App(repository: Repository, tokens: TokenStore) {
                                     }
                                 },
                                 onLoggedOut = { state.resetTo(Screen.WELCOME) },
+                                onInviteCoOwner = { state.go(Screen.CO_OWNER_INVITE) },
                             )
                         } ?: Unit
 
@@ -410,6 +414,30 @@ fun App(repository: Repository, tokens: TokenStore) {
                                 onCreated = { state.createdHelperToken = it },
                             )
                         } ?: Unit
+
+                        Screen.CO_OWNER_INVITE -> wedding?.let { w ->
+                            CoOwnerInviteScreen(
+                                repository = repository,
+                                weddingId = w.id,
+                                onBack = { state.back() },
+                            )
+                        } ?: Unit
+
+                        Screen.ACCEPT_INVITE -> AcceptInviteScreen(
+                            repository = repository,
+                            onBack = { state.back() },
+                            onJoined = {
+                                scope.launch {
+                                    repository.listWeddings().onSuccess { weddings ->
+                                        weddings.firstOrNull()?.let { w ->
+                                            state.wedding = w
+                                            tokens.selectedWeddingId = w.id
+                                        }
+                                    }
+                                    state.resetTo(Screen.DASHBOARD)
+                                }
+                            },
+                        )
                     }
                 }
             }
