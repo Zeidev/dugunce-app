@@ -41,8 +41,21 @@ const REDACT_PATHS = [
   'PLAY_SERVICE_ACCOUNT_JSON',
 ]
 
+/**
+ * E-posta maskesi — KVKK.
+ *
+ * E-posta kişisel veridir ve Drizzle'ın ürettiği hata mesajlarında
+ * (`params: kullanici@example.com,1`) düz metin geçiyor.
+ *
+ * KISMİ maskeleme: ilk 2 karakter + domain korunur. Amaç log'dan
+ * "hangi kullanıcı" sorusunu cevaplayabilmek, adresi ifşa etmeden.
+ * `lumibyte.dev@gmail.com` → `lu***@gmail.com`
+ */
+const EMAIL_PATTERN = /([A-Za-z0-9._%+-]{1,2})[A-Za-z0-9._%+-]*(@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g
+
 /** Bağlantı dizesi desenleri — mesaj içinden temizlenir. */
 const CONNECTION_STRING_PATTERNS: Array<[RegExp, string]> = [
+  [EMAIL_PATTERN, '$1***$2'],
   [/postgres(ql)?:\/\/[^\s"']+/gi, 'postgres://[REDACTED]'],
   [/mysql:\/\/[^\s"']+/gi, 'mysql://[REDACTED]'],
   [/Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [REDACTED]'],

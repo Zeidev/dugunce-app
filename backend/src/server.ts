@@ -1,3 +1,7 @@
+// .env dosyasını EN BAŞTA yükle — diğer importlar process.env okur.
+// `dotenv/config` yan etki importu; sırası kritik.
+import 'dotenv/config'
+
 import { loadEnv } from './config/env.js'
 import { createApp } from './app.js'
 import { logger } from './lib/logger.js'
