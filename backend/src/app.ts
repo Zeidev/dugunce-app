@@ -1,5 +1,6 @@
 import express, { type Express } from 'express'
-import { healthRouter } from './routes/health.js'
+import { createHealthRouter } from './routes/health.js'
+import { pingDb } from './db/client.js'
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js'
 import { createRequireAuth } from './middleware/require-auth.js'
 import { createRequireWeddingMember } from './middleware/require-member.js'
@@ -30,6 +31,13 @@ export interface CreateAppOptions {
    * katmanı testleri DB olmadan çalışabilsin diye açık.
    */
   guestStore?: ReturnType<typeof import('./guests/store.js').drizzleGuestDeps>
+  /**
+   * `/health/deep` için DB erişim testi.
+   *
+   * Verilmezse derin kontrol 503 döner. Üretimde `pingDb()` bağlanır;
+   * testlerde enjekte edilir.
+   */
+  healthCheckDb?: () => Promise<boolean>
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -43,7 +51,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(express.urlencoded({ extended: false, limit: '1mb' }))
 
   // Sağlık kontrolü — en üstte, hiçbir middleware'e takılmasın
-  app.use(healthRouter)
+  app.use(
+    createHealthRouter({
+      ...(options.healthCheckDb
+        ? { checkDb: options.healthCheckDb }
+        : { checkDb: () => pingDb() }),
+    }),
+  )
 
   // --- Auth middleware'leri ---
   const env = loadEnv()
