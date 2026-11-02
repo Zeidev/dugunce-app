@@ -1,6 +1,6 @@
 # Düğünce — Aşama 5: Yardımcı ve Görevler
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Çiftin yardımcılara görev verebildiği, yardımcının **uygulama kurmadan ve hesap açmadan** token'lı link ile kendi görevlerini görüp güncelleyebildiği ve o görev üzerinde çift ile sohbet edebildiği bir modül kurmak.
 
@@ -95,7 +95,7 @@ backend/src/
 - Consumes: Aşama 2 `weddings`, Aşama 4 composite FK deseni
 - Produces: `helpers`, `tasks`, `messages` tabloları
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('helpers şeması', () => {
@@ -125,7 +125,7 @@ describe('messages şeması', () => {
 })
 ```
 
-- [ ] **Step 2: Şema**
+- [x] **Step 2: Şema**
 
 ```ts
 export const helpers = pgTable('helpers', {
@@ -192,14 +192,14 @@ export const messages = pgTable('messages', {
 
 **Kritik:** `body` uzunluk sınırı DB'de de olmalı — uygulama katmanı atlanırsa DB reddetsin. Migration'a `CHECK (char_length(body) <= 4000)` ekle.
 
-- [ ] **Step 3: Migration üret ve composite FK'ları doğrula**
+- [x] **Step 3: Migration üret ve composite FK'ları doğrula**
 
 ```bash
 npx drizzle-kit generate
 npm run verify:migrations
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(db): add helpers, tasks and messages schema"
@@ -217,7 +217,7 @@ git commit -m "feat(db): add helpers, tasks and messages schema"
 - Consumes: Task 1
 - Produces: `validateHelperInput`, `createHelper`, `listHelpers`, `renameHelper`, `revokeHelper`, `deleteHelper`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('validateHelperInput', () => {
@@ -249,7 +249,7 @@ describe('revokeHelper', () => {
 })
 ```
 
-- [ ] **Step 2: Limit sabitleri**
+- [x] **Step 2: Limit sabitleri**
 
 ```ts
 export const FREE_HELPER_LIMIT = 1
@@ -263,7 +263,7 @@ export class HelperLimitError extends Error {
 }
 ```
 
-- [ ] **Step 3: Token üretimi — Aşama 4 desenini izle**
+- [x] **Step 3: Token üretimi — Aşama 4 desenini izle**
 
 ```ts
 const token = generateToken()          // 256 bit, 43 karakter base64url
@@ -271,7 +271,7 @@ const accessTokenHash = hashToken(token)
 // ham token YALNIZCA dönüşte görünür
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(helpers): add helper CRUD with token and limit"
@@ -289,7 +289,7 @@ git commit -m "feat(helpers): add helper CRUD with token and limit"
 - Consumes: Task 1, 2
 - Produces: `validateTaskInput`, `createTask`, `listTasks`, `updateTask`, `assignTask`, `deleteTask`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('createTask', () => {
@@ -320,7 +320,7 @@ describe('deleteTask', () => {
 })
 ```
 
-- [ ] **Step 2: `assignTask` — `assigned_at` kritik**
+- [x] **Step 2: `assignTask` — `assigned_at` kritik**
 
 ```ts
 /**
@@ -349,7 +349,7 @@ export async function assignTask(params, deps) {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "feat(tasks): add task CRUD with assignment and assigned_at tracking"
@@ -367,7 +367,7 @@ git commit -m "feat(tasks): add task CRUD with assignment and assigned_at tracki
 - Consumes: Aşama 2 `lib/crypto.ts`
 - Produces: `resolveHelperToken`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('resolveHelperToken (Review Focus #4)', () => {
@@ -381,7 +381,7 @@ describe('resolveHelperToken (Review Focus #4)', () => {
 })
 ```
 
-- [ ] **Step 2: Doğrulama — üç kapı**
+- [x] **Step 2: Doğrulama — üç kapı**
 
 ```ts
 export async function resolveHelperToken(rawToken, deps) {
@@ -395,7 +395,7 @@ export async function resolveHelperToken(rawToken, deps) {
 }
 ```
 
-- [ ] **Step 3: `last_seen_at` — dikkatli**
+- [x] **Step 3: `last_seen_at` — dikkatli**
 
 `last_seen_at` her istekte yazılırsa gereksiz DB yükü olur. **5 dakikada bir** güncelle:
 
@@ -405,7 +405,7 @@ if (!row.lastSeenAt || Date.now() - row.lastSeenAt.getTime() > 5 * 60_000) {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(helpers): add helper token resolution"
@@ -421,7 +421,7 @@ git commit -m "feat(helpers): add helper token resolution"
 
 **Neden ayrı görev:** Yardımcıya dönen gövde beyaz liste olmalı. Tüm satırı döndürmek `wedding_id`, `created_by`, diğer yardımcıların id'lerini sızdırır.
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('toHelperTaskView', () => {
@@ -435,7 +435,7 @@ describe('toHelperTaskView', () => {
 })
 ```
 
-- [ ] **Step 2: Beyaz liste**
+- [x] **Step 2: Beyaz liste**
 
 ```ts
 export const HELPER_TASK_FIELDS = [
@@ -445,7 +445,7 @@ export const HELPER_TASK_FIELDS = [
 ] as const
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "feat(tasks): add whitelisted helper task view"
@@ -463,7 +463,7 @@ git commit -m "feat(tasks): add whitelisted helper task view"
 - Consumes: Task 4, 5
 - Produces: `GET /helper/:token/tasks`, `PATCH /helper/:token/tasks/:taskId`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('GET /helper/:token/tasks (Review Focus #2)', () => {
@@ -484,7 +484,7 @@ describe('PATCH /helper/:token/tasks/:taskId', () => {
 })
 ```
 
-- [ ] **Step 2: Yetki sınırı — kritik**
+- [x] **Step 2: Yetki sınırı — kritik**
 
 ```ts
 // Yardımcı YALNIZCA status değiştirebilir.
@@ -496,7 +496,7 @@ if (Object.keys(body).some((k) => !ALLOWED_HELPER_PATCH.includes(k))) {
 }
 ```
 
-- [ ] **Step 3: Her sorgu `assignee_helper_id` ile kapsamlı**
+- [x] **Step 3: Her sorgu `assignee_helper_id` ile kapsamlı**
 
 ```ts
 // task_id tahmin edilse bile başkasının görevi dönmez
@@ -506,7 +506,7 @@ WHERE task.id = $taskId
   AND task.deleted_at IS NULL
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(api): add helper-scoped task endpoints"
@@ -524,7 +524,7 @@ git commit -m "feat(api): add helper-scoped task endpoints"
 - Consumes: Task 1, 3
 - Produces: `validateMessageBody`, `sendMessage`, `listMessages`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('sendMessage — idempotency (Review Focus #3)', () => {
@@ -556,7 +556,7 @@ describe('listMessages — sayfalama (Review Focus #5)', () => {
 })
 ```
 
-- [ ] **Step 2: `assigned_at` filtresi — bu aşamanın en kritik satırı**
+- [x] **Step 2: `assigned_at` filtresi — bu aşamanın en kritik satırı**
 
 ```ts
 /**
@@ -575,7 +575,7 @@ if (viewer.kind === 'HELPER' && !since) {
 }
 ```
 
-- [ ] **Step 3: Sayfalama**
+- [x] **Step 3: Sayfalama**
 
 ```ts
 export const DEFAULT_PAGE_SIZE = 30
@@ -584,7 +584,7 @@ export const MAX_PAGE_SIZE = 100
 // before cursor: bu id'den ÖNCEKİ mesajlar (yeniden eskiye)
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(messages): add task messaging with idempotency and assignment boundary"
@@ -598,7 +598,7 @@ git commit -m "feat(messages): add task messaging with idempotency and assignmen
 - Modify: `backend/src/routes/tasks.ts`, `backend/src/routes/helper-app.ts`
 - Test: `backend/tests/e2e/messages-routes.test.ts`
 
-- [ ] **Step 1: Route tablosu**
+- [x] **Step 1: Route tablosu**
 
 **Çift tarafı:**
 | Method | Path | Açıklama |
@@ -612,7 +612,7 @@ git commit -m "feat(messages): add task messaging with idempotency and assignmen
 | GET | `/helper/:token/tasks/:taskId/messages` | Sayfalı liste (sınırlı) |
 | POST | `/helper/:token/tasks/:taskId/messages` | Gönder |
 
-- [ ] **Step 2: `sender_kind` sunucuda belirlenir, istemciden ALINMAZ**
+- [x] **Step 2: `sender_kind` sunucuda belirlenir, istemciden ALINMAZ**
 
 ```ts
 // Çift uçlarında: senderKind='COUPLE', senderUserId=req.auth.userId
@@ -620,13 +620,13 @@ git commit -m "feat(messages): add task messaging with idempotency and assignmen
 // İstemci bu alanları gönderemez — gönderse de yok sayılır.
 ```
 
-- [ ] **Step 3: Rate limit**
+- [x] **Step 3: Rate limit**
 
 `RATE_LIMITS`'a ekle:
 - `messageSendByUser`: 60/dk (çift)
 - `messageSendByHelper`: 30/dk (yardımcı)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(api): add message routes for couple and helper"
@@ -642,11 +642,11 @@ git commit -m "feat(api): add message routes for couple and helper"
 
 **Dikkat (Aşama 3-4 dersi):** Ham SQL çalıştıran testler Drizzle join'ini kanıtlamaz. Gerçek store test edilir, negatif kontrol yapılır.
 
-- [ ] **Step 1: Her store metodu `tx` alıyorsa onu kullanır**
+- [x] **Step 1: Her store metodu `tx` alıyorsa onu kullanır**
 
 Aşama 4'te 5 kez aynı hata çıktı: `tx` alınıp dış `db` kullanılıyor → PGlite'ta kilitlenme. Store yazılırken her metot kontrol edilir.
 
-- [ ] **Step 2: Gerçek DB testleri**
+- [x] **Step 2: Gerçek DB testleri**
 
 ```ts
 it('yardımcı yalnızca kendi görevlerini görür (IDOR)')
@@ -658,9 +658,9 @@ it('idempotency UNIQUE kısıtı çalışır')
 it('body CHECK kısıtı 4001 karakteri reddeder')
 ```
 
-- [ ] **Step 3: Negatif kontrol** — `assigned_at` filtresini kaldır, testin kırıldığını doğrula.
+- [x] **Step 3: Negatif kontrol** — `assigned_at` filtresini kaldır, testin kırıldığını doğrula.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(tasks): add drizzle stores with tenant isolation"
@@ -676,7 +676,7 @@ git commit -m "feat(tasks): add drizzle stores with tenant isolation"
 
 **Neden ayrı görev:** Yardımcı **uygulama kurmaz** (design "Yardımcı web sayfası"). Token'lı link ile açılır, görevleri görür, durum değiştirir, sohbet eder.
 
-- [ ] **Step 1: Sayfa**
+- [x] **Step 1: Sayfa**
 
 Aşama 4'teki davetiye sayfası desenini izle:
 - Token `#fragment`'te
@@ -684,7 +684,7 @@ Aşama 4'teki davetiye sayfası desenini izle:
 - Open Graph yok
 - Türkçe arayüz
 
-- [ ] **Step 2: İşlevler**
+- [x] **Step 2: İşlevler**
 
 | Bölüm | İçerik |
 |---|---|
@@ -693,7 +693,7 @@ Aşama 4'teki davetiye sayfası desenini izle:
 | Görev detayı | Açıklama, tarih, durum değiştirme |
 | Sohbet | Sayfalı mesajlar, gönderme |
 
-- [ ] **Step 3: `_headers`**
+- [x] **Step 3: `_headers`**
 
 ```
 /h/*
@@ -701,7 +701,7 @@ Aşama 4'teki davetiye sayfası desenini izle:
   Cache-Control: no-store
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(web): add helper task PWA page"
@@ -714,23 +714,23 @@ git commit -m "feat(web): add helper task PWA page"
 **Files:**
 - Create: `docs/STAGE-5-COMPLETE.md`
 
-- [ ] **Step 1: Kabul listesi**
+- [x] **Step 1: Kabul listesi**
 
-- [ ] Yardımcı `users` tablosuna girmiyor (hesap yok)
-- [ ] Ham token DB'de yok, yalnızca SHA-256 hash
-- [ ] Token ≥128 bit entropi
-- [ ] Görev başına tek sorumlu (`UNIQUE`)
-- [ ] **Yeniden atamada yeni yardımcı önceki konuşmayı görmüyor**
-- [ ] Yardımcı yalnızca kendi görevlerini görüyor
-- [ ] Yardımcı yalnızca `status` değiştirebiliyor
-- [ ] Mesaj idempotency çalışıyor
-- [ ] Mesaj max 4000 karakter (uygulama + DB CHECK)
-- [ ] Sayfalama zorunlu, varsayılan 30
-- [ ] Görev silinince mesajlar CASCADE
-- [ ] Yardımcı silinince mesaj kalır, yazar null
-- [ ] Ücretsiz limit: 1 yardımcı + 1 görev
-- [ ] Tüm testler geçiyor
-- [ ] Typecheck temiz
+- [x] Yardımcı `users` tablosuna girmiyor (hesap yok)
+- [x] Ham token DB'de yok, yalnızca SHA-256 hash
+- [x] Token ≥128 bit entropi
+- [x] Görev başına tek sorumlu (`UNIQUE`)
+- [x] **Yeniden atamada yeni yardımcı önceki konuşmayı görmüyor**
+- [x] Yardımcı yalnızca kendi görevlerini görüyor
+- [x] Yardımcı yalnızca `status` değiştirebiliyor
+- [x] Mesaj idempotency çalışıyor
+- [x] Mesaj max 4000 karakter (uygulama + DB CHECK)
+- [x] Sayfalama zorunlu, varsayılan 30
+- [x] Görev silinince mesajlar CASCADE
+- [x] Yardımcı silinince mesaj kalır, yazar null
+- [x] Ücretsiz limit: 1 yardımcı + 1 görev
+- [x] Tüm testler geçiyor
+- [x] Typecheck temiz
 
 - [ ] **Step 2: Canlıda doğrula**
 
@@ -739,7 +739,7 @@ git commit -m "feat(web): add helper task PWA page"
 - Görev ata, durum değiştir, mesaj gönder
 - Yeniden ata, eski konuşmanın görünmediğini doğrula
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "docs: stage 5 completion record"
