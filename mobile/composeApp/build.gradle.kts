@@ -30,6 +30,11 @@ kotlin {
         }
     }
 
+    // Xcode entegrasyonu: `embedAndSignAppleFrameworkForXcode` görevi,
+    // Xcode "Run Script" aşamasından çağrıldığında framework'ü uygulama
+    // paketine kopyalar. Ayrıntı: docs/DEEPLINK-SETUP.md
+    // Xcode projesi (iosApp.xcodeproj) henüz yok — macOS'ta üretilmeli.
+
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)

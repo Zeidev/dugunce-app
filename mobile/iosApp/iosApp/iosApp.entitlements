@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal links: AASA dosyası dugunce.com.tr'de yayınlandığında
+	     etkin olur. Apple Developer hesabı (Team ID) gerekiyor —
+	     docs/DEEPLINK-SETUP.md. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:dugunce.com.tr</string>
+	</array>
+</dict>
+</plist>
