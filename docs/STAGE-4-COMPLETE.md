@@ -21,8 +21,9 @@
 | 7 | **GET yan etkisizliği** (gerçek DB) | 8 | ✅ |
 | 10 | Migration + limit doğrulama | 12 | ✅ |
 | 11 | Kapanış kontrolü | — | ✅ |
+| + | *Kapanış sonrası düzeltmeler* (aşağıda) | 9 | ✅ |
 
-**Aşama 4 toplamı: 209 test** (Aşama 3 sonu 371 → **580**)
+**Aşama 4 toplamı: 218 test** (Aşama 3 sonu 371 → **589**)
 
 > **Görev sırası notu:** Plan Task 7'yi Task 8'den önce koyuyordu, ama Task 7'nin testi `GET /invitations/:token` çağırıyor — o endpoint Task 8'de oluşuyor. Plan sırası uygulanamazdı. Fiili sıra: **9 → 8 → 7 → 10 → 11** (store → route → yan etki testi). Testler aynı, sadece derlenebilir sıra.
 
@@ -45,7 +46,7 @@
 | Silinen davetlinin token'ı 404 | `store.test.ts` (gerçek Drizzle): silme sonrası `resolveInvitation` null |
 | Davetliye dönen gövde beyaz liste | `public-view.test.ts` 19 test; `PUBLIC_FIELDS` tam eşleşme; telefon/wedding_id/token_hash dönmüyor |
 | Composite FK yanlış `wedding_id` reddeder | `store.test.ts` + `migrate-guests.test.ts` + `verify-migrations.mjs` grup [7] |
-| Tüm testler geçiyor | `41 dosya, 580 passed, 9 skipped (589)` |
+| Tüm testler geçiyor | `43 dosya, 589 passed, 9 skipped (598)` |
 | Typecheck temiz | `tsc --noEmit` → 0 hata |
 
 ---
@@ -172,8 +173,49 @@ Yardımcı token'ı (≥128 bit, hesapsız), görev ataması (görev başına te
 
 | Metrik | Değer |
 |---|---|
-| Test sayısı | **580** (Aşama 3: 371) → **+209** |
-| Test dosyası | 41 |
+| Test sayısı | **589** (Aşama 3: 371) → **+218** |
+| Test dosyası | 43 |
 | Aşama 4 kaynak satırı | 1.572 |
 | Tablo | **13** (Aşama 3: 11) → +2 |
 | Endpoint | 9 yeni (7 çift + 2 davetli) |
+
+---
+
+## Kapanış sonrası bulunan 3 gerçek sorun
+
+Kapanış kaydı yazıldıktan sonra tüm depo metodlarını `tx` hatası için denetlerken ve planın/SECURITY'nin açık bıraktığı uçları yoklarken üç sorun daha çıktı. Üçü de düzeltildi ve testlendi.
+
+### 1. `deleteGuest` atomik değildi
+
+Soft delete ve token iptali **ayrı** işlemlerdi, transaction yoktu. Revoke başarısız olursa davetli "silinmiş" görünür ama davetiye linki çalışmaya devam ederdi — yani Review Focus #5'in korumak istediği durumun tam kendisi.
+
+**Düzeltme:** İkisi tek transaction'da. Negatif kontrol: transaction sarmalayıcısını kaldırınca 4 test kırılıyor.
+
+### 2. Aynı davetlinin iki aktif token'ı olabiliyordu
+
+SECURITY §10.4 madde 3 ("aynı davetliye birden fazla aktif token izni **kararlaştırılır**") açık bırakılmıştı; plan da ele almıyordu.
+
+**Yeniden üretim:** İkinci davetiye üretilince ikisi de canlı kaldı. Birinci token'la verilen RSVP yalnızca o satıra yazıldı; ikincisi `null` okudu. Davetli hangi WhatsApp mesajına tıkladığına göre **farklı cevap** görürdü.
+
+**Karar: TEK aktif token.** Yeni davetiye üretmek mevcut token'ları iptal eder. Bu aynı zamanda "linki yeniden gönder" davranışını doğru yapar — eski link ölür.
+
+RSVP durumu yenilemede kaybolmaz: `guests.rsvp` üzerinde durur, yeni davetiye oradan okur.
+
+**SECURITY.md §10.4 madde 3 bu kararla kapatıldı.**
+
+### 3. `program` alanı sanitizasyonu test edilmiyordu
+
+`wedding.program` JSONB ve çift tarafından yazılıyor, davetliye gösteriliyor. Sanitizasyon `...entry` ile yayılsaydı çiftin eklediği iç notlar ("amcasıyla kavga") davetliye giderdi.
+
+**Kod zaten doğruydu** (alan alan kopyalıyor) ama test yoktu. 5 test eklendi: fazladan alanlar atılır, sayı tipi `time` reddedilir, boş dizi null olur, dizi olmayan değer null olur, null elemanlar atlanır.
+
+---
+
+## Nihai negatif kontrol sayısı: 15
+
+Yukarıdaki 12'ye ek olarak:
+| Koruma | Kaldırılınca kırılan test |
+|---|---|
+| `deleteGuest` transaction sarmalayıcısı | 4 test |
+| `createInvitation` revoke çağrısı | Yenileme testi (1) |
+| `program` alan-alan kopyalama | 5 sanitizasyon testi |
