@@ -122,3 +122,109 @@ export function createRefreshToken(): {
   )
   return { raw, hash, expiresAt }
 }
+
+// ---------------------------------------------------------------------------
+// Refresh rotasyonu
+// ---------------------------------------------------------------------------
+
+/** Enjekte edilebilir bağımlılıklar — test için. */
+export interface RefreshDeps {
+  findByHash: (hash: string) => Promise<{
+    id: string
+    userId: string
+    tokenHash?: string
+    deviceLabel?: string | null
+    expiresAt: Date
+    revokedAt: Date | null
+    lastUsedAt?: Date | null
+  } | null>
+  insertToken: (row: {
+    userId: string
+    tokenHash: string
+    deviceLabel: string | null
+    expiresAt: Date
+  }) => Promise<unknown>
+  revokeToken: (id: string) => Promise<boolean>
+  revokeAllForUser: (userId: string) => Promise<number>
+}
+
+export interface RotateResult {
+  refreshToken: string
+  userId: string
+}
+
+/**
+ * Refresh token'ı döndürür (rotasyon).
+ *
+ * Akış:
+ * 1. Hash'le, DB'de ara
+ * 2. Bulunamazsa reddet
+ * 3. **Revoke edilmişse** → token hırsızlığı sinyali → TÜM oturumları kapat
+ * 4. Süresi dolmuşsa reddet
+ * 5. Eskiyi revoke et
+ * 6. Yenisini üret (aynı cihaz etiketi)
+ *
+ * Review Focus #5: rotasyon atlanırsa eski token 90 gün geçerli kalır.
+ */
+export async function rotateRefreshToken(
+  raw: string,
+  deps: RefreshDeps,
+): Promise<RotateResult> {
+  const hash = hashToken(raw)
+  const record = await deps.findByHash(hash)
+
+  if (!record) {
+    throw new Error('Geçersiz yenileme tokenı')
+  }
+
+  // Token hırsızlığı tespiti: revoke edilmiş token tekrar kullanıldı
+  if (record.revokedAt !== null) {
+    await deps.revokeAllForUser(record.userId)
+    throw new Error('Geçersiz yenileme tokenı')
+  }
+
+  if (record.expiresAt.getTime() <= Date.now()) {
+    throw new Error('Yenileme tokenının süresi dolmuş')
+  }
+
+  // Rotasyon: eskiyi kapat
+  await deps.revokeToken(record.id)
+
+  // Yeniyi üret
+  const next = createRefreshToken()
+  await deps.insertToken({
+    userId: record.userId,
+    tokenHash: next.hash,
+    deviceLabel: record.deviceLabel ?? null,
+    expiresAt: next.expiresAt,
+  })
+
+  return { refreshToken: next.raw, userId: record.userId }
+}
+
+/**
+ * Tek bir refresh token'ı iptal eder (logout).
+ *
+ * Idempotent: bulunamazsa veya zaten iptal edilmişse sessizce döner.
+ */
+export async function revokeRefreshToken(
+  raw: string,
+  deps: Pick<RefreshDeps, 'findByHash' | 'revokeToken'>,
+): Promise<void> {
+  const record = await deps.findByHash(hashToken(raw))
+  if (!record) return
+  if (record.revokedAt !== null) return
+  await deps.revokeToken(record.id)
+}
+
+/**
+ * Kullanıcının tüm refresh token'larını iptal eder (logout-all).
+ *
+ * Çalınan cihaz, token hırsızlığı veya "tüm cihazlardan çık" için.
+ */
+export async function revokeAllUserTokens(
+  userId: string,
+  deps: Pick<RefreshDeps, 'revokeAllForUser'>,
+): Promise<number> {
+  return deps.revokeAllForUser(userId)
+}
