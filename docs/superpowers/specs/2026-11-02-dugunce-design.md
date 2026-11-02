@@ -1461,10 +1461,11 @@ v1'de kapsamlı üçüncü taraf analitik zorunlu değil — gizlilik ve maliyet
 **Kapanan kararlar (2026-11-02):** v1 kapsamı = üç özellik birden · 2. eş = davet kodu · platform = Android+iOS · senkron = server-first+offline-aware · yardımcı = PWA · fotoğraf = R2 · admin paneli = React + 2FA
 
 **Kalan engeller:**
-1. ⏳ **Brevo domain doğrulaması** — DNS kayıtları girilmedi. Talimat: [`docs/DNS-SETUP.md`](../../DNS-SETUP.md) §2
-2. ⏳ **serv00 ortam doğrulaması** — `scripts/verify-serv00.sh` gerçek hesapta çalıştırılmadı
-3. ⏳ KVKK saklama süreleri — `SECURITY.md` §6.3'te öneri var, onay bekliyor
-4. ⏳ Admin hesap kurtarma prosedürü — `SECURITY.md` §4.9
+1. ⏳ **Nameserver yayılımı** — `dugunce.com.tr` Cloudflare'de "Pending Nameserver Update". **24–48 saat.** Bu tamamlanmadan hiçbir DNS kaydı çalışmaz (Brevo, Pages, serv00 CNAME). Talimat: [`docs/DNS-SETUP.md`](../../DNS-SETUP.md) §0
+2. ⏳ **Brevo domain doğrulaması** — DNS kayıtları girilmedi (nameserver sonrası). Talimat: [`docs/DNS-SETUP.md`](../../DNS-SETUP.md) §2
+3. ⏳ **serv00 ortam doğrulaması** — `scripts/verify-serv00.sh` gerçek hesapta çalıştırılmadı
+4. ⏳ KVKK saklama süreleri — `SECURITY.md` §6.3'te öneri var, onay bekliyor
+5. ⏳ Admin hesap kurtarma prosedürü — `SECURITY.md` §4.9
 
 **Çözülen (2026-11-02):** Admin hosting → Cloudflare Pages · Yerel DB → Room · Offline taslak → Room `pending_` · Geliştirme sırası → 8 aşamalı güvenlik öncelikli · Brevo domain doğrulama yolu (§15.2) · **Domain alındı, DNS planı hazır**
 

@@ -4,7 +4,10 @@
 
 **Domain:** `dugunce.com.tr`
 **DNS sağlayıcı:** Cloudflare
-**Durum:** ✅ Alındı (2026-11-02)
+**Domain durumu:** ✅ Alındı (2026-11-02)
+**Cloudflare durumu:** ⏳ **Nameserver yayılımı bekleniyor** (2026-11-02 itibarıyla "Pending Nameserver Update")
+
+> ⚠️ **Bu bekleme sırasında hiçbir DNS kaydı çalışmaz.** Brevo doğrulaması, Pages custom domain, serv00 CNAME — hepsi nameserver'lar aktif olduktan sonra yapılabilir.
 
 ---
 
@@ -28,8 +31,41 @@ Cloudflare panelinde `dugunce.com.tr` yanında **"Active"** yazmalı.
 
 **"Pending Nameserver Update"** yazıyorsa:
 - Registrar panelinde nameserver'ları Cloudflare'in verdiği adreslere çevir
-- Yayılım 24 saate kadar sürebilir
+- Yayılım **24–48 saat** sürebilir (genelde 2-6 saat)
 - Bu tamamlanmadan **hiçbir DNS kaydı çalışmaz**
+
+### Yayılımı kontrol etme
+
+```bash
+# Cloudflare'in verdiği nameserver'lar görünüyor mu?
+dig NS dugunce.com.tr +short
+# Beklenen: xxx.ns.cloudflare.com ve yyy.ns.cloudflare.com
+
+# Alternatif (daha detaylı)
+whois dugunce.com.tr | grep -i "name server"
+```
+
+**Yorumlama:**
+
+| Çıktı | Anlam |
+|---|---|
+| İki `*.ns.cloudflare.com` | ✅ Aktif — devam edebilirsin |
+| Registrar'ın kendi NS'i | ⏳ Henüz yayılmadı — bekle |
+| Boş / hata | ⏳ Propagasyon sürüyor |
+
+### Beklerken ne yapılabilir
+
+Nameserver yayılımı beklerken **DNS gerektirmeyen** işler yapılabilir:
+
+| Yapılabilir | Yapılamaz |
+|---|---|
+| ✅ Aşama 2 kodu (auth, JWT, şema) | ❌ Brevo domain doğrulama |
+| ✅ Yerel testler | ❌ Cloudflare Pages custom domain |
+| ✅ serv00'ya SSH ile bağlanma | ❌ `api.dugunce.com.tr` CNAME |
+| ✅ GitHub repo kurulumu | ❌ R2 custom domain |
+| ✅ Kod yazma, migration | ❌ Canlı e-posta gönderimi |
+
+> **Not:** Cloudflare'de **DNS kayıtlarını şimdi girebilirsin** — panelde görünür ve kaydedilir. Sadece nameserver aktif olana kadar **çalışmazlar**. Yani §2'deki kayıtları önceden girip hazır bekleyebilirsin.
 
 ---
 
@@ -49,6 +85,9 @@ Cloudflare panelinde `dugunce.com.tr` yanında **"Active"** yazmalı.
 > **Altın kural:** Kayıt değerlerini kopyalarken baş/son boşluk en sık hatadır. Yapıştırdıktan sonra kontrol et.
 
 ---
+
+> ⏳ **Ön koşul:** Cloudflare "Active" olmalı (§0). Değilse bu bölümdeki doğrulama başarısız olur.
+> **Ama** Brevo'da domain ekleyip kayıtları kopyalayabilir ve Cloudflare'e girebilirsin — kayıtlar saklanır, nameserver aktif olunca çalışır.
 
 ## 2. Brevo — e-posta gönderimi
 
