@@ -1,19 +1,31 @@
-#!/usr/local/bin/bash
+#!/usr/bin/env bash
 # Düğünce backend — serv00 deploy betiği
 #
 # Kullanım:
 #   ./scripts/deploy-serv00.sh
 #
 # Gerekli ortam değişkenleri:
-#   SERV00_HOST   — sX.serv00.com
-#   SERV00_USER   — serv00 kullanıcı adı
-#   SERV00_DOMAIN — api.dugunce.com.tr (serv00 panelinde tanımlı alan adı)
-#   SERV00_PATH   — uzak dizin (varsayılan: ~/domains/$SERV00_DOMAIN/public_nodejs)
+#   SERV00_HOST   — s16.serv00.com
+#   SERV00_USER   — razelkull
+#   SERV00_DOMAIN — api.dugunce.com.tr
+#   SERV00_PATH   — uzak dizin (varsayılan: domains/$SERV00_DOMAIN/public_nodejs)
 #
 # SSH anahtarı önceden kurulmuş olmalı (~/.ssh/config veya ssh-agent).
 #
-# NOT: node_modules GÖNDERİLMEZ. Sunucuda `npm ci --omit=dev` çalışır.
-#      Sebep: platforma özgü binary'ler (FreeBSD) yerelde üretilemez.
+# --- SUNUCU YERLEŞİMİ (2026-11-02'de canlıda doğrulandı) ---
+#
+#   ~/domains/api.dugunce.com.tr/public_nodejs/
+#   ├── app.js              ← Passenger giriş noktası (COMMONJS)
+#   ├── package.json        ← yalnızca kimlik; bağımlılık TAŞIMAZ
+#   └── backend/            ← asıl uygulama
+#       ├── .env            ← gerçek sırlar burada
+#       ├── dist/           ← derlenmiş çıktı (app.js bunu okur)
+#       └── node_modules/   ← bağımlılıklar burada
+#
+# ÖNEMLİ: `app.js` uygulamayı `backend/dist/server.js` içinden yükler.
+# Bu yüzden dosyalar `public_nodejs/dist/` değil, `public_nodejs/backend/dist/`
+# altına gitmeli. `npm ci` de kökte değil `backend/` içinde çalışmalı —
+# kökteki package.json'ın `dependencies` alanı yok.
 
 set -euo pipefail
 
@@ -24,16 +36,25 @@ set -euo pipefail
 SERV00_PATH="${SERV00_PATH:-domains/${SERV00_DOMAIN}/public_nodejs}"
 SSH_TARGET="${SERV00_USER}@${SERV00_HOST}"
 LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/backend"
+REMOTE_APP="${SERV00_PATH}/backend"
+
+# SSH seçenekleri — CI'da anahtar yolu değişebilir
+SSH_OPTS=(-o ConnectTimeout=15 -o BatchMode=yes -o StrictHostKeyChecking=accept-new)
+if [ -n "${SERV00_SSH_KEY:-}" ]; then
+  SSH_OPTS+=(-i "$SERV00_SSH_KEY")
+fi
+SSH=(ssh "${SSH_OPTS[@]}" "$SSH_TARGET")
+RSYNC_SSH="ssh ${SSH_OPTS[*]}"
 
 echo "=========================================="
 echo " Düğünce backend deploy"
-echo " Hedef: ${SSH_TARGET}:${SERV00_PATH}"
+echo " Hedef: ${SSH_TARGET}:${REMOTE_APP}"
 echo " Tarih: $(date -u '+%Y-%m-%d %H:%M UTC')"
 echo "=========================================="
 
 # --- 1. Ön kontroller ---
 echo ""
-echo "[1/5] Ön kontroller"
+echo "[1/6] Ön kontroller"
 
 if [ ! -d "$LOCAL_DIR/dist" ]; then
   echo "  ❌ dist/ yok — önce 'npm run build' çalıştırın"
@@ -47,88 +68,91 @@ if [ ! -f "$LOCAL_DIR/package-lock.json" ]; then
 fi
 echo "  ✅ package-lock.json mevcut"
 
-if ! ssh -o ConnectTimeout=10 -o BatchMode=yes "$SSH_TARGET" 'echo ok' >/dev/null 2>&1; then
+if ! "${SSH[@]}" 'echo ok' >/dev/null 2>&1; then
   echo "  ❌ SSH bağlantısı kurulamadı: $SSH_TARGET"
-  echo "     Anahtar kurulu mu? ssh -i <key> $SSH_TARGET 'echo ok'"
   exit 1
 fi
 echo "  ✅ SSH bağlantısı çalışıyor"
 
+# .env olmadan uygulama açılmaz — deploy'dan ÖNCE kontrol et
+if ! "${SSH[@]}" "test -f ~/${REMOTE_APP}/.env"; then
+  echo "  ❌ Uzakta .env yok: ~/${REMOTE_APP}/.env"
+  echo "     İlk kurulumda elle oluşturulmalı (DATABASE_URL, JWT_SECRET, NODE_ENV)."
+  exit 1
+fi
+echo "  ✅ Uzak .env mevcut"
+
 # --- 2. Yedek al (deploy öncesi) ---
 echo ""
-echo "[2/5] Uzak dizin yedekleniyor"
-ssh "$SSH_TARGET" "
-  cd ~ && \
-  if [ -d '${SERV00_PATH}' ]; then
-    tar -czf ~/deploy-backup-\$(date +%Y%m%d-%H%M%S).tar.gz -C ~ '${SERV00_PATH}' 2>/dev/null || true
-    echo '  ✅ Yedek alındı'
+echo "[2/6] Uzak dist yedekleniyor"
+"${SSH[@]}" "
+  cd ~/${REMOTE_APP} && \
+  if [ -d dist ]; then
+    tar -czf /tmp/dist-backup-\$(date +%Y%m%d-%H%M%S).tgz dist && \
+    ls -t /tmp/dist-backup-*.tgz | tail -n +6 | xargs -r rm -f
+    echo '  ✅ dist yedeklendi (son 5 yedek tutulur)'
   else
-    echo '  ℹ️  İlk deploy — yedeklenecek dizin yok'
+    echo '  ℹ️  İlk deploy — yedeklenecek dist yok'
   fi
 "
 
 # --- 3. Dosyaları gönder ---
 echo ""
-echo "[3/5] Dosyalar gönderiliyor (node_modules hariç)"
+echo "[3/6] Dosyalar gönderiliyor (node_modules ve .env hariç)"
 
-rsync -az --delete \
-  --exclude 'node_modules' \
-  --exclude '.env' \
-  --exclude '*.log' \
-  --exclude '.git' \
+rsync -az --delete -e "$RSYNC_SSH" \
+  --exclude '*.map' \
   --exclude 'tests' \
   --exclude 'coverage' \
-  "$LOCAL_DIR/dist/" "${SSH_TARGET}:${SERV00_PATH}/dist/"
+  "$LOCAL_DIR/dist/" "${SSH_TARGET}:${REMOTE_APP}/dist/"
 
-rsync -az \
+rsync -az -e "$RSYNC_SSH" \
   "${LOCAL_DIR}/package.json" \
   "${LOCAL_DIR}/package-lock.json" \
-  "${SSH_TARGET}:${SERV00_PATH}/"
-
-# Migration dosyaları
-rsync -az --delete \
-  "$LOCAL_DIR/src/db/migrations/" "${SSH_TARGET}:${SERV00_PATH}/dist/db/migrations/"
+  "${SSH_TARGET}:${REMOTE_APP}/"
 
 echo "  ✅ Dosyalar gönderildi"
 
-# --- 4. Bağımlılıkları kur ve restart ---
+# --- 4. Bağımlılıkları kur ---
 echo ""
-echo "[4/5] Uzak sunucuda bağımlılıklar kuruluyor"
+echo "[4/6] Uzak sunucuda bağımlılıklar kuruluyor"
 
-ssh "$SSH_TARGET" "
+"${SSH[@]}" "
   set -e
-  cd ~/'${SERV00_PATH}'
+  cd ~/${REMOTE_APP}
   export PATH=\$HOME/.npm-global/bin:\$HOME/bin:\$PATH
   NPM=\$(command -v npm22 || command -v npm)
   NODE=\$(command -v node22 || command -v node)
   echo \"  Node: \$(\$NODE --version)\"
-  \$NPM ci --omit=dev --no-audit --no-fund
+  \$NPM ci --omit=dev --no-audit --no-fund 2>&1 | tail -3
   echo '  ✅ Bağımlılıklar kuruldu'
 "
 
-# --- 4b. Migration'ları uygula ---
+# --- 5. Migration'ları uygula ---
 echo ""
-echo "[4b/5] Migration'lar uygulanıyor"
-ssh "$SSH_TARGET" "
+echo "[5/6] Migration'lar uygulanıyor"
+
+# --force: migrate-cli üretim hedefini görünce durur. CI/deploy zaten
+# üretim hedefiyle çalışıyor; onay bayrağı burada açıkça verilir.
+"${SSH[@]}" "
   set -e
-  cd ~/'${SERV00_PATH}'
-  node dist/db/migrate-cli.js --force 2>&1 | tail -5
-  echo '  ✅ Migration tamam'
+  cd ~/${REMOTE_APP}
+  node dist/db/migrate-cli.js --force 2>&1 | tail -4
 "
 
-# --- 5. Uygulamayı yeniden başlat ---
+# --- 6. Uygulamayı yeniden başlat ---
 echo ""
-echo "[5/5] Uygulama yeniden başlatılıyor"
+echo "[6/6] Uygulama yeniden başlatılıyor"
 
-ssh "$SSH_TARGET" "devil www restart '${SERV00_DOMAIN}' 2>&1 || echo '  ⚠️  restart komutu başarısız — panelden kontrol edin'"
+"${SSH[@]}" "devil www restart '${SERV00_DOMAIN}' 2>&1 || echo '  ⚠️  devil yok — panelden restart edin'"
 
 # --- Sağlık kontrolü ---
 echo ""
 echo "Sağlık kontrolü bekleniyor..."
-HEALTH_URL="https://${SERV00_DOMAIN}/health"
-for i in $(seq 1 10); do
-  if curl -sf --max-time 5 "$HEALTH_URL" | grep -q '"status":"ok"'; then
-    echo "  ✅ $HEALTH_URL sağlıklı"
+HEALTH_URL="https://${SERV00_DOMAIN}/health/deep"
+for i in $(seq 1 20); do
+  if curl -sf --max-time 8 "$HEALTH_URL" | grep -q '"db":"ok"'; then
+    echo "  ✅ $HEALTH_URL sağlıklı (DB dahil)"
     echo ""
     echo "=========================================="
     echo " 🎉 Deploy başarılı"
@@ -139,5 +163,6 @@ for i in $(seq 1 10); do
 done
 
 echo "  ❌ Sağlık kontrolü başarısız: $HEALTH_URL"
-echo "     Soğuk başlangıç olabilir (serv00 24 saat uyku) — 30 sn sonra tekrar deneyin."
+echo "     Soğuk başlangıç olabilir (serv00 uyku modu)."
+echo "     Geri almak için: ssh $SSH_TARGET 'cd ~/${REMOTE_APP} && tar xzf /tmp/dist-backup-<en-yeni>.tgz'"
 exit 1
