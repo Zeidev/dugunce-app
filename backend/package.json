@@ -16,7 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "lint": "tsc --noEmit",
-    "verify:migrations": "node scripts/verify-migrations.mjs"
+    "verify:migrations": "node scripts/verify-migrations.mjs",
+    "verify:email": "node scripts/verify-email-dns.mjs"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
