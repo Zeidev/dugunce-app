@@ -23,7 +23,7 @@
 | 11 | Kapanış kontrolü | — | ✅ |
 | + | *Kapanış sonrası düzeltmeler* (aşağıda) | 9 | ✅ |
 
-**Aşama 4 toplamı: 218 test** (Aşama 3 sonu 371 → **589**)
+**Aşama 4 toplamı: 237 test** (Aşama 3 sonu 371 → **608**)
 
 > **Görev sırası notu:** Plan Task 7'yi Task 8'den önce koyuyordu, ama Task 7'nin testi `GET /invitations/:token` çağırıyor — o endpoint Task 8'de oluşuyor. Plan sırası uygulanamazdı. Fiili sıra: **9 → 8 → 7 → 10 → 11** (store → route → yan etki testi). Testler aynı, sadece derlenebilir sıra.
 
@@ -46,7 +46,7 @@
 | Silinen davetlinin token'ı 404 | `store.test.ts` (gerçek Drizzle): silme sonrası `resolveInvitation` null |
 | Davetliye dönen gövde beyaz liste | `public-view.test.ts` 19 test; `PUBLIC_FIELDS` tam eşleşme; telefon/wedding_id/token_hash dönmüyor |
 | Composite FK yanlış `wedding_id` reddeder | `store.test.ts` + `migrate-guests.test.ts` + `verify-migrations.mjs` grup [7] |
-| Tüm testler geçiyor | `43 dosya, 589 passed, 9 skipped (598)` |
+| Tüm testler geçiyor | `49 dosya, 608 passed, 9 skipped (617)` |
 | Typecheck temiz | `tsc --noEmit` → 0 hata |
 
 ---
@@ -173,11 +173,11 @@ Yardımcı token'ı (≥128 bit, hesapsız), görev ataması (görev başına te
 
 | Metrik | Değer |
 |---|---|
-| Test sayısı | **589** (Aşama 3: 371) → **+218** |
-| Test dosyası | 43 |
+| Test sayısı | **608** (Aşama 3: 371) → **+237** |
+| Test dosyası | 49 |
 | Aşama 4 kaynak satırı | 1.572 |
 | Tablo | **13** (Aşama 3: 11) → +2 |
-| Endpoint | 9 yeni (7 çift + 2 davetli) |
+| Endpoint | 10 yeni (8 çift + 2 davetli) |
 
 ---
 
@@ -219,3 +219,66 @@ Yukarıdaki 12'ye ek olarak:
 | `deleteGuest` transaction sarmalayıcısı | 4 test |
 | `createInvitation` revoke çağrısı | Yenileme testi (1) |
 | `program` alan-alan kopyalama | 5 sanitizasyon testi |
+
+---
+
+## Bağımsız kod incelemesi (taze bağlam)
+
+Kapanış sonrası, kodu hiç yazmamış bir agent'a tüm dal (`7dfa767..db40ad0`) inceletildi. **2 kritik/önemli bulgu gerçekti ve doğrulandı**:
+
+### C1 (kritik) — Servis katmanı yazmada üyelik kontrolü yapmıyordu
+
+`createGuest` ve `createGuestsBulk` limit kontrolü yapıyordu, ama `countActiveGuests` ve `getPlan` **üyelik join'i** kullandığı için üye olmayan kullanıcı `count=0` / `plan=FREE` görüyor ve insert **geçiyordu**.
+
+Gerçek PGlite'ta kanıtlandı: kullanıcı B, düğün A'ya üç davetli yazdı.
+
+HTTP üzerinden erişilemiyordu (`requireWeddingMember` önce çalışıyor), ama **bu kod tabanındaki diğer tüm servisler kendi kendini koruyor** ve SECURITY §1.1 defense-in-depth olarak yazılmış. Bir gün bir job/CLI/admin yolu doğrudan çağırırsa tenant sınırı aşılırdı.
+
+**Düzeltme:** `withLimitCheck` önce `assertMember` çağırır → `NotMemberError` → **404** (403 değil; 403 düğünün varlığını sızdırır).
+
+### I1 (önemli) — Review Focus #1'in testi production koduna dokunmuyordu
+
+`limit-race.test.ts` store'u **import etmiyordu**; kendi inline SQL'inde kilidi yeniden yazıp onu test ediyordu. İncelemeci `lockWeddingForUpdate` gövdesini tamamen sildi — **151/151 test geçti**.
+
+Yani kilit üretimden kaldırılsa kimse fark etmezdi. "Kapalı" sandığım madde aslında açıktı.
+
+**Düzeltme:** `limit-lock.test.ts` gerçek `drizzleGuestDeps()`'i çalıştırır ve Drizzle'ın logger'ı üzerinden **üretilen SQL'i** denetler. Kilit gövdesi boşaltılınca 3 test kırılıyor.
+
+### Kapatılan diğer bulgular
+
+| # | Bulgu | Düzeltme |
+|---|---|---|
+| I2 | Kimlik doğrulamasız iki uçta rate limit yok | `invitationByIp` 30/dk, `rsvpByToken` 10/dk |
+| I3 | Davetiye token'ı log'a tam yazılıyordu (`req.path`) | Route pattern log'lanıyor |
+| I4 | `rsvp_source=COUPLE` belgelenmiş ama **ulaşılamaz** — çiftin telefonla gelen yanıtı girecek yolu yoktu | `setGuestRsvp` + `PATCH /guests/:id/rsvp` |
+| I5 | `updateGuest` `rsvp`'ye 400 veriyor ama `inviteStatus`'u sessizce yutuyordu | İkisi de açık hata |
+| M1 | `createInvitation` atomik değil — insert başarısız olursa davetli **tokensız** kalıyordu | Tek transaction |
+
+### Ertelenen küçük bulgular
+
+- **M2** — `limit-race.test.ts`'teki "kontrol grubu" testi bozuk invariant'ı (`31` kayıt) assert ediyor. Dürüstçe "kontrol" olarak etiketli; I1 düzeltildiği için artık gereksiz ama zararsız.
+- **M3** — `revokeInvitation`/`revokeByGuestId` neredeyse ölü kod; `deleteGuest` `revokeInvitations` kullanıyor. İki benzer yol zamanla ayrışabilir.
+- **M4** — `public-view.test.ts` fixture'ında sabit `2026-09-01` deadline'ı artık geçmişte. Belgelenmiş ama yeni okuyucuyu şaşırtır.
+- **M5** — `public-view`'de çiftin özel `note` alanının sızmadığını **isimli** bir test doğrulamıyor (genel `PUBLIC_FIELDS` eşitliği dolaylı kapsıyor).
+
+---
+
+## Tekrarlayan hata sınıfı — isimlendirilmeli
+
+Bu aşamada **beş kez** aynı hata çıktı: bir store metodu `tx` parametresi alıyor ama dış `db`'yi kullanıyor.
+
+PGlite tek bağlantı olduğu için sonuç **kilitlenme** — test 15 saniye asılı kalıyor, hata vermiyor. Gerçek PostgreSQL'de daha sinsi: sessizce transaction dışına çıkar.
+
+`store.ts` üzerinde betikli bir denetim yazıldı (`tx` alan her metot `client` seçiyor mu); şu an **temiz**.
+
+---
+
+## Nihai negatif kontrol sayısı: 20
+
+Yukarıdakilere ek:
+| Koruma | Kaldırılınca kırılan test |
+|---|---|
+| `assertMember` (C1) | 3 üyelik testi |
+| `lockWeddingForUpdate` gövdesi (I1) | 3 kilit testi |
+| `createInvitation` transaction'ı (M1) | Yenileme testi |
+| `inviteStatus` reddi (I5) | 1 test |
