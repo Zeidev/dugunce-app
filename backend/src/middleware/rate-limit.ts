@@ -140,10 +140,13 @@ export const RATE_LIMITS = {
     max: 60,
     keyFn: (req: Request): string => req.auth?.userId ?? req.ip ?? 'unknown',
   },
-  /** Görev sohbeti — yardımcı tarafı (daha sıkı: token'lı link). */
-  messageSendByHelper: {
-    windowMs: 60 * 1000,
-    max: 30,
-    keyFn: (req: Request): string => String(req.params['token'] ?? req.ip ?? 'unknown'),
-  },
+  /**
+   * Yardımcı oturum açma — KİMLİK DOĞRULAMASIZ uç (token gövdede).
+   *
+   * Token 256-bit olduğu için enumeration umutsuz, ama bu uç pahalı
+   * (hash + insert) ve serv00 havuzunu tüketebilir. IP başına sınır.
+   */
+  helperSessionByIp: { windowMs: 60 * 1000, max: 10 },
+  /** Görev sohbeti — yardımcı tarafı (oturumlu). */
+  helperMessageByIp: { windowMs: 60 * 1000, max: 60 },
 } as const

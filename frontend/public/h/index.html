@@ -144,7 +144,8 @@
  *
  * Akış:
  *   1. Token'ı #fragment'ten oku (sunucuya gitmez)
- *   2. GET /api/v1/helper/:token/tasks
+ *   2. POST /api/v1/helper/session  → kısa ömürlü oturum çerezi
+ *   3. GET /api/v1/helper/tasks     → oturumla
  *   3. Durum değiştir → PATCH (yalnızca status)
  *   4. Sohbet → GET/POST messages (sayfalı)
  *
@@ -155,6 +156,7 @@ const STATUS_LABELS = { TODO: 'Yapılacak', DOING: 'Yapılıyor', DONE: 'Bitti' 
 
 const state = {
   token: '',
+  csrf: '',
   helperName: '',
   coupleNames: '',
   tasks: [],
@@ -353,9 +355,7 @@ function toggleTask(taskId) {
 
 async function loadMessages(taskId) {
   try {
-    const res = await fetch(`${API}/helper/${encodeURIComponent(state.token)}/tasks/${taskId}/messages`, {
-      headers: { Accept: 'application/json' },
-    })
+    const res = await apiFetch(`/helper/tasks/${taskId}/messages`)
     if (!res.ok) return
     const body = await res.json()
     state.messages[taskId] = body.messages ?? []
@@ -365,18 +365,14 @@ async function loadMessages(taskId) {
 
 async function sendMessage(taskId, text) {
   try {
-    const res = await fetch(
-      `${API}/helper/${encodeURIComponent(state.token)}/tasks/${taskId}/messages`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          body: text,
-          // Ağ tekrarında kopya oluşmasın
-          idempotencyKey: `${taskId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        }),
-      },
-    )
+    const res = await apiFetch(`/helper/tasks/${taskId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        body: text,
+        // Ağ tekrarında kopya oluşmasın
+        idempotencyKey: `${taskId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      }),
+    })
     if (!res.ok) {
       toast('Mesaj gönderilemedi', true)
       return
@@ -391,14 +387,10 @@ async function sendMessage(taskId, text) {
 
 async function changeStatus(taskId, status) {
   try {
-    const res = await fetch(
-      `${API}/helper/${encodeURIComponent(state.token)}/tasks/${taskId}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ status }),
-      },
-    )
+    const res = await apiFetch(`/helper/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
     if (!res.ok) {
       toast('Durum değiştirilemedi', true)
       return
@@ -412,6 +404,45 @@ async function changeStatus(taskId, status) {
   }
 }
 
+/**
+ * Oturum aç — token gövdede, URL'de değil (SECURITY §1.2 #4).
+ * Başarılıysa çerezler tarayıcıya yazılır, CSRF değeri bellekte tutulur.
+ */
+async function openSession() {
+  const res = await fetch(`${API}/helper/session`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ token: state.token }),
+  })
+  if (!res.ok) return false
+  const body = await res.json()
+  state.csrf = body.csrfToken
+  state.helperName = body.helperName
+  state.coupleNames = body.coupleNames
+  return true
+}
+
+/** Ortak fetch — çerez + CSRF; oturum düştüyse bir kez yeniler. */
+async function apiFetch(path, options = {}) {
+  const build = () => ({
+    credentials: 'include',
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(state.csrf ? { 'X-CSRF-Token': state.csrf } : {}),
+      ...(options.headers ?? {}),
+    },
+  })
+  let res = await fetch(`${API}${path}`, build())
+  if (res.status === 401 && state.token) {
+    // Oturum süresi dolmuş olabilir; token hâlâ geçerliyse yeniden aç
+    if (await openSession()) res = await fetch(`${API}${path}`, build())
+  }
+  return res
+}
+
 async function load() {
   state.token = getToken()
   if (!state.token) {
@@ -421,9 +452,18 @@ async function load() {
   }
 
   try {
-    const res = await fetch(`${API}/helper/${encodeURIComponent(state.token)}/tasks`, {
-      headers: { Accept: 'application/json' },
-    })
+    // Uzun ömürlü token yalnızca oturum açar; veri istekleri çerezle.
+    const opened = await openSession()
+    if (!opened) {
+      $('errorText').textContent =
+        'Bu bağlantı geçersiz veya erişimi kapatılmış. Lütfen çift ile iletişime geçin.'
+      show('error')
+      return
+    }
+    // Token artık gerekmedi: adres çubuğundan ve geçmişten temizle
+    if (location.hash) history.replaceState(null, '', location.pathname)
+
+    const res = await apiFetch('/helper/tasks')
 
     if (res.status === 404) {
       $('errorText').textContent =
@@ -434,8 +474,8 @@ async function load() {
     if (!res.ok) throw new Error('HTTP ' + res.status)
 
     const body = await res.json()
-    state.helperName = body.helperName
-    state.coupleNames = body.coupleNames
+    state.helperName = body.helperName ?? state.helperName
+    state.coupleNames = body.coupleNames ?? state.coupleNames
     state.tasks = body.tasks ?? []
 
     $('greeting').textContent = `Merhaba ${state.helperName}`

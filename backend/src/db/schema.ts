@@ -440,11 +440,54 @@ export const helpers = pgTable(
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     /** Erişimin son görülme anı — 5 dk'da bir güncellenir. */
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    /**
+     * Davet linkinin (token'ın) son geçerlilik anı — SECURITY §1.2 #3.
+     *
+     * NULL: süresiz (yalnızca eski kayıtlar için; yeni kayıtlar her zaman
+     * tarih alır). Süresi geçen token `resolveHelperToken` tarafında 404.
+     */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     idWeddingUnique: unique('helpers_id_wedding_unique').on(table.id, table.weddingId),
     weddingIdx: index('helpers_wedding_idx').on(table.weddingId),
+  }),
+)
+
+/**
+ * helper_sessions — yardımcının KISA ÖMÜRLÜ oturumu (SECURITY §1.2 #4).
+ *
+ * Token (uzun ömürlü davet linki) yalnızca oturum açmak için bir kez
+ * kullanılır; veri istekleri bu tablodaki oturumla yapılır. Böylece uzun
+ * ömürlü sır URL'de her istekte taşınmaz.
+ *
+ * Ham oturum değeri DB'de YOKTUR — yalnızca SHA-256 (token ile aynı kural).
+ */
+export const helperSessions = pgTable(
+  'helper_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    helperId: uuid('helper_id').notNull(),
+    weddingId: uuid('wedding_id').notNull(),
+    /** Ham oturum değeri değil, SHA-256. */
+    sessionHash: text('session_hash').notNull().unique(),
+    /** CSRF double-submit için ham değerin SHA-256'sı. */
+    csrfHash: text('csrf_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Kayan pencere: her kullanımda ileri taşınır, `createdAt` tavanı ayrı. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => ({
+    // Yardımcı silinirse oturumları da gider; düğünler arası eşleşme imkânsız.
+    helperFk: foreignKey({
+      columns: [table.helperId, table.weddingId],
+      foreignColumns: [helpers.id, helpers.weddingId],
+      name: 'helper_sessions_helper_fk',
+    }).onDelete('cascade'),
+    expiresIdx: index('helper_sessions_expires_idx').on(table.expiresAt),
+    helperIdx: index('helper_sessions_helper_idx').on(table.helperId),
   }),
 )
 

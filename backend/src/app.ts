@@ -44,6 +44,9 @@ export interface CreateAppOptions {
   helperStore?: ReturnType<typeof import('./helpers/store.js').drizzleHelperDeps>
   taskStore?: ReturnType<typeof import('./tasks/store.js').drizzleTaskDeps>
   messageStore?: ReturnType<typeof import('./messages/store.js').drizzleMessageDeps>
+  sessionStore?: ReturnType<typeof import('./helpers/session-store.js').drizzleSessionDeps>
+  /** Testlerde IP bazlı sınırları kapatmak için. */
+  helperRateLimit?: boolean
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -123,13 +126,15 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }),
   )
 
-  // Yardımcı uygulaması — token tek yetki, auth YOK
+  // Yardımcı uygulaması — token yalnızca oturum açar, veri istekleri oturumla
   app.use(
     '/api/v1/helper',
     createHelperAppRouter({
       ...(options.helperStore ? { helperStore: options.helperStore } : {}),
       ...(options.taskStore ? { taskStore: options.taskStore } : {}),
       ...(options.messageStore ? { messageStore: options.messageStore } : {}),
+      ...(options.sessionStore ? { sessionStore: options.sessionStore } : {}),
+      ...(options.helperRateLimit === false ? { rateLimit: false } : {}),
     }),
   )
 

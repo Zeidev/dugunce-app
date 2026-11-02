@@ -6,10 +6,11 @@ import { hashToken } from '../lib/crypto.js'
  * Yardımcının hesabı olmadığı için (SECURITY §1.2) tek yetki kaynağı
  * URL'deki token'dır. Ham token DB'de tutulmaz; yalnızca SHA-256 hash.
  *
- * Doğrulama üç kapıdan geçer:
+ * Doğrulama dört kapıdan geçer:
  * 1. Hash'le eşleşen kayıt var mı
  * 2. Token revoke edilmiş mi
- * 3. Düğün silinmiş mi
+ * 3. Token'ın süresi dolmuş mu
+ * 4. Düğün silinmiş mi
  */
 
 /**
@@ -27,6 +28,8 @@ export interface HelperTokenRow {
   displayName: string
   tokenRevokedAt: Date | null
   lastSeenAt: Date | null
+  /** Token'ın son geçerlilik anı — SECURITY §1.2 #3. */
+  expiresAt: Date | null
   wedding: {
     id: string
     coupleNames: string
@@ -54,6 +57,8 @@ export async function resolveHelperToken(
   const row = await deps.findByTokenHash(hashToken(rawToken))
   if (!row) return null
   if (row.tokenRevokedAt) return null
+  // Süresi dolmuş davet linki ölü (SECURITY §1.2 #3)
+  if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return null
   // Silinmiş veya arşivlenmiş düğünün yardımcısı erişemez
   if (row.wedding.status !== 'ACTIVE') return null
 

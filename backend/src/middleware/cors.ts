@@ -32,6 +32,15 @@ const ALLOWED_ORIGINS = [
 export interface CorsOptions {
   /** Test için genişletilebilir. Verilmezse varsayılan liste. */
   allowedOrigins?: string[]
+  /**
+   * Cookie tabanlı uçlar için `true`. Yalnızca beyaz listedeki origin'ler
+   * yansıtıldığı için wildcard'a dönüşmez.
+   */
+  credentials?: boolean
+  /** İzinli istek başlıkları (CSRF başlığı dahil). */
+  allowedHeaders?: string[]
+  /** İzinli metotlar. */
+  allowedMethods?: string[]
 }
 
 /**
@@ -52,8 +61,15 @@ export function corsForInvitations(options: CorsOptions = {}): RequestHandler {
 
     if (typeof origin === 'string' && allowed.has(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin)
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept')
+      res.setHeader(
+        'Access-Control-Allow-Methods',
+        (options.allowedMethods ?? ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']).join(', '),
+      )
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        (options.allowedHeaders ?? ['Content-Type', 'Accept']).join(', '),
+      )
+      if (options.credentials) res.setHeader('Access-Control-Allow-Credentials', 'true')
       // Hassas veri: sonuç cache'lenmesin
       res.setHeader('Access-Control-Max-Age', '600')
     }

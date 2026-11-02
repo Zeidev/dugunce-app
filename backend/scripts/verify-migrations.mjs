@@ -414,6 +414,70 @@ try {
   if (afterT.rows[0].c === 0) ok('CASCADE: görev → mesajlar silindi')
   else bad(`CASCADE çalışmadı: ${afterT.rows[0].c} mesaj kaldı`)
 
+  // --- [9] Yardımcı oturumu (SECURITY §1.2 #4) ---
+  console.log('\n[9] Yardımcı oturumu')
+  const hExp = await db.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_name='helpers'`,
+  )
+  if (hExp.rows.map((r) => r.column_name).includes('expires_at')) {
+    ok('helpers.expires_at kolonu VAR (token TTL)')
+  } else {
+    bad('helpers.expires_at kolonu yok — token süresiz kalır')
+  }
+  const sess = await db.query(
+    `INSERT INTO helper_sessions (helper_id, wedding_id, session_hash, csrf_hash, expires_at)
+     VALUES ($1,$2,'verify-session-hash','verify-csrf-hash', now() + interval '30 minutes')
+     RETURNING id, expires_at`,
+    [hid, wid],
+  )
+  const sessId = sess.rows[0].id
+  if (sess.rows[0].expires_at) ok('helper_sessions kaydı eklendi (TTL zorunlu)')
+  else bad('expires_at boş kaldı')
+  try {
+    await db.query(
+      `INSERT INTO helper_sessions (helper_id, wedding_id, session_hash, csrf_hash, expires_at)
+       VALUES ($1,$2,'verify-session-hash','x', now() + interval '1 hour')`,
+      [hid, wid],
+    )
+    bad('session_hash UNIQUE çalışmadı')
+  } catch {
+    ok('session_hash UNIQUE çalışıyor')
+  }
+  // expires_at NOT NULL
+  try {
+    await db.query(
+      `INSERT INTO helper_sessions (helper_id, wedding_id, session_hash, csrf_hash)
+       VALUES ($1,$2,'no-expiry-hash','x')`,
+      [hid, wid],
+    )
+    bad('expires_at NOT NULL değil — süresiz oturum yazılabildi')
+  } catch {
+    ok('expires_at NOT NULL')
+  }
+  // COMPOSITE FK: başka düğünle oturum açılamaz
+  const otherW2 = await db.query(
+    `INSERT INTO weddings (couple_names, wedding_date) VALUES ('S & S','2027-03-03') RETURNING id`,
+  )
+  try {
+    await db.query(
+      `INSERT INTO helper_sessions (helper_id, wedding_id, session_hash, csrf_hash, expires_at)
+       VALUES ($1,$2,'wrong-wedding-session','x', now() + interval '1 hour')`,
+      [hid, otherW2.rows[0].id],
+    )
+    bad('COMPOSITE FK çalışmadı — yanlış wedding_id ile oturum açıldı')
+  } catch {
+    ok('COMPOSITE FK yanlış wedding_id reddediyor')
+  }
+  await db.query(`DELETE FROM weddings WHERE id=$1`, [otherW2.rows[0].id])
+  // CASCADE: yardımcı silinince oturumları gider
+  await db.query(`DELETE FROM helpers WHERE id=$1`, [hid])
+  const afterH = await db.query(
+    `SELECT count(*)::int AS c FROM helper_sessions WHERE id=$1`,
+    [sessId],
+  )
+  if (afterH.rows[0].c === 0) ok('CASCADE: yardımcı → oturumları silindi')
+  else bad(`CASCADE çalışmadı: ${afterH.rows[0].c} oturum kaldı`)
+
   // Düğün silinince üyelik + davet CASCADE
   await db.query(`DELETE FROM weddings WHERE id=$1`, [wid])
   const afterW = await db.query(

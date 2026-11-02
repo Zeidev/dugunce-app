@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { AppError } from '../lib/errors.js'
+import { hashToken } from '../lib/crypto.js'
 import { resolveHelperToken } from '../helpers/token.js'
 import { toHelperTaskList } from '../tasks/helper-view.js'
 import { toHelperMessageList, toHelperMessageView } from '../messages/helper-view.js'
@@ -12,17 +13,35 @@ import {
 import { drizzleHelperDeps } from '../helpers/store.js'
 import { drizzleTaskDeps } from '../tasks/store.js'
 import { drizzleMessageDeps } from '../messages/store.js'
+import { drizzleSessionDeps } from '../helpers/session-store.js'
+import {
+  openSession,
+  loadSession,
+  verifyCsrf,
+  readCookie,
+  sessionCookie,
+  csrfCookie,
+  clearSessionCookies,
+  SESSION_COOKIE,
+  CSRF_COOKIE,
+  CSRF_HEADER,
+  SESSION_TTL_MS,
+  type SessionContext,
+} from '../helpers/session.js'
 import { createRateLimit, RATE_LIMITS } from '../middleware/rate-limit.js'
 import { corsForInvitations } from '../middleware/cors.js'
 
 /**
- * Yardımcı uygulaması — KİMLİK DOĞRULAMASI YOK.
+ * Yardımcı uygulaması — çift hesabı YOK, yalnızca token → oturum.
  *
- * Tek yetki kaynağı URL'deki token'dır. Yardımcının hesabı yoktur
- * (SECURITY §1.2), uygulama kurmaz, tarayıcıdan açar.
+ * SECURITY §1.2:
+ * - #4: Uzun ömürlü token her istekte URL'de taşınmaz. `POST /session`
+ *   gövdesindeki token bir kez doğrulanır, karşılığında 30 dk'lık kısa
+ *   ömürlü, iptal edilebilir oturum (HttpOnly cookie) verilir.
+ * - #6: Revoke edilmiş yardımcının oturumu ilk istekte ölür (join'de
+ *   `token_revoked_at IS NULL` koşulu).
  *
- * KRİTİK: Her sorgu `assignee_helper_id = helperId` ile kapsamlıdır.
- * `task_id` tahmin edilse bile başkasının görevi dönmez (Review Focus #2).
+ * KRİTİK: Her görev sorgusu `assignee_helper_id = helperId` ile kapsamlıdır.
  */
 
 /** Yardımcının değiştirebileceği TEK alan. */
@@ -32,14 +51,23 @@ export function createHelperAppRouter(deps?: {
   helperStore?: ReturnType<typeof drizzleHelperDeps>
   taskStore?: ReturnType<typeof drizzleTaskDeps>
   messageStore?: ReturnType<typeof drizzleMessageDeps>
+  sessionStore?: ReturnType<typeof drizzleSessionDeps>
   rateLimit?: boolean
+  /** Test için: çerezleri Secure'suz üret. */
+  secureCookies?: boolean
 }): Router {
   const router = Router()
   const helperStore = deps?.helperStore ?? drizzleHelperDeps()
   const taskStore = deps?.taskStore ?? drizzleTaskDeps()
   const msgStore = deps?.messageStore ?? drizzleMessageDeps()
+  const sessionStore = deps?.sessionStore ?? drizzleSessionDeps()
 
-  router.use(corsForInvitations())
+  const secure = deps?.secureCookies ?? process.env['NODE_ENV'] === 'production'
+  const cookieBase = { secure, path: '/api/v1/helper' }
+
+  router.use(
+    corsForInvitations({ credentials: true, allowedHeaders: ['Content-Type', 'Accept', CSRF_HEADER] }),
+  )
 
   // Cache'lenmemeli, indekslenmemeli, referrer sızdırmamalı.
   router.use((_req, res, next) => {
@@ -50,120 +78,170 @@ export function createHelperAppRouter(deps?: {
   })
 
   const limitEnabled = deps?.rateLimit !== false
-  const viewLimiter = limitEnabled
-    ? createRateLimit(RATE_LIMITS.invitationByIp)
-    : (_req: Request, _res: Response, next: NextFunction) => next()
-  const sendLimiter = limitEnabled
-    ? createRateLimit(RATE_LIMITS.messageSendByHelper)
-    : (_req: Request, _res: Response, next: NextFunction) => next()
+  const skip = (_req: Request, _res: Response, next: NextFunction): void => next()
+  const loginLimiter = limitEnabled
+    ? createRateLimit(RATE_LIMITS.helperSessionByIp)
+    : skip
+  const readLimiter = limitEnabled ? createRateLimit(RATE_LIMITS.invitationByIp) : skip
+  const writeLimiter = limitEnabled ? createRateLimit(RATE_LIMITS.helperMessageByIp) : skip
 
-  /** Token'ı çözer; geçersizse 404. */
-  async function authenticate(
+  /** Oturumu çözer; yoksa 401. */
+  async function requireSession(
     req: Request,
-    res: Response,
+    _res: Response,
     next: NextFunction,
-  ): Promise<{ helperId: string; weddingId: string; displayName: string; coupleNames: string } | null> {
-    const token = String(req.params['token'] ?? '')
-    const row = await resolveHelperToken(token, helperStore)
-    if (!row) {
-      next(AppError.notFound('Bağlantı geçersiz veya süresi dolmuş'))
+  ): Promise<SessionContext | null> {
+    const raw = readCookie(req.headers.cookie, SESSION_COOKIE)
+    const ctx = raw ? await loadSession(raw, sessionStore) : null
+    if (!ctx) {
+      next(AppError.unauthorized('Oturum gerekli veya süresi dolmuş'))
       return null
     }
-    return {
-      helperId: row.id,
-      weddingId: row.weddingId,
-      displayName: row.displayName,
-      coupleNames: row.wedding.coupleNames,
-    }
+    return ctx
   }
 
-  // --- Kendi görevleri ---
-  router.get('/:token/tasks', viewLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  /**
+   * CSRF — double-submit + Origin kontrolü.
+   *
+   * Cookie cross-site gittiği için SameSite tek başına yetmez: başka bir
+   * site kurbanın tarayıcısından istek atarsa cookie gider. Başlıktaki
+   * değer yalnızca aynı origin'deki JS tarafından bilinir.
+   */
+  function requireCsrf(req: Request, ctx: SessionContext, next: NextFunction): boolean {
+    const raw = readCookie(req.headers.cookie, CSRF_COOKIE)
+    const header = req.headers[CSRF_HEADER]
+    if (!raw || !header || raw !== header || !verifyCsrf(header, ctx.csrfHash)) {
+      next(AppError.forbidden('CSRF doğrulaması başarısız'))
+      return false
+    }
+    return true
+  }
+
+  // --- Oturum açma: token BİR KEZ, gövdede ---
+  router.post('/session', loginLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const who = await authenticate(req, res, next)
-      if (!who) return
+      const token = (req.body as { token?: unknown } | undefined)?.token
+      if (typeof token !== 'string' || token.length === 0) {
+        next(AppError.badRequest('Bağlantı gerekli'))
+        return
+      }
 
-      // SADECE kendi görevleri — assigneeHelperId ile kapsamlı
-      const tasks = await taskStore.listForHelper(who.weddingId, who.helperId)
+      const helper = await resolveHelperToken(token, helperStore)
+      if (!helper) {
+        next(AppError.notFound('Bağlantı geçersiz veya süresi dolmuş'))
+        return
+      }
 
-      // Çift bilgisi (kim için çalıştığını bilsin)
+      const opened = await openSession(helper, sessionStore)
+      const maxAgeSec = Math.floor(SESSION_TTL_MS / 1000)
+      res.setHeader('Set-Cookie', [
+        sessionCookie(opened.session, maxAgeSec, cookieBase),
+        csrfCookie(opened.csrf, maxAgeSec, cookieBase),
+      ])
+
+      res.status(201).json({
+        helperName: helper.displayName,
+        coupleNames: helper.wedding.coupleNames,
+        csrfToken: opened.csrf,
+        expiresIn: maxAgeSec,
+      })
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  // --- Oturum kapatma ---
+  router.delete('/session', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const ctx = await requireSession(req, res, next)
+      if (!ctx) return
+      if (!requireCsrf(req, ctx, next)) return
+
+      const raw = readCookie(req.headers.cookie, SESSION_COOKIE)
+      if (raw) await sessionStore.deleteByHash(hashToken(raw))
+      res.setHeader('Set-Cookie', clearSessionCookies(cookieBase))
+      res.status(204).end()
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  // --- Kendi görevleri ---
+  router.get('/tasks', readLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const ctx = await requireSession(req, res, next)
+      if (!ctx) return
+
+      const tasks = await taskStore.listForHelper(ctx.weddingId, ctx.helperId)
       const view = toHelperTaskList(tasks, {
-        id: who.weddingId,
-        coupleNames: who.coupleNames,
+        id: ctx.weddingId,
+        coupleNames: ctx.coupleNames,
         weddingDate: null,
         venueName: null,
         deletedAt: null,
       })
 
-      res.json({ helperName: who.displayName, coupleNames: who.coupleNames, tasks: view })
+      res.json({ helperName: ctx.displayName, coupleNames: ctx.coupleNames, tasks: view })
     } catch (err) {
       next(err)
     }
   })
 
   // --- Görev durumu değiştir ---
-  router.patch(
-    '/:token/tasks/:taskId',
-    async (req: Request, res: Response, next: NextFunction) => {
-      try {
-        const who = await authenticate(req, res, next)
-        if (!who) return
+  router.patch('/tasks/:taskId', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const ctx = await requireSession(req, res, next)
+      if (!ctx) return
+      if (!requireCsrf(req, ctx, next)) return
 
-        const body = req.body as Record<string, unknown>
-        const keys = Object.keys(body ?? {})
+      const body = req.body as Record<string, unknown>
+      const keys = Object.keys(body ?? {})
 
-        // Yardımcı YALNIZCA status değiştirebilir.
-        if (keys.length === 0 || keys.some((k) => !ALLOWED_HELPER_PATCH.includes(k as never))) {
-          next(
-            AppError.badRequest(
-              'Yardımcı yalnızca görev durumunu değiştirebilir',
-            ),
-          )
-          return
-        }
-
-        const status = body['status']
-        if (status !== 'TODO' && status !== 'DOING' && status !== 'DONE') {
-          next(AppError.badRequest('Geçersiz durum'))
-          return
-        }
-
-        // SADECE kendi görevi — `assignee_helper_id` WHERE koşulunda.
-        // task_id tahmin edilse bile başkasının görevi güncellenmez.
-        const updated = await taskStore.updateTaskStatusAsHelper(
-          String(req.params['taskId']),
-          status,
-          who.helperId,
-          who.weddingId,
-        )
-        if (!updated) {
-          next(AppError.notFound('Görev bulunamadı'))
-          return
-        }
-        res.json({ task: { id: updated.id, status: updated.status } })
-      } catch (err) {
-        next(err)
+      // Yardımcı YALNIZCA status değiştirebilir.
+      if (keys.length === 0 || keys.some((k) => !ALLOWED_HELPER_PATCH.includes(k as never))) {
+        next(AppError.badRequest('Yardımcı yalnızca görev durumunu değiştirebilir'))
+        return
       }
-    },
-  )
+
+      const status = body['status']
+      if (status !== 'TODO' && status !== 'DOING' && status !== 'DONE') {
+        next(AppError.badRequest('Geçersiz durum'))
+        return
+      }
+
+      const updated = await taskStore.updateTaskStatusAsHelper(
+        String(req.params['taskId']),
+        status,
+        ctx.helperId,
+        ctx.weddingId,
+      )
+      if (!updated) {
+        next(AppError.notFound('Görev bulunamadı'))
+        return
+      }
+      res.json({ task: { id: updated.id, status: updated.status } })
+    } catch (err) {
+      next(err)
+    }
+  })
 
   // --- Görev sohbeti ---
   router.get(
-    '/:token/tasks/:taskId/messages',
-    viewLimiter,
+    '/tasks/:taskId/messages',
+    readLimiter,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
-        const who = await authenticate(req, res, next)
-        if (!who) return
+        const ctx = await requireSession(req, res, next)
+        if (!ctx) return
 
         const q = req.query as Record<string, string | undefined>
         const limit = q['limit'] ? Number(q['limit']) : undefined
 
         const messages = await listMessages(
           {
-            weddingId: who.weddingId,
+            weddingId: ctx.weddingId,
             taskId: String(req.params['taskId']),
-            viewer: { kind: 'HELPER', helperId: who.helperId },
+            viewer: { kind: 'HELPER', helperId: ctx.helperId },
             ...(limit !== undefined ? { limit } : {}),
             ...(q['before'] ? { before: q['before'] } : {}),
           },
@@ -177,19 +255,20 @@ export function createHelperAppRouter(deps?: {
   )
 
   router.post(
-    '/:token/tasks/:taskId/messages',
-    sendLimiter,
+    '/tasks/:taskId/messages',
+    writeLimiter,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
-        const who = await authenticate(req, res, next)
-        if (!who) return
+        const ctx = await requireSession(req, res, next)
+        if (!ctx) return
+        if (!requireCsrf(req, ctx, next)) return
 
         const body = req.body as { body?: unknown; idempotencyKey?: unknown }
         const message = await sendMessage(
           {
-            weddingId: who.weddingId,
+            weddingId: ctx.weddingId,
             taskId: String(req.params['taskId']),
-            sender: { kind: 'HELPER', helperId: who.helperId },
+            sender: { kind: 'HELPER', helperId: ctx.helperId },
             body: body?.body,
             ...(typeof body?.idempotencyKey === 'string'
               ? { idempotencyKey: body.idempotencyKey }

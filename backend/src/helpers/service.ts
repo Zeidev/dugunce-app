@@ -14,6 +14,14 @@ export const MAX_HELPER_NAME = 60
 export const FREE_HELPER_LIMIT = 1
 export const PREMIUM_HELPER_LIMIT = 5
 
+/**
+ * Davet linki (token) ömrü — SECURITY §1.2 #3.
+ *
+ * 90 gün: düğün hazırlığı boyunca yeterli; kaybolan telefonun linki sonsuza
+ * kadar yaşamaz. Çift isterse yeni token üretir (eskisi ölür).
+ */
+export const HELPER_TOKEN_TTL_DAYS = 90
+
 export class HelperLimitError extends Error {
   constructor(
     public readonly limit: number,
@@ -157,6 +165,7 @@ export async function createHelper(
         weddingId: params.weddingId,
         displayName: input.displayName,
         accessTokenHash,
+        expiresAt: new Date(Date.now() + HELPER_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
         createdBy: params.userId,
       },
       tx,

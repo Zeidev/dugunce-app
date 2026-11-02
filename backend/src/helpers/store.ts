@@ -177,6 +177,7 @@ export function drizzleHelperDeps(
           displayName: helpers.displayName,
           tokenRevokedAt: helpers.tokenRevokedAt,
           lastSeenAt: helpers.lastSeenAt,
+          expiresAt: helpers.expiresAt,
           wedding: {
             id: weddings.id,
             coupleNames: weddings.coupleNames,
