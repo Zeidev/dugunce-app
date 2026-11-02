@@ -1,0 +1,72 @@
+name: deploy-backend
+
+# Manuel tetiklenir — otomatik deploy yok.
+# Gerekçe: SECURITY §1.5 ve plan Aşama 1 — ilk deploy'lar kontrollü olmalı.
+# GitHub Environment "production" onay gerektirir (Settings > Environments).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Deploy etmek için "deploy" yazın'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Onay kontrolü
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm input
+        run: |
+          if [ "${{ inputs.confirm }}" != "deploy" ]; then
+            echo "::error::Onay metni hatalı. 'deploy' yazmalısınız."
+            exit 1
+          fi
+          echo "Onay alındı"
+
+  deploy:
+    name: Build & Deploy
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install & Build
+        working-directory: backend
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERV00_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.SERV00_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy
+        env:
+          SERV00_HOST: ${{ secrets.SERV00_HOST }}
+          SERV00_USER: ${{ secrets.SERV00_USER }}
+          SERV00_DOMAIN: ${{ secrets.SERV00_DOMAIN }}
+        run: ./scripts/deploy-serv00.sh
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
