@@ -35,6 +35,7 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(compose.ui)
 
             implementation(libs.kotlinx.coroutines.core)
@@ -43,6 +44,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.json)
             implementation(libs.multiplatform.settings)
+            implementation(libs.kotlinx.datetime)
         }
 
         androidMain.dependencies {
@@ -58,6 +60,7 @@ kotlin {
 
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

@@ -46,6 +46,10 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle.kts', 'mobile/gradle/libs.versions.toml') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      - name: Unit tests (commonTest)
+        working-directory: mobile
+        run: ./gradlew :composeApp:allTests --no-daemon --stacktrace
+
       - name: Build debug APK
         working-directory: mobile
         run: ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace

@@ -1,20 +1,31 @@
 package com.dugunce.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,225 +35,475 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.BudgetSummaryDto
 import com.dugunce.app.data.ExpenseDto
+import com.dugunce.app.data.InstallmentDto
 import com.dugunce.app.data.Money
 import com.dugunce.app.data.Repository
-import com.dugunce.app.ui.theme.DugunceColors
+import com.dugunce.app.ui.components.DugunceCard
+import com.dugunce.app.ui.components.EmptyState
+import com.dugunce.app.ui.components.ErrorState
+import com.dugunce.app.ui.components.LoadingState
+import com.dugunce.app.ui.components.MoneyText
+import com.dugunce.app.ui.components.SectionHeader
+import com.dugunce.app.ui.components.StatusChip
+import com.dugunce.app.ui.components.StatusTone
+import com.dugunce.app.ui.components.TopBar
+import com.dugunce.app.ui.theme.DugunceTheme
+import com.dugunce.app.ui.theme.Radius
+import com.dugunce.app.ui.theme.Spacing
+import com.dugunce.app.util.Dates
 
 /**
- * Bütçe ekranı.
+ * Bütçe ekranı — brief §5.3.
  *
- * KRİTİK AYRIM (SECURITY §10.1 #7): "toplam harcama" ile "bu ay ödenecek"
+ * KRİTİK (SECURITY §10.1 #7): "toplam harcama" ile "bu ay ödenecek"
  * AYRI gösterilir. Karışırsa bütçe iki katı görünür.
  */
 @Composable
 fun BudgetScreen(
     repository: Repository,
     weddingId: String,
+    onAddExpense: () -> Unit,
+    onOpenExpense: (String) -> Unit,
+    onOpenCalendar: () -> Unit,
 ) {
-    var summary by remember { mutableStateOf<BudgetSummaryDto?>(null) }
-    var expenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
+    val c = DugunceTheme.colors
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var summary by remember { mutableStateOf<BudgetSummaryDto?>(null) }
+    var expenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
+    var reloadKey by remember { mutableStateOf(0) }
+    var filterSide by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(weddingId) {
+    LaunchedEffect(weddingId, reloadKey) {
         loading = true
+        error = null
         val s = repository.budgetSummary(weddingId)
         val e = repository.listExpenses(weddingId)
-
+        if (s.isFailure) {
+            error = s.exceptionOrNull()?.message ?: "Bütçe yüklenemedi"
+            loading = false
+            return@LaunchedEffect
+        }
         summary = s.getOrNull()
         expenses = e.getOrNull() ?: emptyList()
-        error = when {
-            s.isFailure -> "Bütçe yüklenemedi"
-            e.isFailure -> "Harcamalar yüklenemedi"
-            else -> null
-        }
         loading = false
     }
 
-    if (loading) {
-        Column(
-            Modifier.fillMaxSize().padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            CircularProgressIndicator(color = DugunceColors.Accent)
-        }
-        return
-    }
+    val filtered = if (filterSide == null) expenses else expenses.filter { it.paidBySide == filterSide }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item {
-            Text(
-                text = "Bütçe",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
+    Box(Modifier.fillMaxSize().background(c.cream)) {
+        when {
+            loading -> LoadingState(Modifier.fillMaxSize(), "Bütçe yükleniyor…")
+
+            error != null -> ErrorState(
+                error!!,
+                onRetry = { reloadKey++ },
+                modifier = Modifier.fillMaxSize(),
             )
-        }
 
-        error?.let { msg ->
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = DugunceColors.DangerSoft,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = msg,
-                        color = DugunceColors.Danger,
-                        modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
-        }
+            expenses.isEmpty() -> EmptyState(
+                title = "Henüz harcama yok",
+                description = "İlk harcamanı ekle — düğün hazırlığında ne harcadığını " +
+                    "görmeye başla. Taksitli alışverişte aylık yük de hesaplanır.",
+                icon = Icons.Filled.AccountBalanceWallet,
+                actionLabel = "Harcama ekle",
+                onAction = onAddExpense,
+                modifier = Modifier.align(Alignment.Center),
+            )
 
-        summary?.let { s ->
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = DugunceColors.Accent,
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Toplam harcama",
-                            color = DugunceColors.AccentSoft,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                        Text(
-                            text = Money.formatKurus(s.totalSpentKurus),
-                            color = androidx.compose.ui.graphics.Color.White,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+            else -> LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = Spacing.screenH,
+                    vertical = Spacing.md,
+                ),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                item { SummaryCards(summary = summary, onOpenCalendar = onOpenCalendar) }
+
+                val byCategory = summary?.byCategory ?: emptyList()
+                if (byCategory.isNotEmpty()) {
+                    item { SectionHeader("Kategori dağılımı") }
+                    item {
+                        DugunceCard {
+                            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                byCategory.take(6).forEach { cat ->
+                                    CategoryRow(
+                                        cat.categoryName,
+                                        cat.totalKurus,
+                                        summary?.totalSpentKurus ?: "0",
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
-            }
 
-            item {
+                item { SectionHeader("Harcamalar") }
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        item { FilterPill("Tümü", filterSide == null) { filterSide = null } }
+                        item { FilterPill("Gelin", filterSide == "BRIDE") { filterSide = "BRIDE" } }
+                        item { FilterPill("Damat", filterSide == "GROOM") { filterSide = "GROOM" } }
+                        item { FilterPill("Ortak", filterSide == "SHARED") { filterSide = "SHARED" } }
+                    }
+                }
+
+                items(filtered, key = { it.id }) { expense ->
+                    ExpenseRow(expense) { onOpenExpense(expense.id) }
+                }
+
+                item { Spacer(Modifier.height(Spacing.xxl)) }
+            }
+        }
+
+        if (!loading && error == null && expenses.isNotEmpty()) {
+            Surface(
+                onClick = onAddExpense,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.lg),
+                shape = RoundedCornerShape(Radius.pill),
+                color = c.sage,
+                shadowElevation = 6.dp,
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    StatCard(
-                        label = "Bu ay",
-                        value = Money.formatKurus(s.dueThisMonthKurus),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatCard(
-                        label = "Kalan yükümlülük",
-                        value = Money.formatKurus(s.remainingCommitmentKurus),
-                        modifier = Modifier.weight(1f),
+                    Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text(
+                        "Harcama",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
                     )
                 }
             }
         }
+    }
+}
 
-        item {
-            Text(
-                text = "Harcamalar",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-        }
-
-        if (expenses.isEmpty()) {
-            item {
+@Composable
+private fun SummaryCards(summary: BudgetSummaryDto?, onOpenCalendar: () -> Unit) {
+    val c = DugunceTheme.colors
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(Radius.lg),
+            color = c.sage,
+        ) {
+            Column(Modifier.padding(Spacing.lg)) {
+                Text("Toplam harcama", style = MaterialTheme.typography.labelMedium, color = c.sageSoft)
+                Spacer(Modifier.height(Spacing.xs))
+                MoneyText(
+                    Money.formatKurus(summary?.totalSpentKurus ?: "0"),
+                    big = true,
+                    color = Color.White,
+                )
+                Spacer(Modifier.height(Spacing.xs))
                 Text(
-                    text = "Henüz harcama eklenmemiş.",
-                    color = DugunceColors.Muted,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 8.dp),
+                    "Taksitler burada TEKRAR sayılmaz — satın alma bir kez görünür.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.sageSoft,
                 )
             }
         }
 
-        items(expenses) { expense ->
-            ExpenseRow(expense)
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Surface(
+                onClick = onOpenCalendar,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(Radius.md),
+                color = c.surface,
+            ) {
+                Column(Modifier.padding(Spacing.md)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Schedule,
+                            contentDescription = null,
+                            tint = c.warning,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(Spacing.xs))
+                        Text("Bu ay", style = MaterialTheme.typography.labelSmall, color = c.muted)
+                    }
+                    Spacer(Modifier.height(Spacing.xs))
+                    MoneyText(Money.formatKurus(summary?.dueThisMonthKurus ?: "0"), color = c.warning)
+                }
+            }
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(Radius.md),
+                color = c.surface,
+            ) {
+                Column(Modifier.padding(Spacing.md)) {
+                    Text("Kalan taahhüt", style = MaterialTheme.typography.labelSmall, color = c.muted)
+                    Spacer(Modifier.height(Spacing.xs))
+                    MoneyText(Money.formatKurus(summary?.remainingCommitmentKurus ?: "0"))
+                }
+            }
         }
-
-        item { Spacer(Modifier.height(24.dp)) }
     }
 }
 
 @Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DugunceColors.Surface),
-        modifier = modifier,
-    ) {
-        Column(Modifier.padding(16.dp)) {
+private fun CategoryRow(name: String, totalKurus: String, grandTotal: String) {
+    val c = DugunceTheme.colors
+    val total = totalKurus.toLongOrNull() ?: 0L
+    val grand = grandTotal.toLongOrNull() ?: 1L
+    val ratio = if (grand <= 0) 0f else (total.toFloat() / grand).coerceIn(0f, 1f)
+
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(name, style = MaterialTheme.typography.bodySmall, color = c.inkSoft)
             Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = DugunceColors.Muted,
+                Money.formatKurus(totalKurus),
+                style = MaterialTheme.typography.bodySmall,
+                color = c.ink,
+                fontWeight = FontWeight.Medium,
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = DugunceColors.Ink,
-            )
+        }
+        Surface(
+            shape = RoundedCornerShape(Radius.pill),
+            color = c.line,
+            modifier = Modifier.fillMaxWidth().height(5.dp),
+        ) {
+            Row(Modifier.fillMaxWidth()) {
+                Surface(
+                    shape = RoundedCornerShape(Radius.pill),
+                    color = c.sage,
+                    modifier = Modifier.fillMaxWidth(ratio).height(5.dp),
+                ) {}
+            }
         }
     }
 }
 
 @Composable
-private fun ExpenseRow(expense: ExpenseDto) {
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DugunceColors.Surface),
-        modifier = Modifier.fillMaxWidth(),
+private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    val c = DugunceTheme.colors
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 36.dp),
+        shape = RoundedCornerShape(Radius.pill),
+        color = if (selected) c.sageSoft else c.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) c.sage else c.line),
     ) {
+        Box(Modifier.padding(horizontal = Spacing.md), contentAlignment = Alignment.Center) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) c.sage else c.inkSoft,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
+    }
+}
+
+/** Harcama satırı. */
+@Composable
+fun ExpenseRow(expense: ExpenseDto, onClick: () -> Unit) {
+    val c = DugunceTheme.colors
+    val paid = expense.paymentStatus == "PAID"
+    DugunceCard(onClick = onClick) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = expense.title,
+                    expense.title,
                     style = MaterialTheme.typography.bodyLarge,
+                    color = c.ink,
                     fontWeight = FontWeight.Medium,
-                    color = DugunceColors.Ink,
                 )
-                val sub = buildString {
-                    append(sideLabel(expense.paidBySide))
-                    expense.installmentCount?.let { n ->
-                        if (n > 1) append(" · $n taksit")
+                Spacer(Modifier.height(Spacing.xxs))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        Dates.formatShort(expense.purchaseDate),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.muted,
+                    )
+                    if ((expense.installmentCount ?: 1) > 1) {
+                        Text(
+                            " · ${expense.installmentCount} taksit",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = c.muted,
+                        )
                     }
                 }
-                Text(
-                    text = sub,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = DugunceColors.Muted,
-                )
+                Spacer(Modifier.height(Spacing.sm))
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    StatusChip(sideLabel(expense.paidBySide), StatusTone.NEUTRAL)
+                    if ((expense.installmentCount ?: 1) > 1) {
+                        StatusChip("Taksitli", StatusTone.INFO)
+                    }
+                    if (!paid) {
+                        StatusChip("Bekliyor", StatusTone.WARNING)
+                    }
+                }
             }
-            Text(
-                text = Money.formatKurus(expense.amountKurus),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = DugunceColors.Ink,
-            )
+            Spacer(Modifier.width(Spacing.sm))
+            MoneyText(Money.formatKurus(expense.amountKurus))
         }
     }
 }
 
-private fun sideLabel(side: String): String = when (side) {
-    "BRIDE" -> "Gelin tarafı"
-    "GROOM" -> "Damat tarafı"
-    else -> "Ortak"
+internal fun sideLabel(side: String?): String = when (side) {
+    "BRIDE" -> "Gelin"
+    "GROOM" -> "Damat"
+    "SHARED" -> "Ortak"
+    else -> "—"
+}
+
+/**
+ * Taksit takvimi — brief §5.3.
+ *
+ * Aylık nakit çıkışı; ödendi işaretleme.
+ */
+@Composable
+fun InstallmentCalendarScreen(
+    repository: Repository,
+    weddingId: String,
+    onBack: () -> Unit,
+) {
+    val c = DugunceTheme.colors
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var expenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
+    var reloadKey by remember { mutableStateOf(0) }
+
+    LaunchedEffect(weddingId, reloadKey) {
+        loading = true
+        error = null
+        repository.listExpenses(weddingId).fold(
+            onSuccess = { expenses = it; loading = false },
+            onFailure = { error = it.message; loading = false },
+        )
+    }
+
+    val byMonth = remember(expenses) {
+        expenses
+            .flatMap { e -> e.installments.map { inst -> inst to e.title } }
+            .groupBy { it.first.dueMonth }
+            .toSortedMap()
+    }
+
+    Column(Modifier.fillMaxSize().background(c.cream)) {
+        TopBar("Taksit takvimi", onBack = onBack)
+
+        when {
+            loading -> LoadingState(Modifier.fillMaxSize(), "Taksitler hesaplanıyor…")
+            error != null -> ErrorState(error!!, onRetry = { reloadKey++ }, modifier = Modifier.fillMaxSize())
+            byMonth.isEmpty() -> EmptyState(
+                title = "Taksit yok",
+                description = "Taksitli bir harcama eklediğinde aylık ödeme planı burada görünür.",
+                icon = Icons.Filled.Schedule,
+                modifier = Modifier.fillMaxSize(),
+            )
+            else -> LazyColumn(
+                contentPadding = PaddingValues(
+                    horizontal = Spacing.screenH,
+                    vertical = Spacing.md,
+                ),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
+            ) {
+                items(byMonth.keys.toList()) { month ->
+                    val entries = byMonth[month] ?: emptyList()
+                    val total = entries.sumOf { it.first.amountKurus.toLongOrNull() ?: 0L }
+                    val allPaid = entries.all { it.first.status == "PAID" }
+
+                    Surface(
+                        shape = RoundedCornerShape(Radius.lg),
+                        color = c.surface,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(Spacing.lg)) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column {
+                                    Text(
+                                        Dates.formatMonth(month),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = c.ink,
+                                    )
+                                    Text(
+                                        "${entries.size} taksit",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = c.muted,
+                                    )
+                                }
+                                MoneyText(Money.formatKurus(total))
+                            }
+
+                            if (allPaid) {
+                                Spacer(Modifier.height(Spacing.sm))
+                                StatusChip("Hepsi ödendi", StatusTone.SUCCESS, Icons.Filled.CheckCircle)
+                            }
+
+                            Spacer(Modifier.height(Spacing.md))
+                            entries.forEach { (inst, title) ->
+                                InstallmentRow(
+                                    installment = inst,
+                                    title = title,
+                                    onToggle = { paid ->
+                                        repository.setInstallmentPaid(weddingId, inst.id, paid)
+                                        reloadKey++
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+                item { Spacer(Modifier.height(Spacing.xl)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InstallmentRow(
+    installment: InstallmentDto,
+    title: String,
+    onToggle: (Boolean) -> Unit,
+) {
+    val c = DugunceTheme.colors
+    val paid = installment.status == "PAID"
+
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        androidx.compose.material3.Checkbox(
+            checked = paid,
+            onCheckedChange = { onToggle(it) },
+            colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = c.success),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (paid) c.muted else c.ink,
+            )
+            Text(
+                "${installment.installmentNumber.takeIf { it > 0 } ?: installment.number}. taksit",
+                style = MaterialTheme.typography.bodySmall,
+                color = c.muted,
+            )
+        }
+        MoneyText(
+            Money.formatKurus(installment.amountKurus),
+            color = if (paid) c.muted else c.ink,
+        )
+    }
 }

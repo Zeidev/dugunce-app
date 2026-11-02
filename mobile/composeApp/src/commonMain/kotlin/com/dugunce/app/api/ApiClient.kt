@@ -1,6 +1,7 @@
 package com.dugunce.app.api
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.header
@@ -14,19 +15,24 @@ import kotlinx.serialization.json.Json
  * API istemcisi.
  *
  * Tüm ağ erişimi buradan geçer. Token her istekte `Authorization`
- * başlığında taşınır.
+ * başlığında taşınır (brief §15.1: mobil bearer).
  *
  * GÜVENLİK: Token ASLA log'a yazılmaz. Ktor'un Logging plugin'i
- * kullanılmıyor; gerekirse `sanitizeHeader` ile eklenir.
+ * kullanılmıyor.
+ *
+ * `X-App-Version` her istekte gönderilir — API minimum sürümün altındaysa
+ * `426 Upgrade Required` döner (spec §6b.9).
  */
 object ApiConfig {
-    /**
-     * Üretim API adresi.
-     *
-     * Not: Android emülatöründe `10.0.2.2` host makineyi gösterir.
-     * Geliştirmede bu adres değiştirilir.
-     */
+    /** Üretim API adresi. */
     const val BASE_URL = "https://api.dugunce.com.tr/api/v1"
+
+    /** Uygulama sürümü — build.gradle ile elle senkron tutulur. */
+    const val APP_VERSION = "0.1.0"
+    const val APP_PLATFORM = "android"
+
+    /** Bağlantı zaman aşımı — serv00 soğuk başlangıcı için cömert. */
+    const val TIMEOUT_MS = 20_000L
 }
 
 class ApiClient(
@@ -45,10 +51,18 @@ class ApiClient(
             json(json)
         }
 
+        install(HttpTimeout) {
+            requestTimeoutMillis = ApiConfig.TIMEOUT_MS
+            connectTimeoutMillis = ApiConfig.TIMEOUT_MS
+            socketTimeoutMillis = ApiConfig.TIMEOUT_MS
+        }
+
         defaultRequest {
             url(baseUrl.ensureTrailingSlash())
             contentType(ContentType.Application.Json)
             header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+            header("X-App-Version", ApiConfig.APP_VERSION)
+            header("X-App-Platform", ApiConfig.APP_PLATFORM)
 
             tokenProvider()?.let { token ->
                 header(HttpHeaders.Authorization, "Bearer $token")

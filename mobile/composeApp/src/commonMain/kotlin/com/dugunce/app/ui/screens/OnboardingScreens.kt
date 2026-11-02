@@ -1,0 +1,525 @@
+package com.dugunce.app.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import com.dugunce.app.api.ApiException
+import com.dugunce.app.data.Repository
+import com.dugunce.app.data.WeddingCreateRequest
+import com.dugunce.app.data.WeddingDto
+import com.dugunce.app.ui.components.ButtonVariant
+import com.dugunce.app.ui.components.DugunceButton
+import com.dugunce.app.ui.components.DugunceTextField
+import com.dugunce.app.ui.components.StepHeader
+import com.dugunce.app.ui.theme.DugunceTheme
+import com.dugunce.app.ui.theme.Radius
+import com.dugunce.app.ui.theme.Spacing
+import kotlinx.coroutines.launch
+
+/**
+ * Düğün oluştur — onboarding adım 3 (spec §6b.8).
+ *
+ * İsimler ve tarih zorunlu; mekân alanları atlanabilir.
+ * Hedef: 2 dakikada tamamlanır.
+ */
+@Composable
+fun CreateWeddingScreen(
+    repository: Repository,
+    onCreated: (WeddingDto) -> Unit,
+) {
+    val c = DugunceTheme.colors
+    var coupleNames by remember { mutableStateOf("") }
+    var dateText by remember { mutableStateOf("") }
+    var venueName by remember { mutableStateOf("") }
+    var venueAddress by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    val dateValid = parseTurkishDate(dateText) != null
+    val canContinue = coupleNames.trim().length >= 2 && dateValid
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(c.cream)
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.screenH),
+    ) {
+        Spacer(Modifier.height(Spacing.lg))
+        StepHeader(step = 3, total = 7, title = "Düğününüzü oluşturalım")
+        Spacer(Modifier.height(Spacing.lg))
+
+        Text(
+            "Bu bilgiler davetiyede ve panelde görünecek. Sonra değiştirebilirsin.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = c.muted,
+        )
+        Spacer(Modifier.height(Spacing.xl))
+
+        DugunceTextField(
+            value = coupleNames,
+            onValueChange = { coupleNames = it; error = null },
+            label = "Çift isimleri",
+            placeholder = "Elif & Mert",
+            error = if (error != null) null else null,
+            helper = "Davetiyede bu şekilde görünecek",
+            enabled = !loading,
+        )
+        Spacer(Modifier.height(Spacing.lg))
+
+        DugunceTextField(
+            value = dateText,
+            onValueChange = { dateText = it; error = null },
+            label = "Düğün tarihi",
+            placeholder = "12.09.2026",
+            keyboard = KeyboardType.Number,
+            imeAction = ImeAction.Next,
+            error = if (dateText.isNotBlank() && !dateValid) "Tarihi gg.aa.yyyy biçiminde gir" else error,
+            enabled = !loading,
+        )
+        Spacer(Modifier.height(Spacing.lg))
+
+        DugunceTextField(
+            value = venueName,
+            onValueChange = { venueName = it },
+            label = "Mekân (isteğe bağlı)",
+            placeholder = "Kır düğün salonu",
+            enabled = !loading,
+        )
+        Spacer(Modifier.height(Spacing.lg))
+
+        DugunceTextField(
+            value = venueAddress,
+            onValueChange = { venueAddress = it },
+            label = "Adres (isteğe bağlı)",
+            placeholder = "İlçe, şehir",
+            singleLine = false,
+            minLines = 2,
+            enabled = !loading,
+        )
+
+        Spacer(Modifier.height(Spacing.xxl))
+
+        DugunceButton(
+            "Devam",
+            onClick = {
+                if (!canContinue || loading) return@DugunceButton
+                loading = true
+                error = null
+                val iso = parseTurkishDate(dateText)!!
+                scope.launch {
+                    repository.createWedding(
+                        WeddingCreateRequest(
+                            coupleNames = coupleNames.trim(),
+                            weddingDate = iso,
+                            venueName = venueName.trim().ifBlank { null },
+                            venueAddress = venueAddress.trim().ifBlank { null },
+                        ),
+                    ).fold(
+                        onSuccess = { loading = false; onCreated(it) },
+                        onFailure = { e ->
+                            loading = false
+                            error = if (e is ApiException) e.message else "Düğün oluşturulamadı."
+                        },
+                    )
+                }
+            },
+            enabled = canContinue,
+            loading = loading,
+        )
+        Spacer(Modifier.height(Spacing.xl))
+    }
+}
+
+/**
+ * `gg.aa.yyyy` veya `gg/aa/yyyy` → ISO `yyyy-MM-dd`.
+ *
+ * Geçersizse null. Türkçe tarih biçimi beklenir.
+ */
+internal fun parseTurkishDate(input: String): String? {
+    val t = input.trim()
+    if (t.isEmpty()) return null
+    val sep = when {
+        t.contains('.') -> '.'
+        t.contains('/') -> '/'
+        t.contains('-') -> '-'
+        else -> return null
+    }
+    val parts = t.split(sep)
+    if (parts.size != 3) return null
+    val (d, m, y) = if (parts[0].length == 4) {
+        // yyyy-MM-dd
+        Triple(parts[2], parts[1], parts[0])
+    } else {
+        Triple(parts[0], parts[1], parts[2])
+    }
+    val day = d.toIntOrNull() ?: return null
+    val month = m.toIntOrNull() ?: return null
+    val year = y.toIntOrNull() ?: return null
+    if (day !in 1..31 || month !in 1..12 || year !in 2000..2100) return null
+    return "${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}"
+}
+
+/** ISO tarih → `gg.aa.yyyy`. */
+internal fun formatTurkishDate(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    val datePart = iso.substringBefore('T')
+    val parts = datePart.split('-')
+    if (parts.size != 3) return iso
+    return "${parts[2]}.${parts[1]}.${parts[0]}"
+}
+
+/**
+ * İlk harcama — onboarding adım 4 (spec §6b.8: **ATLANAMAZ**).
+ *
+ * "Değer burada kanıtlanır." Kullanıcı ilk harcamasını girmeden
+ * ilerleyemez.
+ */
+@Composable
+fun FirstExpenseScreen(
+    repository: Repository,
+    weddingId: String,
+    onAdded: () -> Unit,
+) {
+    val c = DugunceTheme.colors
+    var title by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    val parsed = com.dugunce.app.data.Money.parseToKurus(amount)
+    val canContinue = title.trim().isNotEmpty() && parsed != null && parsed != "0"
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(c.cream)
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.screenH),
+    ) {
+        Spacer(Modifier.height(Spacing.lg))
+        StepHeader(step = 4, total = 7, title = "İlk harcamanı ekle")
+        Spacer(Modifier.height(Spacing.lg))
+
+        Surface(
+            shape = RoundedCornerShape(Radius.md),
+            color = c.sageSoft,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                "Düğün hazırlığında şimdiye kadar ne harcadın? " +
+                    "Salon, gelinlik, fotoğrafçı… İlkini ekleyelim, " +
+                    "bütçe tablosunu hemen göreceksin.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.ink,
+                modifier = Modifier.padding(Spacing.md),
+            )
+        }
+        Spacer(Modifier.height(Spacing.xl))
+
+        DugunceTextField(
+            value = title,
+            onValueChange = { title = it; error = null },
+            label = "Ne için harcadın?",
+            placeholder = "Düğün salonu kapora",
+            enabled = !loading,
+        )
+        Spacer(Modifier.height(Spacing.lg))
+
+        com.dugunce.app.ui.components.MoneyField(
+            value = amount,
+            onValueChange = { amount = it; error = null },
+            error = if (amount.isNotBlank() && parsed == null) "Geçerli bir tutar gir" else null,
+        )
+        Spacer(Modifier.height(Spacing.sm))
+        Text(
+            "Tutarı TL olarak gir; kuruş hassasiyetiyle saklanır.",
+            style = MaterialTheme.typography.bodySmall,
+            color = c.muted,
+        )
+
+        if (error != null) {
+            Spacer(Modifier.height(Spacing.md))
+            Text(error!!, style = MaterialTheme.typography.bodySmall, color = c.danger)
+        }
+
+        Spacer(Modifier.height(Spacing.xxl))
+
+        DugunceButton(
+            "Harcamayı ekle",
+            onClick = {
+                if (!canContinue || loading) return@DugunceButton
+                loading = true
+                error = null
+                scope.launch {
+                    val today = com.dugunce.app.util.todayIso()
+                    repository.createExpense(
+                        weddingId,
+                        com.dugunce.app.data.ExpenseCreateRequest(
+                            title = title.trim(),
+                            amount = parsed!!,
+                            purchaseDate = today,
+                            installmentCount = 1,
+                        ),
+                    ).fold(
+                        onSuccess = { loading = false; onAdded() },
+                        onFailure = { e ->
+                            loading = false
+                            error = if (e is ApiException) e.message else "Harcama eklenemedi."
+                        },
+                    )
+                }
+            },
+            enabled = canContinue,
+            loading = loading,
+        )
+
+        Spacer(Modifier.height(Spacing.md))
+        Text(
+            "Bu adım atlanamaz — bütçe tablosu ilk harcamayla anlam kazanır.",
+            style = MaterialTheme.typography.bodySmall,
+            color = c.muted,
+        )
+        Spacer(Modifier.height(Spacing.xl))
+    }
+}
+
+/**
+ * Bütçe tanıtımı — onboarding adım 5 (spec §6b.8).
+ *
+ * "Taksit tablosu gösterilir, 'işte bu'."
+ */
+@Composable
+fun BudgetIntroScreen(
+    onContinue: () -> Unit,
+) {
+    val c = DugunceTheme.colors
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(c.cream)
+            .padding(horizontal = Spacing.screenH),
+    ) {
+        Spacer(Modifier.height(Spacing.lg))
+        StepHeader(step = 5, total = 7, title = "Bütçen böyle görünecek")
+        Spacer(Modifier.height(Spacing.xl))
+
+        Surface(
+            shape = RoundedCornerShape(Radius.lg),
+            color = c.surface,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Toplam taahhüt", style = MaterialTheme.typography.bodyMedium, color = c.muted)
+                    Text(
+                        "12.000,00 ₺",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = c.ink,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Bu ay ödenecek", style = MaterialTheme.typography.bodyMedium, color = c.muted)
+                    Text(
+                        "3.000,00 ₺",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = c.sage,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                com.dugunce.app.ui.components.Divider()
+                Text(
+                    "4 taksit × 3.000,00 ₺ · ilk taksit Ocak",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.muted,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(Spacing.lg))
+
+        Surface(
+            shape = RoundedCornerShape(Radius.md),
+            color = c.warningSoft,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(Spacing.md)) {
+                Text(
+                    "İki rakam asla karışmaz",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = c.warning,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(Spacing.xs))
+                Text(
+                    "Taksitli alışverişte 'toplam taahhüt' ile 'bu ay ödenecek' " +
+                        "ayrı gösterilir. Aksi halde bütçe iki katı görünür.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.inkSoft,
+                )
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+        DugunceButton("Anladım", onClick = onContinue)
+        Spacer(Modifier.height(Spacing.xl))
+    }
+}
+
+/**
+ * İlk davetli — onboarding adım 6 (spec §6b.8: atlanabilir).
+ *
+ * 30 kişi limiti BURADA açıkça söylenir (kural: limit gizlenmez).
+ */
+@Composable
+fun FirstGuestScreen(
+    repository: Repository,
+    weddingId: String,
+    onContinue: () -> Unit,
+) {
+    val c = DugunceTheme.colors
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(c.cream)
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.screenH),
+    ) {
+        Spacer(Modifier.height(Spacing.lg))
+        StepHeader(step = 6, total = 7, title = "İlk davetlini ekle")
+        Spacer(Modifier.height(Spacing.lg))
+
+        Surface(
+            shape = RoundedCornerShape(Radius.md),
+            color = c.infoSoft,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                "Ücretsiz planda 30 davetli ekleyebilirsin. " +
+                    "Sınıra ulaştığında uygulama seni uyarır.",
+                style = MaterialTheme.typography.bodySmall,
+                color = c.info,
+                modifier = Modifier.padding(Spacing.md),
+            )
+        }
+        Spacer(Modifier.height(Spacing.xl))
+
+        DugunceTextField(
+            value = name,
+            onValueChange = { name = it; error = null },
+            label = "Davetli adı",
+            placeholder = "Ayşe Yılmaz",
+            enabled = !loading,
+        )
+        Spacer(Modifier.height(Spacing.lg))
+        DugunceTextField(
+            value = phone,
+            onValueChange = { phone = it },
+            label = "Telefon (isteğe bağlı)",
+            placeholder = "05xx xxx xx xx",
+            keyboard = KeyboardType.Phone,
+            helper = "WhatsApp'tan davetiye göndermek için kullanılır",
+            enabled = !loading,
+        )
+
+        if (error != null) {
+            Spacer(Modifier.height(Spacing.md))
+            Text(error!!, style = MaterialTheme.typography.bodySmall, color = c.danger)
+        }
+
+        Spacer(Modifier.height(Spacing.xxl))
+
+        DugunceButton(
+            "Davetliyi ekle",
+            onClick = {
+                if (name.trim().isEmpty() || loading) return@DugunceButton
+                loading = true
+                error = null
+                scope.launch {
+                    repository.createGuest(
+                        weddingId,
+                        com.dugunce.app.data.GuestCreateRequest(
+                            name = name.trim(),
+                            phone = phone.trim().ifBlank { null },
+                        ),
+                    ).fold(
+                        onSuccess = { loading = false; onContinue() },
+                        onFailure = { e ->
+                            loading = false
+                            error = if (e is ApiException) e.message else "Davetli eklenemedi."
+                        },
+                    )
+                }
+            },
+            enabled = name.trim().isNotEmpty(),
+            loading = loading,
+        )
+        Spacer(Modifier.height(Spacing.sm))
+        DugunceButton("Şimdilik atla", onClick = onContinue, variant = ButtonVariant.GHOST)
+        Spacer(Modifier.height(Spacing.xl))
+    }
+}
+
+/** Onboarding tamam — adım 7. */
+@Composable
+fun OnboardingDoneScreen(onStart: () -> Unit) {
+    val c = DugunceTheme.colors
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(c.cream)
+            .padding(horizontal = Spacing.screenH),
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            "Hazırsın",
+            style = MaterialTheme.typography.headlineLarge,
+            color = c.ink,
+        )
+        Spacer(Modifier.height(Spacing.md))
+        Text(
+            "Bütçen, davetlilerin ve görevlerin tek yerde. " +
+                "İstediğin zaman yeni harcama ekleyebilir, davetli çağırabilirsin.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = c.muted,
+        )
+        Spacer(Modifier.height(Spacing.xxl))
+        DugunceButton("Panele git", onClick = onStart)
+        Spacer(Modifier.height(Spacing.xl))
+    }
+}

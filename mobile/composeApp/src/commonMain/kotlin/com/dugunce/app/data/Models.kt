@@ -1,13 +1,20 @@
 package com.dugunce.app.data
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
  * API veri modelleri.
  *
- * Backend sözleşmesiyle BİREBİR eşleşir. Alan eklenirse
- * `ignoreUnknownKeys` sayesinde istemci kırılmaz.
+ * **KRİTİK:** Backend, Drizzle'dan dönen nesneleri **camelCase** olarak
+ * serileştirir (`coupleNames`, `weddingDate`, `amountKurus`, `inviteStatus`).
+ * Snake_case `@SerialName` kullanmak alanların sessizce boş gelmesine yol
+ * açar — bu yüzden `@SerialName` YALNIZCA gerçekten farklı ad gerektiğinde
+ * kullanılır.
+ *
+ * Kanıt: `guestStore.listByWedding` çıktısı
+ * `["id","weddingId","name","phone","side","inviteStatus","rsvp","note","deletedAt"]`
+ *
+ * Her DTO `DtoContractTest` içinde gerçek backend JSON'u ile çözülür.
  */
 
 // --- Auth ---
@@ -37,27 +44,61 @@ data class AuthResponse(
 data class UserDto(
     val id: String,
     val email: String,
-    @SerialName("display_name") val displayName: String? = null,
+    val displayName: String? = null,
 )
+
+@Serializable
+data class RefreshRequest(val refreshToken: String)
+
+@Serializable
+data class RefreshResponse(val refreshToken: String, val accessToken: String? = null)
 
 // --- Düğün ---
 
 @Serializable
 data class WeddingDto(
     val id: String,
-    @SerialName("couple_names") val coupleNames: String,
-    @SerialName("wedding_date") val weddingDate: String? = null,
+    val coupleNames: String,
+    val weddingDate: String? = null,
     val timezone: String = "Europe/Istanbul",
-    @SerialName("venue_name") val venueName: String? = null,
-    @SerialName("venue_address") val venueAddress: String? = null,
-    @SerialName("map_url") val mapUrl: String? = null,
-    @SerialName("gift_note") val giftNote: String? = null,
+    val venueName: String? = null,
+    val venueAddress: String? = null,
+    val venueLat: String? = null,
+    val venueLng: String? = null,
+    val mapUrl: String? = null,
+    val giftNote: String? = null,
+    val rsvpDeadline: String? = null,
+    val program: List<ProgramItemDto>? = null,
     val plan: String = "FREE",
     val status: String = "ACTIVE",
+    val role: String? = null,
+    val createdAt: String? = null,
+)
+
+@Serializable
+data class ProgramItemDto(
+    val time: String,
+    val title: String,
+    val note: String? = null,
 )
 
 @Serializable
 data class WeddingListResponse(val weddings: List<WeddingDto>)
+
+@Serializable
+data class WeddingResponse(val wedding: WeddingDto)
+
+@Serializable
+data class WeddingCreateRequest(
+    val coupleNames: String,
+    val weddingDate: String,
+    val timezone: String = "Europe/Istanbul",
+    val venueName: String? = null,
+    val venueAddress: String? = null,
+    val mapUrl: String? = null,
+    val giftNote: String? = null,
+    val rsvpDeadline: String? = null,
+)
 
 // --- Bütçe ---
 
@@ -66,55 +107,87 @@ data class ExpenseDto(
     val id: String,
     val title: String,
     val description: String? = null,
-    @SerialName("amountKurus") val amountKurus: String,
-    @SerialName("paidBySide") val paidBySide: String = "SHARED",
-    @SerialName("paymentMethod") val paymentMethod: String = "CASH",
-    @SerialName("installmentCount") val installmentCount: Int? = null,
-    @SerialName("purchaseDate") val purchaseDate: String? = null,
+    val amountKurus: String,
+    val paidBySide: String = "SHARED",
+    val paidByPersonId: String? = null,
+    val paymentMethod: String = "CASH",
+    val paymentStatus: String = "PAID",
+    val categoryId: String? = null,
+    val cardId: String? = null,
+    val installmentCount: Int? = null,
+    val firstInstallmentMonth: String? = null,
+    val purchaseDate: String? = null,
     val installments: List<InstallmentDto> = emptyList(),
+    val createdAt: String? = null,
 )
 
 @Serializable
 data class InstallmentDto(
     val id: String,
-    val number: Int,
-    @SerialName("amountKurus") val amountKurus: String,
-    @SerialName("dueMonth") val dueMonth: String,
+    val installmentNumber: Int = 0,
+    val number: Int = 0,
+    val amountKurus: String,
+    val dueMonth: String,
     val status: String = "PENDING",
-    @SerialName("paidAt") val paidAt: String? = null,
+    val paidAt: String? = null,
+)
+
+@Serializable
+data class ExpenseListResponse(val expenses: List<ExpenseDto>)
+
+@Serializable
+data class ExpenseResponse(val expense: ExpenseDto)
+
+@Serializable
+data class ExpenseCreateRequest(
+    val title: String,
+    val amount: String,
+    val purchaseDate: String,
+    val description: String? = null,
+    val categoryId: String? = null,
+    val paidBySide: String = "SHARED",
+    val paidByPersonId: String? = null,
+    val paymentMethod: String = "CASH",
+    val paymentStatus: String = "PAID",
+    val cardId: String? = null,
+    val installmentCount: Int? = null,
+    val firstInstallmentMonth: String? = null,
 )
 
 @Serializable
 data class BudgetSummaryDto(
-    @SerialName("totalSpentKurus") val totalSpentKurus: String,
-    @SerialName("dueThisMonthKurus") val dueThisMonthKurus: String,
-    @SerialName("remainingCommitmentKurus") val remainingCommitmentKurus: String,
-    @SerialName("bySide") val bySide: SideBreakdownDto? = null,
-    @SerialName("byCategory") val byCategory: List<CategoryBreakdownDto> = emptyList(),
-    @SerialName("installmentSchedule") val installmentSchedule: List<MonthTotalDto> = emptyList(),
+    val totalSpentKurus: String = "0",
+    val dueThisMonthKurus: String = "0",
+    val remainingCommitmentKurus: String = "0",
+    val bySide: SideBreakdownDto? = null,
+    val byCategory: List<CategoryBreakdownDto> = emptyList(),
+    val installmentSchedule: List<MonthTotalDto> = emptyList(),
 )
 
 @Serializable
 data class SideBreakdownDto(
-    @SerialName("BRIDE") val bride: String = "0",
-    @SerialName("GROOM") val groom: String = "0",
-    @SerialName("SHARED") val shared: String = "0",
+    val bride: String = "0",
+    val groom: String = "0",
+    val shared: String = "0",
 )
 
 @Serializable
 data class CategoryBreakdownDto(
-    @SerialName("categoryName") val categoryName: String,
-    @SerialName("totalKurus") val totalKurus: String,
+    val categoryName: String,
+    val totalKurus: String,
 )
 
 @Serializable
 data class MonthTotalDto(
     val month: String,
-    @SerialName("totalKurus") val totalKurus: String,
+    val totalKurus: String,
 )
 
 @Serializable
 data class BudgetSummaryResponse(val summary: BudgetSummaryDto)
+
+@Serializable
+data class InstallmentResponse(val installment: InstallmentDto)
 
 // --- Davetli ---
 
@@ -125,7 +198,7 @@ data class GuestDto(
     val phone: String? = null,
     val side: String = "BRIDE",
     val rsvp: String = "PENDING",
-    @SerialName("inviteStatus") val inviteStatus: String = "NOT_SENT",
+    val inviteStatus: String = "NOT_SENT",
     val note: String? = null,
 )
 
@@ -133,15 +206,52 @@ data class GuestDto(
 data class GuestListResponse(val guests: List<GuestDto>)
 
 @Serializable
+data class GuestResponse(val guest: GuestDto)
+
+@Serializable
+data class GuestCreateRequest(
+    val name: String,
+    val phone: String? = null,
+    val side: String = "BRIDE",
+    val note: String? = null,
+)
+
+@Serializable
 data class GuestUsageDto(
     val limit: Int? = null,
-    val used: Int,
+    val used: Int = 0,
     val remaining: Int? = null,
     val plan: String = "FREE",
 )
 
 @Serializable
 data class GuestUsageResponse(val usage: GuestUsageDto)
+
+@Serializable
+data class GuestPatchRequest(
+    val name: String? = null,
+    val phone: String? = null,
+    val side: String? = null,
+    val note: String? = null,
+)
+
+@Serializable
+data class GuestRsvpRequest(val rsvp: String, val partySize: Int? = null)
+
+@Serializable
+data class InvitationDto(
+    val id: String,
+    val token: String? = null,
+    val url: String? = null,
+    val allowedPartySize: Int = 1,
+    val expiresAt: String? = null,
+)
+
+@Serializable
+data class InvitationResponse(
+    val invitation: InvitationDto? = null,
+    val url: String? = null,
+)
 
 // --- Görev ---
 
@@ -152,30 +262,98 @@ data class TaskDto(
     val description: String? = null,
     val status: String = "TODO",
     val priority: String = "NORMAL",
-    @SerialName("dueDate") val dueDate: String? = null,
-    @SerialName("assigneeHelperId") val assigneeHelperId: String? = null,
+    val dueDate: String? = null,
+    val assigneeHelperId: String? = null,
+    val assignedAt: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
 )
 
 @Serializable
 data class TaskListResponse(val tasks: List<TaskDto>)
 
 @Serializable
+data class TaskResponse(val task: TaskDto)
+
+@Serializable
+data class TaskCreateRequest(
+    val title: String,
+    val description: String? = null,
+    val status: String = "TODO",
+    val priority: String = "NORMAL",
+    val dueDate: String? = null,
+)
+
+@Serializable
+data class TaskPatchRequest(
+    val title: String? = null,
+    val description: String? = null,
+    val status: String? = null,
+    val priority: String? = null,
+    val dueDate: String? = null,
+)
+
+@Serializable
+data class TaskAssignRequest(val helperId: String? = null)
+
+@Serializable
 data class HelperDto(
     val id: String,
-    @SerialName("displayName") val displayName: String,
-    @SerialName("tokenRevokedAt") val tokenRevokedAt: String? = null,
+    val displayName: String,
+    val tokenRevokedAt: String? = null,
+    val lastSeenAt: String? = null,
+    val createdAt: String? = null,
 )
 
 @Serializable
 data class HelperListResponse(val helpers: List<HelperDto>)
 
 @Serializable
+data class HelperCreateRequest(val displayName: String)
+
+@Serializable
+data class HelperCreatedResponse(
+    val helper: HelperDto,
+    /** Ham token — YALNIZCA oluşturma yanıtında döner. */
+    val token: String? = null,
+    val url: String? = null,
+)
+
+@Serializable
 data class MessageDto(
     val id: String,
     val body: String,
-    @SerialName("senderKind") val senderKind: String,
-    @SerialName("createdAt") val createdAt: String,
+    val senderKind: String,
+    val createdAt: String,
 )
 
 @Serializable
 data class MessageListResponse(val messages: List<MessageDto>)
+
+@Serializable
+data class MessageResponse(val message: MessageDto)
+
+@Serializable
+data class MessageSendRequest(
+    val body: String,
+    val idempotencyKey: String? = null,
+)
+
+// --- Davet kodu (2. eş) ---
+
+@Serializable
+data class InviteCreateRequest(val role: String = "CO_OWNER", val displayName: String? = null)
+
+@Serializable
+data class InviteDto(
+    val id: String,
+    val code: String,
+    val role: String,
+    val expiresAt: String? = null,
+)
+
+@Serializable
+data class InviteResponse(val invite: InviteDto? = null, val code: String? = null)
+
+@Serializable
+data class InviteAcceptRequest(val code: String)
