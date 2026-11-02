@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-11-02
 **Plan:** `docs/superpowers/plans/2026-11-02-stage-1-infrastructure.md`
-**Durum:** ✅ Tamamlandı (yerel doğrulama) · ⏳ serv00'da doğrulama bekliyor
+**Durum:** ✅ Tamamlandı (yerel + PGlite doğrulaması) · ⏳ serv00'da doğrulama bekliyor
 
 ---
 
@@ -13,7 +13,7 @@
 | 1 | serv00 doğrulama betiği | ✅ | `scripts/verify-serv00.sh`, sözdizimi geçerli, exit kodu doğru |
 | 2 | Proje iskeleti + env doğrulama | ✅ | 9 test geçti |
 | 3 | DB bağlantısı + `/health` | ✅ | 4 test + runtime smoke test |
-| 4 | Migration sistemi | ✅ | 5 test + migration SQL üretildi |
+| 4 | Migration sistemi | ✅ | 5 test + **PGlite ile gerçek SQL doğrulaması** |
 | 5 | Merkezi hata yönetimi | ✅ | 6 test |
 | 6 | Log maskeleme | ✅ | 13 test |
 | 7 | CI workflow | ✅ | YAML geçerli, build doğrulandı |
@@ -69,6 +69,22 @@ Test Files  6 passed (6)
 - ✅ URL'de `_prod` geçiyorsa (NODE_ENV ne olursa olsun) → **reddedildi**
 - ✅ Staging hedefi → serbest
 - ✅ Idempotent (tekrar çalıştırılabilir)
+
+### Migration SQL — gerçek PostgreSQL (PGlite)
+
+`npm run verify:migrations` — PostgreSQL'in WASM derlemesi üzerinde **gerçek SQL** çalıştırılır:
+
+- ✅ 3 statement çalıştı
+- ✅ **İdempotent** — ikinci kez de sorunsuz
+- ✅ `users` tablosu 7 zorunlu kolonla oluştu
+- ✅ `uuid` default (`gen_random_uuid()`) çalışıyor
+- ✅ `status` default `ACTIVE`
+- ✅ **unique constraint** çalışıyor (aynı e-posta iki kez eklenemiyor)
+- ✅ İndeksler oluştu: `users_status_idx`, `users_created_at_idx`
+- ✅ **UTF-8** — `şğıöçüİŞĞÜÖÇ` round-trip doğru
+- ✅ `server_encoding = UTF8`
+
+> Bu, yerelde PostgreSQL olmadan migration'ın gerçekten çalıştığını kanıtlar. CI'da ayrıca **gerçek PostgreSQL 16** service container ile de çalışır — iki katmanlı doğrulama.
 
 ### Build
 - ✅ `dist/server.js` doğru yolda
