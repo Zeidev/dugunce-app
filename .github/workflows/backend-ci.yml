@@ -66,6 +66,10 @@ jobs:
         working-directory: backend
         run: npm run db:migrate -- --force
 
+      - name: DB erişimi doğrula (CI teşhis)
+        working-directory: backend
+        run: node scripts/ci-db-check.mjs
+
       - name: Run tests
         working-directory: backend
         run: npm test
