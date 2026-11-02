@@ -10,7 +10,7 @@ import {
 
 function makeDeps(overrides: Record<string, unknown> = {}) {
   return {
-    transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
+    transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({ __tx: true })),
     insertGuest: vi.fn().mockResolvedValue({ id: 'g1', name: 'Ayşe', rsvp: 'PENDING' }),
     insertGuests: vi.fn().mockResolvedValue([]),
     listByWedding: vi.fn().mockResolvedValue([]),
@@ -236,7 +236,7 @@ describe('deleteGuest', () => {
     const d = makeDeps()
     const ok = await deleteGuest({ weddingId: 'w1', userId: 'u1', guestId: 'g1' }, d)
     expect(ok).toBe(true)
-    expect(d.softDelete).toHaveBeenCalledWith('g1')
+    expect(d.softDelete).toHaveBeenCalledWith('g1', expect.anything())
   })
 
   it('üye olunmayan davetli silinemez', async () => {
@@ -249,6 +249,29 @@ describe('deleteGuest', () => {
   it('silinince davetiye token\'ları revoke edilir (Review Focus #5)', async () => {
     const d = makeDeps()
     await deleteGuest({ weddingId: 'w1', userId: 'u1', guestId: 'g1' }, d)
-    expect(d.revokeInvitations).toHaveBeenCalledWith('g1')
+    expect(d.revokeInvitations).toHaveBeenCalledWith('g1', expect.anything())
+  })
+
+  it('ATOMİK: soft delete + revoke aynı transaction içinde', async () => {
+    // Ayrı yapılırsa soft delete başarılı olup revoke başarısız olabilir:
+    // davetli "silinmiş" görünür ama linki çalışır — Review Focus #5'in
+    // korumak istediği durumun tam kendisi.
+    const d = makeDeps()
+    await deleteGuest({ weddingId: 'w1', userId: 'u1', guestId: 'g1' }, d)
+
+    expect(d.transaction).toHaveBeenCalled()
+    const txArg = d.softDelete.mock.calls[0]![1]
+    expect(txArg).toEqual({ __tx: true })
+  })
+
+  it('ATOMİK: revoke hata verirse işlem geri alınır (hata dışarı çıkar)', async () => {
+    const d = makeDeps({
+      revokeInvitations: vi.fn().mockRejectedValue(new Error('DB hatası')),
+    })
+    await expect(
+      deleteGuest({ weddingId: 'w1', userId: 'u1', guestId: 'g1' }, d),
+    ).rejects.toThrow(/DB hatası/)
+    // Transaction sarmalayıcı hatayı yukarı taşır → store rollback eder
+    expect(d.transaction).toHaveBeenCalled()
   })
 })

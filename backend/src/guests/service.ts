@@ -171,9 +171,9 @@ export interface GuestDeps {
     weddingId: string,
     userId: string,
   ): Promise<GuestRecord>
-  softDelete(guestId: string): Promise<boolean>
+  softDelete(guestId: string, tx: unknown): Promise<boolean>
   /** Davetli silinince token'ları ölür (Review Focus #5). */
-  revokeInvitations(guestId: string): Promise<number>
+  revokeInvitations(guestId: string, tx: unknown): Promise<number>
   /**
    * Aktif (silinmemiş) davetli sayısı.
    *
@@ -460,14 +460,20 @@ export interface DeleteGuestParams {
  */
 export async function deleteGuest(
   params: DeleteGuestParams,
-  deps: Pick<GuestDeps, 'findById' | 'softDelete' | 'revokeInvitations'>,
+  deps: Pick<GuestDeps, 'transaction' | 'findById' | 'softDelete' | 'revokeInvitations'>,
 ): Promise<boolean> {
   const existing = await deps.findById(params.guestId, params.weddingId, params.userId)
   if (!existing) return false
 
-  const deleted = await deps.softDelete(params.guestId)
-  if (deleted) {
-    await deps.revokeInvitations(params.guestId)
-  }
-  return deleted
+  // ATOMİK: soft delete + token iptali aynı transaction'da.
+  // Ayrı yapılırsa soft delete başarılı olup revoke başarısız olabilir —
+  // davetli "silinmiş" görünür ama linki çalışmaya devam eder, yani
+  // Review Focus #5'in korumak istediği durumun tam kendisi oluşur.
+  return deps.transaction(async (tx) => {
+    const deleted = await deps.softDelete(params.guestId, tx)
+    if (deleted) {
+      await deps.revokeInvitations(params.guestId, tx)
+    }
+    return deleted
+  })
 }

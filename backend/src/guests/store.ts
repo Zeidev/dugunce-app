@@ -109,8 +109,9 @@ export function drizzleGuestDeps(
       return row as GuestRecord
     },
 
-    async softDelete(guestId) {
-      const rows = await db
+    async softDelete(guestId, tx) {
+      const client = (tx as Db | undefined) ?? db
+      const rows = await client
         .update(guests)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(guests.id, guestId), isNull(guests.deletedAt)))
@@ -118,8 +119,9 @@ export function drizzleGuestDeps(
       return rows.length > 0
     },
 
-    async revokeInvitations(guestId) {
-      const rows = await db
+    async revokeInvitations(guestId, tx) {
+      const client = (tx as Db | undefined) ?? db
+      const rows = await client
         .update(guestInvitations)
         .set({ revokedAt: new Date() })
         .where(
