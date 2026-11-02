@@ -89,10 +89,16 @@ fun GuestListScreen(
     // spec §6b.7: taraf ve RSVP filtresi SUNUCUDA uygulanır — istemci tüm
     // listeyi çekip elemez. (Arama metni için backend'de parametre yok;
     // yüklü sayfa içinde istemcide süzülür.)
-    LaunchedEffect(weddingId, filterSide, filterRsvp, reloadKey) {
+    // Arama da sunucuda: 500 davetlide istemci süzme yetersiz (spec §6b.7)
+    LaunchedEffect(weddingId, filterSide, filterRsvp, query, reloadKey) {
         loading = true
         error = null
-        val g = repository.listGuests(weddingId, side = filterSide, rsvp = filterRsvp)
+        val g = repository.listGuests(
+            weddingId,
+            side = filterSide,
+            rsvp = filterRsvp,
+            search = query.ifBlank { null },
+        )
         val u = repository.guestUsage(weddingId)
         if (g.isFailure) {
             // spec §11: internet yokken son veri görünür
@@ -113,10 +119,8 @@ fun GuestListScreen(
         loading = false
     }
 
-    val filtered = guests.filter { g ->
-        query.isBlank() || g.name.contains(query, ignoreCase = true) ||
-            (g.phone?.contains(query) == true)
-    }
+    // Sunucu zaten süzdü — istemcide tekrar filtreleme yok
+    val filtered = guests
 
     Box(Modifier.fillMaxSize().background(c.cream)) {
         when {

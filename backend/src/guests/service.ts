@@ -146,6 +146,14 @@ export interface ListGuestsOptions {
   includeDeleted?: boolean
   side?: (typeof GUEST_SIDES)[number]
   rsvp?: (typeof RSVP_STATES)[number]
+  /**
+   * Ad veya telefon araması — spec §6b.7 "Ad arama".
+   *
+   * Sunucuda uygulanır: istemci tüm listeyi çekip elemez (kural).
+   * `ILIKE '%...%'` — büyük/küçük harf duyarsız, Türkçe karakterler
+   * PostgreSQL'in `tr_TR` collation'ında doğru çalışır.
+   */
+  search?: string
 }
 
 export interface GuestDeps {
@@ -418,6 +426,8 @@ export interface ListGuestsParams {
   includeDeleted?: boolean
   side?: (typeof GUEST_SIDES)[number]
   rsvp?: (typeof RSVP_STATES)[number]
+  /** Ad veya telefon araması (spec §6b.7). */
+  search?: string
 }
 
 export async function listGuests(
@@ -436,6 +446,10 @@ export async function listGuests(
   }
   if (params.side !== undefined) opts.side = params.side
   if (params.rsvp !== undefined) opts.rsvp = params.rsvp
+  // Arama: boş/whitespace ise yok say
+  if (params.search !== undefined && params.search.trim() !== '') {
+    opts.search = params.search.trim()
+  }
 
   return deps.listByWedding(params.weddingId, params.userId, opts)
 }

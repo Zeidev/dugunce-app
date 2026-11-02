@@ -1,4 +1,4 @@
-import { eq, and, isNull, sql, desc, inArray } from 'drizzle-orm'
+import { eq, and, isNull, sql, desc, inArray, or, ilike } from 'drizzle-orm'
 import { getDb } from '../db/client.js'
 import { guests, guestInvitations, weddings, weddingMembers } from '../db/schema.js'
 import type {
@@ -141,6 +141,16 @@ export function drizzleGuestDeps(
       if (!opts.includeDeleted) conditions.push(isNull(guests.deletedAt))
       if (opts.side) conditions.push(eq(guests.side, opts.side))
       if (opts.rsvp) conditions.push(eq(guests.rsvp, opts.rsvp))
+      // Ad veya telefon araması — sunucu tarafı (spec §6b.7)
+      if (opts.search) {
+        const pattern = `%${opts.search}%`
+        conditions.push(
+          or(
+            ilike(guests.name, pattern),
+            ilike(guests.phone, pattern),
+          )!,
+        )
+      }
 
       const rows = await db
         .select(guestColumns())

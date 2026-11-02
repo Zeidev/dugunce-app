@@ -48,6 +48,8 @@ export function createGuestsRouter(deps: {
           includeDeleted: q['includeDeleted'] === 'true',
           ...(q['side'] ? { side: q['side'] as 'BRIDE' | 'GROOM' } : {}),
           ...(q['rsvp'] ? { rsvp: q['rsvp'] as 'PENDING' | 'ATTENDING' | 'DECLINED' } : {}),
+          // spec §6b.7: ad/telefon araması sunucuda
+          ...(q['search'] ? { search: q['search'] } : {}),
         },
         store,
       )
