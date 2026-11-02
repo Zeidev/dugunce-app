@@ -1,0 +1,19 @@
+# Cloudflare Pages güvenlik başlıkları
+# Ref: docs/SECURITY.md
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# Davetiye sayfası: arama motoruna ve önizlemeye kapalı
+/d/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
+# Deep link doğrulama dosyaları (Apple/Android)
+/.well-known/*
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600

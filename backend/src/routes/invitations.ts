@@ -5,6 +5,7 @@ import { toPublicInvitation } from '../guests/public-view.js'
 import { submitRsvp, RsvpError, RsvpClosedError } from '../guests/rsvp.js'
 import { drizzleGuestDeps } from '../guests/store.js'
 import { createRateLimit, RATE_LIMITS } from '../middleware/rate-limit.js'
+import { corsForInvitations } from '../middleware/cors.js'
 
 /**
  * Davetli route'ları — DAVETLİ tarafı (kimlik doğrulama YOK).
@@ -35,6 +36,10 @@ export function createInvitationsRouter(deps?: {
   const rsvpLimiter = limitEnabled
     ? createRateLimit(RATE_LIMITS.rsvpByToken)
     : (_req: Request, _res: Response, next: NextFunction) => next()
+
+  // CORS — davetiye sayfası farklı origin'den çağırır.
+  // Rate limit'ten ÖNCE: preflight istekleri sayaca dahil olmasın.
+  router.use(corsForInvitations())
 
   // Davetli tarafı: cache'lenmemeli, indekslenmemeli, referrer sızdırmamalı.
   router.use((_req, res, next) => {

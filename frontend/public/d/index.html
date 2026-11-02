@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#4a5f45">
+<title>Davetiye — Düğünce</title>
+<!--
+  GÜVENLİK NOTLARI (docs/SECURITY.md):
+  - Open Graph etiketi YOK: WhatsApp önizlemesinde çift/tarih sızmasın.
+  - noindex + no-referrer: davetiye arama motoruna ve referrer'a düşmesin.
+  - Token URL'in #fragment'inde: sunucuya gitmez, erişim loglarına düşmez.
+  - Bu sayfa statiktir; veri GET /api/v1/invitations/:token ile gelir.
+    GET YAN ETKİ YARATMAZ (RSVP sadece POST).
+-->
+<style>
+  :root{
+    --bg:#f4f2ee; --card:#fff; --ink:#2d3a2e; --muted:#7a746a;
+    --line:#e6e1d8; --accent:#4a5f45; --accent-ink:#fff;
+    --ok:#4a5f45; --no:#a35b4a;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+    line-height:1.55;
+    padding:24px 16px 48px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px;margin:0 auto}
+  .card{
+    background:var(--card); border-radius:var(--radius);
+    padding:28px 24px; box-shadow:0 1px 2px rgba(45,58,46,.06),0 8px 24px rgba(45,58,46,.06);
+  }
+  .brand{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 18px}
+  h1{font-size:26px;line-height:1.25;margin:0 0 6px;font-weight:600;letter-spacing:-.01em}
+  .hello{color:var(--muted);font-size:15px;margin:0 0 24px}
+  .hello strong{color:var(--ink);font-weight:600}
+
+  dl{margin:0;display:grid;gap:16px}
+  .row{display:grid;grid-template-columns:22px 1fr;gap:12px;align-items:start}
+  .ico{width:22px;height:22px;flex:none;margin-top:2px;color:var(--accent)}
+  dt{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 2px}
+  dd{margin:0;font-size:16px}
+  dd .sub{display:block;color:var(--muted);font-size:14px;margin-top:2px}
+  a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(74,95,69,.3)}
+  a:active{opacity:.7}
+
+  .prog{margin:24px 0 0;padding:0;list-style:none;border-top:1px solid var(--line);padding-top:20px}
+  .prog li{display:grid;grid-template-columns:56px 1fr;gap:12px;padding:8px 0;font-size:15px}
+  .prog time{color:var(--muted);font-variant-numeric:tabular-nums}
+
+  .note{
+    margin:20px 0 0;padding:14px 16px;background:#faf8f4;border-radius:12px;
+    font-size:14px;color:var(--muted);border:1px solid var(--line);
+  }
+  .note strong{color:var(--ink)}
+
+  /* RSVP */
+  .rsvp{margin:28px 0 0;border-top:1px solid var(--line);padding-top:24px}
+  .rsvp h2{font-size:17px;margin:0 0 4px;font-weight:600}
+  .rsvp .hint{font-size:14px;color:var(--muted);margin:0 0 18px}
+
+  .btns{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+  button{
+    font:inherit;font-size:15px;font-weight:600;cursor:pointer;
+    border-radius:12px;padding:14px 16px;border:1.5px solid transparent;
+    transition:transform .06s ease,opacity .15s ease;
+    min-height:48px;
+  }
+  button:active{transform:scale(.985)}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  .yes{background:var(--accent);color:var(--accent-ink)}
+  .no{background:#fff;color:var(--no);border-color:#e0cfc9}
+  .yes[aria-pressed="true"]{box-shadow:0 0 0 3px rgba(74,95,69,.18)}
+  .no[aria-pressed="true"]{border-color:var(--no);background:#fbf3f1}
+
+  .size{margin:18px 0 0;display:none}
+  .size.show{display:block}
+  .size label{display:block;font-size:14px;color:var(--muted);margin:0 0 8px}
+  .stepper{display:flex;align-items:center;gap:0;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;width:max-content}
+  .stepper button{
+    background:#fff;color:var(--ink);border:0;border-radius:0;
+    width:52px;height:48px;font-size:20px;font-weight:400;padding:0;
+  }
+  .stepper button:disabled{opacity:.3}
+  .stepper output{
+    min-width:56px;text-align:center;font-size:17px;font-weight:600;
+    font-variant-numeric:tabular-nums;padding:0 4px;
+  }
+
+  .status{margin:16px 0 0;font-size:14px;min-height:20px}
+  .status.ok{color:var(--ok)}
+  .status.err{color:var(--no)}
+
+  .confirmed{
+    margin:0 0 4px;font-size:15px;
+  }
+  .confirmed .pill{
+    display:inline-block;padding:4px 10px;border-radius:999px;
+    background:#eef2ec;color:var(--accent);font-weight:600;font-size:13px;
+  }
+
+  .closed{
+    margin:20px 0 0;padding:14px 16px;border-radius:12px;
+    background:#fbf3f1;border:1px solid #e0cfc9;color:var(--no);font-size:14px;
+  }
+
+  .grow{margin:32px 0 0;text-align:center}
+  .grow a{font-size:14px;color:var(--muted);border:0}
+
+  /* Durumlar */
+  .center{text-align:center;padding:56px 8px}
+  .center h2{font-size:19px;margin:0 0 8px;font-weight:600}
+  .center p{color:var(--muted);font-size:15px;margin:0}
+  .spinner{
+    width:28px;height:28px;margin:0 auto 20px;border-radius:50%;
+    border:2.5px solid var(--line);border-top-color:var(--accent);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  [hidden]{display:none !important}
+  @media (prefers-reduced-motion:reduce){
+    .spinner{animation:none}
+    button{transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+
+  <div class="card" id="loading">
+    <div class="center">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Davetiye yükleniyor…</p>
+    </div>
+  </div>
+
+  <div class="card" id="error" hidden>
+    <div class="center">
+      <h2>Davetiye bulunamadı</h2>
+      <p id="errorText">Bu bağlantı geçersiz veya süresi dolmuş olabilir.<br>Lütfen çift ile iletişime geçin.</p>
+    </div>
+  </div>
+
+  <div class="card" id="invite" hidden>
+    <p class="brand">Düğünce · Davetiye</p>
+    <h1 id="coupleNames"></h1>
+    <p class="hello">Sayın <strong id="guestName"></strong>, sizi düğünümüzde görmek isteriz.</p>
+
+    <dl>
+      <div class="row">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>
+        </svg>
+        <div>
+          <dt>Tarih</dt>
+          <dd id="dateText"></dd>
+        </div>
+      </div>
+
+      <div class="row" id="venueRow">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>
+        </svg>
+        <div>
+          <dt>Yer</dt>
+          <dd id="venueText"></dd>
+        </div>
+      </div>
+    </dl>
+
+    <ul class="prog" id="program" hidden></ul>
+
+    <p class="note" id="giftNote" hidden></p>
+
+    <div class="rsvp" id="rsvpBox" hidden>
+      <h2>Katılım bildirimi</h2>
+      <p class="hint" id="rsvpHint"></p>
+
+      <p class="confirmed" id="confirmedLine" hidden>
+        Bildiriminiz: <span class="pill" id="confirmedPill"></span>
+      </p>
+
+      <div class="btns">
+        <button class="yes" id="btnYes" type="button" aria-pressed="false">Geliyorum</button>
+        <button class="no" id="btnNo" type="button" aria-pressed="false">Gelemeyeceğim</button>
+      </div>
+
+      <div class="size" id="sizeBox">
+        <label id="sizeLabel" for="btnMinus">Kaç kişi geleceksiniz?</label>
+        <div class="stepper">
+          <button id="btnMinus" type="button" aria-label="Azalt">−</button>
+          <output id="sizeValue" aria-live="polite">1</output>
+          <button id="btnPlus" type="button" aria-label="Arttır">+</button>
+        </div>
+      </div>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </div>
+
+    <p class="closed" id="closedBox" hidden></p>
+  </div>
+
+  <p class="grow"><a href="https://dugunce.com.tr" id="growLink">Düğünce ile düğününü planla</a></p>
+</div>
+
+<script type="module">
+/**
+ * Davetiye sayfası.
+ *
+ * Akış:
+ *   1. Token'ı URL fragment'inden oku (#token) — sunucuya gitmez.
+ *   2. GET /api/v1/invitations/:token — SALT OKUMA, yan etki yok.
+ *   3. "Geliyorum" / "Gelemeyeceğim" → POST .../rsvp
+ *
+ * KRİTİK: Sayfa yüklenirken ASLA POST atmaz. WhatsApp link önizlemesi
+ * GET atar; eğer GET yazsaydı davetli hiç tıklamadan "geliyorum" olurdu.
+ */
+const API = 'https://api.dugunce.com.tr/api/v1'
+const $ = (id) => document.getElementById(id)
+
+const state = {
+  token: '',
+  data: null,
+  choice: null,   // 'ATTENDING' | 'DECLINED' | null
+  size: 1,
+}
+
+function getToken() {
+  // Token #fragment'te: sunucuya gitmez, erişim loglarına düşmez
+  const hash = location.hash.replace(/^#/, '')
+  if (hash) return hash
+  // Geriye dönük: /d/<token> yolu (eski linkler için)
+  const m = location.pathname.match(/\/d\/([A-Za-z0-9_-]+)$/)
+  return m ? m[1] : ''
+}
+
+function show(which) {
+  for (const id of ['loading', 'error', 'invite']) {
+    $(id).hidden = id !== which
+  }
+}
+
+function formatDate(iso, tz) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  try {
+    return new Intl.DateTimeFormat('tr-TR', {
+      day: 'numeric', month: 'long', year: 'numeric',
+      weekday: 'long', hour: '2-digit', minute: '2-digit',
+      timeZone: tz || 'Europe/Istanbul',
+    }).format(d)
+  } catch {
+    return new Intl.DateTimeFormat('tr-TR', {
+      day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }).format(d)
+  }
+}
+
+function render(data) {
+  state.data = data
+
+  $('coupleNames').textContent = data.coupleNames
+  $('guestName').textContent = data.guestName
+  $('dateText').textContent = formatDate(data.weddingDate, data.timezone)
+
+  // Yer
+  const venueParts = [data.venueName, data.venueAddress].filter(Boolean)
+  if (venueParts.length === 0) {
+    $('venueRow').hidden = true
+  } else {
+    const dd = $('venueText')
+    dd.textContent = ''
+    dd.append(document.createTextNode(data.venueName || ''))
+    if (data.venueAddress) {
+      const sub = document.createElement('span')
+      sub.className = 'sub'
+      sub.textContent = data.venueAddress
+      dd.append(sub)
+    }
+    if (data.mapUrl) {
+      const a = document.createElement('a')
+      a.href = data.mapUrl
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.textContent = 'Haritada aç'
+      const sub = document.createElement('span')
+      sub.className = 'sub'
+      sub.append(a)
+      dd.append(sub)
+    }
+  }
+
+  // Program (boşsa gizle)
+  if (Array.isArray(data.program) && data.program.length > 0) {
+    const ul = $('program')
+    ul.textContent = ''
+    for (const item of data.program) {
+      const li = document.createElement('li')
+      const t = document.createElement('time')
+      t.textContent = item.time || ''
+      const span = document.createElement('span')
+      span.textContent = item.title || ''
+      if (item.note) {
+        const n = document.createElement('span')
+        n.className = 'sub'
+        n.style.color = 'var(--muted)'
+        n.style.fontSize = '14px'
+        n.style.display = 'block'
+        n.textContent = item.note
+        span.append(n)
+      }
+      li.append(t, span)
+      ul.append(li)
+    }
+    ul.hidden = false
+  }
+
+  // Hediye notu
+  if (data.giftNote) {
+    const p = $('giftNote')
+    const strong = document.createElement('strong')
+    strong.textContent = 'Hediye notu: '
+    p.append(strong, document.createTextNode(data.giftNote))
+    p.hidden = false
+  }
+
+  // RSVP
+  if (data.isOpen) {
+    $('rsvpBox').hidden = false
+    const max = Math.max(1, data.allowedPartySize || 1)
+    $('rsvpHint').textContent =
+      max > 1 ? `En fazla ${max} kişi bildirebilirsiniz.` : ''
+
+    // Mevcut yanıtı göster
+    if (data.rsvp === 'ATTENDING' || data.rsvp === 'DECLINED') {
+      state.choice = data.rsvp
+      state.size = data.confirmedPartySize && data.confirmedPartySize > 0
+        ? Math.min(data.confirmedPartySize, max) : 1
+      paintChoice()
+    }
+
+    $('sizeLabel').textContent = 'Kaç kişi geleceksiniz?'
+    updateStepper(max)
+  } else {
+    const box = $('closedBox')
+    box.textContent = 'Katılım bildirimi kapandı. Değişiklik için lütfen çift ile iletişime geçin.'
+    box.hidden = false
+  }
+
+  show('invite')
+}
+
+function updateStepper(max) {
+  const val = $('sizeValue')
+  val.textContent = String(state.size)
+  $('btnMinus').disabled = state.size <= 1
+  $('btnPlus').disabled = state.size >= max
+  $('sizeLabel').textContent = max > 1
+    ? `Kaç kişi geleceksiniz? (en fazla ${max})`
+    : 'Kaç kişi geleceksiniz?'
+}
+
+function paintChoice() {
+  const yes = $('btnYes')
+  const no = $('btnNo')
+  yes.setAttribute('aria-pressed', String(state.choice === 'ATTENDING'))
+  no.setAttribute('aria-pressed', String(state.choice === 'DECLINED'))
+  $('sizeBox').classList.toggle('show', state.choice === 'ATTENDING')
+}
+
+function setStatus(msg, kind) {
+  const el = $('status')
+  el.textContent = msg || ''
+  el.className = 'status' + (kind ? ' ' + kind : '')
+}
+
+async function load() {
+  state.token = getToken()
+  if (!state.token) {
+    $('errorText').textContent = 'Davetiye bağlantısı eksik. Lütfen çiftten gelen bağlantıyı kullanın.'
+    show('error')
+    return
+  }
+
+  try {
+    const res = await fetch(`${API}/invitations/${encodeURIComponent(state.token)}`, {
+      headers: { Accept: 'application/json' },
+    })
+
+    if (res.status === 404) {
+      $('errorText').textContent =
+        'Bu bağlantı geçersiz, iptal edilmiş veya süresi dolmuş olabilir. Lütfen çift ile iletişime geçin.'
+      show('error')
+      return
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+
+    const body = await res.json()
+    render(body.invitation)
+  } catch (err) {
+    $('errorText').textContent =
+      'Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.'
+    show('error')
+    console.error(err)
+  }
+}
+
+async function sendRsvp(rsvp) {
+  if (!state.token || !state.data) return
+
+  const max = Math.max(1, state.data.allowedPartySize || 1)
+  const payload = { rsvp }
+  if (rsvp === 'ATTENDING') {
+    payload.partySize = Math.min(state.size, max)
+  }
+
+  const buttons = [$('btnYes'), $('btnNo'), $('btnMinus'), $('btnPlus')]
+  buttons.forEach((b) => { b.disabled = true })
+  setStatus('Gönderiliyor…')
+
+  try {
+    const res = await fetch(
+      `${API}/invitations/${encodeURIComponent(state.token)}/rsvp`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    )
+
+    if (res.status === 410) {
+      setStatus('Katılım bildirimi kapandı.', 'err')
+      $('rsvpBox').hidden = true
+      const box = $('closedBox')
+      box.textContent = 'Katılım bildirimi kapandı. Değişiklik için lütfen çift ile iletişime geçin.'
+      box.hidden = false
+      return
+    }
+    if (res.status === 404) {
+      setStatus('Davetiye bulunamadı.', 'err')
+      return
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      const msg = body?.error?.message || 'Bir sorun oluştu.'
+      setStatus(msg, 'err')
+      return
+    }
+
+    const body = await res.json()
+    state.choice = rsvp
+    state.data.rsvp = rsvp
+    state.data.confirmedPartySize = body.rsvp?.confirmedPartySize ?? null
+    paintChoice()
+    showConfirmed()
+
+    setStatus(
+      rsvp === 'ATTENDING' ? 'Katılımınız kaydedildi. Teşekkürler!' : 'Yanıtınız kaydedildi.',
+      'ok',
+    )
+  } catch {
+    setStatus('Gönderilemedi. Bağlantınızı kontrol edip tekrar deneyin.', 'err')
+  } finally {
+    buttons.forEach((b) => { b.disabled = false })
+    if (state.choice === 'ATTENDING') {
+      updateStepper(max)
+    }
+  }
+}
+
+function showConfirmed() {
+  const line = $('confirmedLine')
+  const pill = $('confirmedPill')
+  if (state.choice === 'ATTENDING') {
+    const n = state.data.confirmedPartySize
+    pill.textContent = n && n > 1 ? `Geliyorum · ${n} kişi` : 'Geliyorum'
+    line.hidden = false
+  } else if (state.choice === 'DECLINED') {
+    pill.textContent = 'Gelemeyeceğim'
+    line.hidden = false
+  } else {
+    line.hidden = true
+  }
+}
+
+// --- Olaylar ---
+$('btnYes').addEventListener('click', () => {
+  state.choice = 'ATTENDING'
+  if (state.size < 1) state.size = 1
+  paintChoice()
+  sendRsvp('ATTENDING')
+})
+
+$('btnNo').addEventListener('click', () => {
+  state.choice = 'DECLINED'
+  paintChoice()
+  sendRsvp('DECLINED')
+})
+
+$('btnMinus').addEventListener('click', () => {
+  const max = Math.max(1, state.data?.allowedPartySize || 1)
+  if (state.size > 1) {
+    state.size -= 1
+    updateStepper(max)
+    sendRsvp('ATTENDING')
+  }
+})
+
+$('btnPlus').addEventListener('click', () => {
+  const max = Math.max(1, state.data?.allowedPartySize || 1)
+  if (state.size < max) {
+    state.size += 1
+    updateStepper(max)
+    sendRsvp('ATTENDING')
+  }
+})
+
+load()
+</script>
+</body>
+</html>

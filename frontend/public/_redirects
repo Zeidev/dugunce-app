@@ -1,0 +1,3 @@
+# /d/<token> eski link biçimi → fragment'e çevir
+# (token sunucuya gitmesin diye fragment kullanılıyor)
+/d/:token  /d/#:token  302
