@@ -8,6 +8,13 @@
       "when": 1793578603331,
       "tag": "0000_free_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793593646916,
+      "tag": "0001_silent_morlun",
+      "breakpoints": true
     }
   ]
 }
