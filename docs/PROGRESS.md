@@ -53,9 +53,9 @@ Environment: `production`. Yedekler sunucuda `/tmp/dist-backup-*.tgz` (son 5).
 
 | Ölçüm | Değer |
 |---|---|
-| Kotlin satırı | **9504** (önce 1695) |
-| Ekran | **26** enum değeri, hepsi bağlı (önce 4) |
-| Test | **~90** (önce 0) |
+| Kotlin satırı | **~10600** (önce 1695) |
+| Ekran | **27** enum değeri, hepsi bağlı (önce 4) |
+| Test | **112+** (önce 0) |
 | APK | 18 MB, `mobile-ci` ✅ |
 | CI | testler + APK her push'ta |
 
@@ -110,7 +110,7 @@ kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
 | 7 | Davetli **arama** parametresi backend'de | Sunucu tarafı taraf/RSVP filtresi var, metin arama yok — istemci yüklü sayfada süzüyor |
 | 9 | ~~Kategori uçları~~ | ✅ **KAPANDI (2026-11-02)** — `/weddings/:id/categories` + 12 sistem kategorisi seed, canlıda |
 | 8 | Sayfalama (cursor) | Spec §6b.7 istiyor; backend listeleri henüz sayfalamıyor. 30 davetli limiti altında sorun değil, premium'da gerekli |
-| 10 | Kart (card) ucu | `cards` tablosu var, uç yok — brief §5.3 "kart" filtresi bu yüzden bağlanamadı |
+| 10 | ~~Kart ucu~~ | ✅ **KAPANDI** — `/weddings/:id/cards` CRUD + güvenlik testleri, canlıda doğrulandı |
 
 ### Düzeltilen bug (2026-11-02)
 
