@@ -3,3 +3,8 @@
 .gradle/
 build/
 local.properties
+
+# Yedekler — ASLA commit edilmez
+backups/
+*.dump
+*.dump.gpg
