@@ -1,6 +1,6 @@
 # Düğünce — Aşama 4: Davetli ve RSVP
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Çiftin davetli listesini yönetebildiği, her davetliye **token'lı bir davetiye linki** üretildiği ve davetlinin **uygulama kurmadan** bu linkten gelip/gelemeyeceğini bildirebildiği bir modül kurmak.
 
@@ -85,7 +85,7 @@ backend/src/
 - Consumes: Aşama 2 `weddings`, Aşama 3 composite FK deseni
 - Produces: `guests`, `guest_invitations` tabloları
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('guests şeması', () => {
@@ -120,7 +120,7 @@ describe('guest_invitations şeması', () => {
 })
 ```
 
-- [ ] **Step 2: Şema**
+- [x] **Step 2: Şema**
 
 ```ts
 export const guests = pgTable('guests', {
@@ -163,7 +163,7 @@ export const guestInvitations = pgTable('guest_invitations', {
 
 **Kritik:** composite FK elle migration'a eklenir — Drizzle Kit üretmez (Aşama 3'te aynı sorun yaşandı). İdempotent `DO $$ ... IF NOT EXISTS ... $$` bloğu kullan.
 
-- [ ] **Step 3: Migration üret**
+- [x] **Step 3: Migration üret**
 
 ```bash
 npx drizzle-kit generate
@@ -171,7 +171,7 @@ npx drizzle-kit generate
 
 Üretilen SQL'e composite FK bloğunu elle ekle. **Aynı `wedding_id`'yi taşımayan davetiye yazılamamalı.**
 
-- [ ] **Step 4: Migration doğrulama**
+- [x] **Step 4: Migration doğrulama**
 
 ```bash
 npm run verify:migrations
@@ -179,7 +179,7 @@ npm run verify:migrations
 
 `scripts/verify-migrations.mjs` 6 kontrol grubuna `guests`/`guest_invitations` ekle: tablo var mı, composite FK var mı, CASCADE çalışıyor mu, `token_hash` UNIQUE mi.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit -m "feat(db): add guests and guest_invitations schema"
@@ -197,7 +197,7 @@ git commit -m "feat(db): add guests and guest_invitations schema"
 - Consumes: Task 1
 - Produces: `validateGuestInput`, `createGuest`, `listGuests`, `updateGuest`, `deleteGuest`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('validateGuestInput', () => {
@@ -238,9 +238,9 @@ describe('deleteGuest', () => {
 })
 ```
 
-- [ ] **Step 2-5: TDD döngüsü** — önce implementasyon olmadan çalıştır, kırmızı gör, sonra yaz.
+- [x] **Step 2-5: TDD döngüsü** — önce implementasyon olmadan çalıştır, kırmızı gör, sonra yaz.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "feat(guests): add guest CRUD service"
@@ -258,7 +258,7 @@ git commit -m "feat(guests): add guest CRUD service"
 - Consumes: Task 2
 - Produces: `assertGuestLimit`, `FREE_GUEST_LIMIT = 30`, `GuestLimitError`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('davetli limiti (Review Focus #1)', () => {
@@ -294,7 +294,7 @@ describe('davetli limiti (Review Focus #1)', () => {
 })
 ```
 
-- [ ] **Step 2: Limit sabiti ve hata tipi**
+- [x] **Step 2: Limit sabiti ve hata tipi**
 
 ```ts
 export const FREE_GUEST_LIMIT = 30
@@ -307,7 +307,7 @@ export class GuestLimitError extends Error {
 }
 ```
 
-- [ ] **Step 3: Transaction-safe kontrol**
+- [x] **Step 3: Transaction-safe kontrol**
 
 ```ts
 // KRİTİK: sayım ve ekleme AYNI transaction içinde.
@@ -325,15 +325,15 @@ async function withLimitCheck<T>(weddingId, userId, addCount, deps, fn): Promise
 }
 ```
 
-- [ ] **Step 4: Store'da `FOR UPDATE`**
+- [x] **Step 4: Store'da `FOR UPDATE`**
 
 `countActiveGuests` sorgusu `SELECT ... FOR UPDATE` ile kilitlenir ki eşzamanlı iki transaction sırayla çalışsın.
 
-- [ ] **Step 5: Gerçek DB yarış testi (PGlite)**
+- [x] **Step 5: Gerçek DB yarış testi (PGlite)**
 
 İki paralel `createGuest` çağrısı → biri başarılı, biri `GuestLimitError`. Toplam 30'u geçmez.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git commit -m "feat(guests): enforce 30 guest free-tier limit transactionally"
@@ -351,7 +351,7 @@ git commit -m "feat(guests): enforce 30 guest free-tier limit transactionally"
 - Consumes: Aşama 2 `generateToken`, `hashToken` (`lib/crypto.ts`)
 - Produces: `createInvitation`, `resolveInvitation`, `INVITATION_TTL_DAYS`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('createInvitation (Review Focus #2)', () => {
@@ -393,7 +393,7 @@ describe('resolveInvitation', () => {
 })
 ```
 
-- [ ] **Step 2: Üretim**
+- [x] **Step 2: Üretim**
 
 ```ts
 export const INVITATION_TTL_DAYS = 90
@@ -409,7 +409,7 @@ export async function createInvitation(params, deps) {
 }
 ```
 
-- [ ] **Step 3: Doğrulama — dört kapı**
+- [x] **Step 3: Doğrulama — dört kapı**
 
 ```ts
 async function resolveInvitation(rawToken, deps) {
@@ -423,7 +423,7 @@ async function resolveInvitation(rawToken, deps) {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(guests): add invitation token generation and resolution"
@@ -443,7 +443,7 @@ git commit -m "feat(guests): add invitation token generation and resolution"
 
 **Neden ayrı görev:** Davetliye dönen gövde **beyaz liste** olmalı. Tüm satırı döndürmek `wedding_id`, davetlinin telefonu, çiftin e-postası gibi gereksiz verileri sızdırır.
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('toPublicInvitation', () => {
@@ -459,7 +459,7 @@ describe('toPublicInvitation', () => {
 })
 ```
 
-- [ ] **Step 2: Beyaz liste**
+- [x] **Step 2: Beyaz liste**
 
 ```ts
 export interface PublicInvitation {
@@ -480,7 +480,7 @@ export interface PublicInvitation {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "feat(guests): add whitelisted public invitation view"
@@ -498,7 +498,7 @@ git commit -m "feat(guests): add whitelisted public invitation view"
 - Consumes: Task 4, 5
 - Produces: `submitRsvp`, `RsvpError`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('submitRsvp (Review Focus #4)', () => {
@@ -521,7 +521,7 @@ describe('submitRsvp — eşzamanlılık', () => {
 })
 ```
 
-- [ ] **Step 2: İş mantığı**
+- [x] **Step 2: İş mantığı**
 
 ```ts
 export class RsvpError extends Error { /* 422 */ }
@@ -556,11 +556,11 @@ export async function submitRsvp({ rawToken, rsvp, partySize, source = 'GUEST' }
 }
 ```
 
-- [ ] **Step 3: `guests.rsvp` ve `guest_invitations` birlikte güncellenir**
+- [x] **Step 3: `guests.rsvp` ve `guest_invitations` birlikte güncellenir**
 
 Tek transaction: davetiyede `confirmedPartySize`/`rsvpAt`, davetlide `rsvp`. İkisi tutarsız kalırsa liste yanlış görünür.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(guests): add idempotent RSVP submission"
@@ -578,7 +578,7 @@ git commit -m "feat(guests): add idempotent RSVP submission"
 
 **Neden ayrı görev:** Bu, WhatsApp link önizlemesinin davetiyeyi yakmaması için **tek** savunma. Ayrı ve açık bir test olmadan sessizce bozulabilir.
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 describe('GET yan etki yaratmaz (Review Focus #3)', () => {
@@ -600,9 +600,9 @@ describe('GET yan etki yaratmaz (Review Focus #3)', () => {
 })
 ```
 
-- [ ] **Step 2: Route'un `GET` olduğundan emin ol** — `POST` ayrı handler.
+- [x] **Step 2: Route'un `GET` olduğundan emin ol** — `POST` ayrı handler.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(guests): prove GET has no RSVP side effects"
@@ -621,7 +621,7 @@ git commit -m "test(guests): prove GET has no RSVP side effects"
 - Consumes: Task 2-7
 - Produces: çift tarafı 6 + davetli tarafı 2 endpoint
 
-- [ ] **Step 1: Route tablosu**
+- [x] **Step 1: Route tablosu**
 
 **Çift tarafı** (`requireAuth` + `requireWeddingMember`):
 
@@ -642,7 +642,7 @@ git commit -m "test(guests): prove GET has no RSVP side effects"
 | GET | `/invitations/:token` | Davetiyeyi göster (yan etkisiz) |
 | POST | `/invitations/:token/rsvp` | RSVP gönder |
 
-- [ ] **Step 2: Hata eşlemesi**
+- [x] **Step 2: Hata eşlemesi**
 
 | Durum | Kod |
 |---|---|
@@ -652,15 +652,15 @@ git commit -m "test(guests): prove GET has no RSVP side effects"
 | Token bulunamadı / revoke / süresi geçmiş | 404 |
 | Üye olunmayan düğün | 404 |
 
-- [ ] **Step 3: Davetli tarafı güvenlik başlıkları**
+- [x] **Step 3: Davetli tarafı güvenlik başlıkları**
 
 `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`.
 
-- [ ] **Step 4: E2E test**
+- [x] **Step 4: E2E test**
 
 Token yok → 401 (çift tarafı), üye değil → 404, geçersiz token → 404, limit → 403 + kod.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git commit -m "feat(api): add guest and invitation routes"
@@ -679,11 +679,11 @@ git commit -m "feat(api): add guest and invitation routes"
 
 **Dikkat:** Aşama 3'te `store.test.ts` ham SQL çalıştırdığı için Drizzle join'ini test etmiyordu. Bu sefer **gerçek store** test edilir ve negatif kontrol yapılır.
 
-- [ ] **Step 1: Store**
+- [x] **Step 1: Store**
 
 Her sorgu `wedding_members` join'i ile. `countActiveGuests` → `FOR UPDATE`. `findByTokenHash` → davetli + düğün join, `deleted_at IS NULL`.
 
-- [ ] **Step 2: Gerçek DB testi**
+- [x] **Step 2: Gerçek DB testi**
 
 ```ts
 it('üye olmayan kullanıcı davetli listesini göremez (IDOR)')
@@ -695,9 +695,9 @@ it('CASCADE: davetli silinince davetiye gider')
 it('limit sayımı silinmişleri saymaz')
 ```
 
-- [ ] **Step 3: Negatif kontrol** — üyelik join'ini kaldır, IDOR testinin kırıldığını doğrula, geri koy. Aşama 3'te olduğu gibi **doğru segmenti** hedefle.
+- [x] **Step 3: Negatif kontrol** — üyelik join'ini kaldır, IDOR testinin kırıldığını doğrula, geri koy. Aşama 3'te olduğu gibi **doğru segmenti** hedefle.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "feat(guests): add drizzle store with tenant isolation"
@@ -711,13 +711,13 @@ git commit -m "feat(guests): add drizzle store with tenant isolation"
 - Modify: `backend/scripts/verify-migrations.mjs`
 - Test: `backend/tests/db/migrate-guests.test.ts`
 
-- [ ] **Step 1: Doğrulama grupları**
+- [x] **Step 1: Doğrulama grupları**
 
 `guests` / `guest_invitations` için: tablo var, composite FK var, `token_hash` UNIQUE, CASCADE çalışıyor, `guests.id,wedding_id` UNIQUE.
 
-- [ ] **Step 2: `npm run verify:migrations` yeşil**
+- [x] **Step 2: `npm run verify:migrations` yeşil**
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "test(db): verify guest schema constraints"
@@ -730,27 +730,27 @@ git commit -m "test(db): verify guest schema constraints"
 **Files:**
 - Create: `docs/STAGE-4-COMPLETE.md`
 
-- [ ] **Step 1: Kabul listesi**
+- [x] **Step 1: Kabul listesi**
 
-- [ ] Ücretsiz limit **30 davetli**, premium sınırsız
-- [ ] Limit yarış koşulunda aşılamaz (transaction + `FOR UPDATE`)
-- [ ] Ham token DB'de yok, yalnızca SHA-256 hash
-- [ ] Token ≥128 bit entropi
-- [ ] `GET` yan etki yaratmaz (RSVP değişmez)
-- [ ] RSVP idempotent (aynı yanıt kopya oluşturmaz)
-- [ ] İzin verilen kişi sayısı aşılamaz (422)
-- [ ] `allowed_party_size` ≠ `confirmed_party_size` ayrı alanlar
-- [ ] `rsvp_source` GUEST/COUPLE ayrımı saklanır
-- [ ] `rsvp_deadline` sonrası davetli 410, çift yazabilir
-- [ ] Silinen davetlinin token'ı 404
-- [ ] Davetliye dönen gövde beyaz liste (telefon/wedding_id yok)
-- [ ] Composite FK yanlış `wedding_id`'yi reddeder
-- [ ] Tüm testler geçiyor
-- [ ] Typecheck temiz
+- [x] Ücretsiz limit **30 davetli**, premium sınırsız
+- [x] Limit yarış koşulunda aşılamaz (transaction + `FOR UPDATE`)
+- [x] Ham token DB'de yok, yalnızca SHA-256 hash
+- [x] Token ≥128 bit entropi
+- [x] `GET` yan etki yaratmaz (RSVP değişmez)
+- [x] RSVP idempotent (aynı yanıt kopya oluşturmaz)
+- [x] İzin verilen kişi sayısı aşılamaz (422)
+- [x] `allowed_party_size` ≠ `confirmed_party_size` ayrı alanlar
+- [x] `rsvp_source` GUEST/COUPLE ayrımı saklanır
+- [x] `rsvp_deadline` sonrası davetli 410, çift yazabilir
+- [x] Silinen davetlinin token'ı 404
+- [x] Davetliye dönen gövde beyaz liste (telefon/wedding_id yok)
+- [x] Composite FK yanlış `wedding_id`'yi reddeder
+- [x] Tüm testler geçiyor
+- [x] Typecheck temiz
 
-- [ ] **Step 2: SECURITY.md §10.2'yi güncelle** — 6 açık soru artık kapandı, kararlar tablosu ekle.
+- [x] **Step 2: SECURITY.md §10.2'yi güncelle** — 6 açık soru artık kapandı, kararlar tablosu ekle.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "docs: stage 4 completion record"

@@ -410,13 +410,20 @@ rsvp_response      → gelen yanıt + zaman
 
 **v1 için asgari:** `allowed_party_size` ve `confirmed_party_size` **ayrı alanlar**.
 
-**Netleşmesi gerekenler:**
-- Davetli kaç kişiyle gelebilir?
-- Refakatçi sayısını kim değiştirebilir?
-- Davetli, izin verilen sayıyı aşan yanıt verebilir mi?
-- Çift yanıtı düzeltebilir mi?
-- RSVP kapanışından sonra değişiklik olur mu?
-- Davetli kaydı silinirse eski bağlantı ne olur?
+**Karara bağlanan sorular (Aşama 4, 2026-11-02):**
+
+| # | Soru | Karar | Gerekçe |
+|---|---|---|---|
+| 1 | Davetli kaç kişiyle gelebilir? | `allowed_party_size`, varsayılan **1**, azami **10** | Çift belirler. 10 üstü gruplar zaten aile içinde sözlü yürür |
+| 2 | Refakatçi sayısını kim değiştirebilir? | **Yalnızca çift** (OWNER/CO_OWNER) | Davetli kendi kontenjanını büyütemez — yoksa limit anlamsız |
+| 3 | İzin verilen sayıyı aşan yanıt? | **Reddedilir → 422** | Sessizce kırpmak yanlış: çift 4 beklerken 6 kişi gelir |
+| 4 | Çift yanıtı düzeltebilir mi? | **Evet** — `rsvp_source = GUEST \| COUPLE` ile kim yazdığı saklanır | Telefonla gelen yanıtı çift girer; kaynak ayrımı olmadan denetim izi kalmaz |
+| 5 | RSVP kapanışından sonra? | `rsvp_deadline` sonrası davetli **410**, çift **yazabilir** | Kapanış davetli için anlamlı olmalı; çift son dakika değişikliğini yönetmeli |
+| 6 | Davetli silinirse eski bağlantı? | Token **revoke** + **404** | Silinen davetlinin linki çalışırsa "silindi" bilgisi yalan olur |
+
+**Ek kural — `GET` yan etki yaratmaz:** RSVP yalnızca `POST` ile değişir. WhatsApp link önizlemesi `GET` atar; `GET` yazsaydı davetli hiç tıklamadan "geliyorum" olurdu. Bu, Aşama 4'te ayrı bir testle korunuyor (`tests/e2e/invitation-no-side-effect.test.ts`).
+
+**Ek kural — davetliye dönen gövde beyaz liste:** telefon, `wedding_id`, `token_hash`, `rsvp_source` dönmez (`src/guests/public-view.ts`).
 
 ### 10.3 Görev sohbeti
 
