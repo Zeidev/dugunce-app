@@ -1030,8 +1030,15 @@ Yardımcı web erişimi · davet ve iptal · görev atama · görev bazlı mesaj
 ### Aşama 6 — Görev fotoğrafları
 R2 private bucket · kota + yükleme izinleri · presigned URL · **görüntü doğrulama + EXIF temizliği** · erişim/silme testleri
 
-### Aşama 7 — Admin ve mobil
-Admin SPA + 2FA + RBAC + audit · KMP mobil uygulama · GitHub Actions · test dağıtımı
+### Aşama 7 — Admin paneli
+Admin SPA + 2FA + RBAC + audit · GitHub Actions · test dağıtımı
+
+> **Kapsam değişikliği (2026-11-02):** Mobil uygulama bu aşamadan **çıkarıldı** ve Aşama 6.5'e taşındı. Gerekçe: çiftin kullanacağı TEK arayüz mobil (web panel yok — kullanıcı kararı). Çift arayüzü olmadan ürün kullanılamaz durumda; admin paneli ise operasyonel bir ihtiyaç, kullanıcı değeri üretmiyor.
+
+### Aşama 6.5 — Mobil uygulama (KMP)
+Çift arayüzü: harcama girişi, taksit takvimi, davetli listesi, görev yönetimi, ayarlar. KMP + Compose Multiplatform (Android + iOS). API Aşama 5'te stabil; Aşama 6 (fotoğraflar) mobilde de görünmeli — bu yüzden 6'dan sonra.
+
+> **Neden 7'den önce:** Çiftin hiçbir arayüzü yok. Web panel yok (kullanıcı kararı 2026-11-02). Mobil olmadan ürün "API + davetiye sayfası" olarak kalır; çift harcama giremez, davetli ekleyemez.
 
 ### Aşama 8 — Yayın öncesi güvenlik denetimi
 **14 zorunlu test** (`SECURITY.md` §8) · web güvenlik testleri · yedekten geri dönüş · yük testi · KVKK ve mağaza kontrolleri
