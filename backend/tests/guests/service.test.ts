@@ -20,6 +20,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
     revokeInvitations: vi.fn().mockResolvedValue(0),
     countActiveGuests: vi.fn().mockResolvedValue(0),
     lockWeddingForUpdate: vi.fn().mockResolvedValue(undefined),
+    assertMember: vi.fn().mockResolvedValue(true),
     getPlan: vi.fn().mockResolvedValue('FREE'),
     ...overrides,
   }
@@ -217,6 +218,18 @@ describe('updateGuest', () => {
     await expect(
       updateGuest({ weddingId: 'w1', userId: 'u1', guestId: 'g1', patch: { rsvp: 'ATTENDING' } }, d),
     ).rejects.toThrow(/rsvp/i)
+    expect(d.updateGuest).not.toHaveBeenCalled()
+  })
+
+  it('inviteStatus sessizce yutulmaz — açık hata verir', async () => {
+    // rsvp için yapılan korumanın aynısı: istemci "güncelledim" sanmasın.
+    const d = makeDeps()
+    await expect(
+      updateGuest(
+        { weddingId: 'w1', userId: 'u1', guestId: 'g1', patch: { inviteStatus: 'SENT' } },
+        d,
+      ),
+    ).rejects.toThrow(/gönderim durumu/i)
     expect(d.updateGuest).not.toHaveBeenCalled()
   })
 

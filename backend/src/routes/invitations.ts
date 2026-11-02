@@ -4,6 +4,7 @@ import { resolveInvitation } from '../guests/invitation.js'
 import { toPublicInvitation } from '../guests/public-view.js'
 import { submitRsvp, RsvpError, RsvpClosedError } from '../guests/rsvp.js'
 import { drizzleGuestDeps } from '../guests/store.js'
+import { createRateLimit, RATE_LIMITS } from '../middleware/rate-limit.js'
 
 /**
  * Davetli route'ları — DAVETLİ tarafı (kimlik doğrulama YOK).
@@ -18,10 +19,22 @@ import { drizzleGuestDeps } from '../guests/store.js'
  */
 export function createInvitationsRouter(deps?: {
   store?: ReturnType<typeof drizzleGuestDeps>
+  /** Test için kapatılabilir — varsayılan açık. */
+  rateLimit?: boolean
 }): Router {
   const router = Router()
   // Depo enjekte edilebilir — auth katmanı testleri DB olmadan çalışsın.
   const store = deps?.store ?? drizzleGuestDeps()
+
+  // Bu iki uç KİMLİK DOĞRULAMASI OLMAYAN tek yüzey; sınırsız bırakmak
+  // serv00'ın 10 bağlantılık havuzunu tüketmeye açık kapı bırakır.
+  const limitEnabled = deps?.rateLimit !== false
+  const getLimiter = limitEnabled
+    ? createRateLimit(RATE_LIMITS.invitationByIp)
+    : (_req: Request, _res: Response, next: NextFunction) => next()
+  const rsvpLimiter = limitEnabled
+    ? createRateLimit(RATE_LIMITS.rsvpByToken)
+    : (_req: Request, _res: Response, next: NextFunction) => next()
 
   // Davetli tarafı: cache'lenmemeli, indekslenmemeli, referrer sızdırmamalı.
   router.use((_req, res, next) => {
@@ -38,7 +51,7 @@ export function createInvitationsRouter(deps?: {
    * değişmez. Bu, link önizleme botlarının davetiyeyi yakmaması için
    * kritik (Review Focus #3).
    */
-  router.get('/:token', async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/:token', getLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const token = String(req.params['token'])
       const row = await resolveInvitation(token, store)
@@ -59,7 +72,7 @@ export function createInvitationsRouter(deps?: {
    *
    * Idempotent — aynı yanıt tekrar gelirse yazma yapılmaz.
    */
-  router.post('/:token/rsvp', async (req: Request, res: Response, next: NextFunction) => {
+  router.post('/:token/rsvp', rsvpLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const token = String(req.params['token'])
       const body = req.body as { rsvp?: unknown; partySize?: unknown }

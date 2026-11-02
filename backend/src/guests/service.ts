@@ -170,6 +170,7 @@ export interface GuestDeps {
     values: Record<string, unknown>,
     weddingId: string,
     userId: string,
+    tx?: unknown,
   ): Promise<GuestRecord>
   softDelete(guestId: string, tx: unknown): Promise<boolean>
   /** Davetli silinince token'ları ölür (Review Focus #5). */
@@ -196,6 +197,28 @@ export interface GuestDeps {
   lockWeddingForUpdate(tx: unknown, weddingId: string): Promise<void>
   /** Düğünün planı — üyelik join'i ile, istemciden ASLA alınmaz. */
   getPlan(tx: unknown, weddingId: string, userId: string): Promise<'FREE' | 'PREMIUM'>
+  /**
+   * Kullanıcı bu düğünün üyesi mi? (SECURITY §1.1 defense in depth)
+   *
+   * Route katmanı `requireWeddingMember` ile zaten engelliyor, ama
+   * servis kendi başına da korunmalı: bir gün bir job/CLI/admin yolu
+   * doğrudan çağırırsa tenant sınırı aşılmasın.
+   */
+  assertMember(tx: unknown, weddingId: string, userId: string): Promise<boolean>
+  /** Davetlinin AKTİF (revoke/süre/silinme değil) davetiyeleri. */
+  listActiveInvitationsForGuest(
+    guestId: string,
+  ): Promise<{ id: string; allowedPartySize: number }[]>
+  /** Davetiye RSVP alanlarını yazar (çift tarafı düzeltmesi). */
+  setInvitationRsvp(
+    invitationId: string,
+    values: {
+      confirmedPartySize: number | null
+      rsvpSource: string
+      rsvpAt: Date
+    },
+    tx: unknown,
+  ): Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -210,6 +233,19 @@ export const FREE_GUEST_LIMIT = 30
 
 /** Tek toplu eklemede azami kayıt — kaba kötüye kullanım koruması. */
 export const MAX_BULK_SIZE = 100
+
+/**
+ * Kullanıcı bu düğünün üyesi değil.
+ *
+ * Route katmanı bunu 404'e çevirir — 403 değil, çünkü 403 "kaynak var
+ * ama yetkin yok" der ve düğünün varlığını sızdırır (SECURITY §1.1).
+ */
+export class NotMemberError extends Error {
+  constructor() {
+    super('Düğün bulunamadı')
+    this.name = 'NotMemberError'
+  }
+}
 
 export class GuestLimitError extends Error {
   constructor(
@@ -239,7 +275,16 @@ async function withLimitCheck<T>(
   fn: (tx: unknown) => Promise<T>,
 ): Promise<T> {
   return deps.transaction(async (tx) => {
-    // ÖNCE kilitle: aynı düğüne eşzamanlı yazma varsa bekle.
+    // ÜYELİK ÖNCE (SECURITY §1.1 defense in depth).
+    // `countActiveGuests` ve `getPlan` üyelik join'i kullandığı için üye
+    // olmayan kullanıcı count=0 / plan=FREE görür ve limit kontrolü
+    // sessizce geçerdi. Bu yüzden açık kontrol şart.
+    const isMember = await deps.assertMember(tx, params.weddingId, params.userId)
+    if (!isMember) {
+      throw new NotMemberError()
+    }
+
+    // SONRA kilitle: aynı düğüne eşzamanlı yazma varsa bekle.
     // Kilit sayımdan önce alınmalı, sonra değil — aksi halde TOCTOU açığı kalır.
     await deps.lockWeddingForUpdate(tx, params.weddingId)
 
@@ -418,17 +463,22 @@ export async function updateGuest(
   const existing = await deps.findById(params.guestId, params.weddingId, params.userId)
   if (!existing) return null
 
-  // rsvp bu yoldan değiştirilemez. Sessizce yutmak yerine AÇIK hata ver:
-  // aksi halde istemci "güncelledim" sanır, davetiye tarafı eski kalır.
+  // `rsvp` ve `inviteStatus` bu yoldan değiştirilemez. Sessizce yutmak
+  // yerine AÇIK hata ver: aksi halde istemci "güncelledim" sanar ama
+  // davetiye tarafı eski kalır (rsvp) veya hiç yazılmaz (inviteStatus).
   const raw = params.patch
-  if (
-    raw !== null &&
-    typeof raw === 'object' &&
-    'rsvp' in (raw as Record<string, unknown>)
-  ) {
-    throw new Error(
-      'RSVP durumu bu uçtan değiştirilemez; /invitations/:token/rsvp kullanılmalı',
-    )
+  if (raw !== null && typeof raw === 'object') {
+    const keys = raw as Record<string, unknown>
+    if ('rsvp' in keys) {
+      throw new Error(
+        'RSVP durumu bu uçtan değiştirilemez; PATCH /guests/:id/rsvp kullanılmalı',
+      )
+    }
+    if ('inviteStatus' in keys || 'invite_status' in keys) {
+      throw new Error(
+        'Davet gönderim durumu bu uçtan değiştirilemez; davetiye gönderim akışı kullanılmalı',
+      )
+    }
   }
 
   const parsed = patchSchema.parse(params.patch)
@@ -442,6 +492,80 @@ export async function updateGuest(
   }
 
   return deps.updateGuest(params.guestId, values, params.weddingId, params.userId)
+}
+
+export interface SetGuestRsvpParams {
+  weddingId: string
+  userId: string
+  guestId: string
+  rsvp: 'ATTENDING' | 'DECLINED' | 'PENDING'
+  /** ATTENDING için kişi sayısı; DECLINED/PENDING'de yok sayılır. */
+  partySize?: number
+}
+
+/**
+ * Çiftin, davetli adına RSVP girmesi (telefonla gelen yanıt).
+ *
+ * SECURITY §10.2 karar #4: çift yanıtı düzeltebilir ve `rsvp_source`
+ * COUPLE olarak saklanır — davetlinin kendi beyanıyla karışmasın.
+ *
+ * Karar #5: `rsvp_deadline` geçmiş olsa bile çift yazabilir; kapanış
+ * yalnızca davetli için anlamlı.
+ *
+ * Davetiye tarafı da güncellenir ki liste ile davetiye tutarlı kalsın.
+ *
+ * @returns null — davetli yoksa veya kullanıcı üye değilse (404)
+ */
+export async function setGuestRsvp(
+  params: SetGuestRsvpParams,
+  deps: GuestDeps,
+): Promise<GuestRecord | null> {
+  if (!RSVP_STATES.includes(params.rsvp)) {
+    throw new Error(`Geçersiz RSVP durumu: ${String(params.rsvp)}`)
+  }
+
+  const existing = await deps.findById(params.guestId, params.weddingId, params.userId)
+  if (!existing) return null
+
+  // Kişi sayısı doğrulaması davetiyedeki izne göre yapılır
+  const invitations = await deps.listActiveInvitationsForGuest(params.guestId)
+  const allowed = invitations[0]?.allowedPartySize ?? 1
+
+  let confirmed: number | null = null
+  if (params.rsvp === 'ATTENDING') {
+    const size = params.partySize ?? 1
+    if (!Number.isInteger(size) || size < 1) {
+      throw new Error('Kişi sayısı en az 1 olmalı')
+    }
+    if (size > allowed) {
+      throw new Error(`En fazla ${allowed} kişi bildirilebilir`)
+    }
+    confirmed = size
+  } else if (params.rsvp === 'DECLINED') {
+    confirmed = 0
+  }
+
+  return deps.transaction(async (tx) => {
+    // Davetli kaydı — liste buradan okur
+    const updated = await deps.updateGuest(
+      params.guestId,
+      { rsvp: params.rsvp, updatedAt: new Date() },
+      params.weddingId,
+      params.userId,
+      tx,
+    )
+
+    // Davetiye tarafı — tutarlılık
+    for (const inv of invitations) {
+      await deps.setInvitationRsvp(
+        inv.id,
+        { confirmedPartySize: confirmed, rsvpSource: 'COUPLE', rsvpAt: new Date() },
+        tx,
+      )
+    }
+
+    return updated
+  })
 }
 
 export interface DeleteGuestParams {

@@ -69,15 +69,16 @@ export interface InvitationRow {
 }
 
 export interface InvitationDeps {
+  transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>
   /** Üyelik join'i ile — başka düğünün davetlisi dönmez (SECURITY §1.1). */
   findGuestForInvitation(
     guestId: string,
     weddingId: string,
     userId: string,
   ): Promise<InvitationGuest | null>
-  insertInvitation(values: Record<string, unknown>): Promise<{ id: string }>
+  insertInvitation(values: Record<string, unknown>, tx?: unknown): Promise<{ id: string }>
   findByTokenHash(tokenHash: string): Promise<InvitationRow | null>
-  revokeByGuestId(guestId: string): Promise<number>
+  revokeByGuestId(guestId: string, tx?: unknown): Promise<number>
 }
 
 // ---------------------------------------------------------------------------
@@ -111,7 +112,7 @@ export async function createInvitation(
   params: CreateInvitationParams,
   deps: Pick<
     InvitationDeps,
-    'findGuestForInvitation' | 'insertInvitation' | 'revokeByGuestId'
+    'findGuestForInvitation' | 'insertInvitation' | 'revokeByGuestId' | 'transaction'
   >,
 ): Promise<CreatedInvitation | null> {
   const allowedPartySize = params.allowedPartySize ?? MIN_PARTY_SIZE
@@ -141,20 +142,24 @@ export async function createInvitation(
   const storedHash = hashToken(token)
   const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 86_400_000)
 
-  // TEK AKTİF TOKEN (SECURITY §10.4 #3 kararı).
+  // TEK AKTİF TOKEN (SECURITY §10.4 #3 kararı) — ATOMİK.
   //
   // Eski token'lar iptal edilmezse aynı davetlinin iki linki farklı RSVP
-  // durumu gösterir: biriyle verilen yanıt diğerinde null görünür ve
-  // davetli hangi linki açtığına göre farklı şey okur. Yeni token
-  // üretmek eskisini geçersiz kılar — "linki yenile" davranışı.
-  await deps.revokeByGuestId(params.guestId)
-
-  await deps.insertInvitation({
-    weddingId: params.weddingId,
-    guestId: params.guestId,
-    tokenHash: storedHash,
-    allowedPartySize,
-    expiresAt,
+  // durumu gösterir. Ama iptal ile ekleme ayrı yapılırsa ve ekleme
+  // başarısız olursa davetli TAMAMEN tokensız kalır. Bu yüzden ikisi
+  // tek transaction'da: ya yeni token vardır, ya eski token'lar durur.
+  await deps.transaction(async (tx) => {
+    await deps.revokeByGuestId(params.guestId, tx)
+    await deps.insertInvitation(
+      {
+        weddingId: params.weddingId,
+        guestId: params.guestId,
+        tokenHash: storedHash,
+        allowedPartySize,
+        expiresAt,
+      },
+      tx,
+    )
   })
 
   return { token, storedHash, expiresAt }

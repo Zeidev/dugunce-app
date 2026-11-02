@@ -90,8 +90,9 @@ export function drizzleGuestDeps(
      * `guestId` bu yüzden ayrı parametre: `values` içinde olsaydı
      * `.set()`'e de giderdi.
      */
-    async updateGuest(guestId, values, weddingId, userId) {
-      const rows = await db
+    async updateGuest(guestId, values, weddingId, userId, tx) {
+      const client = (tx as Db | undefined) ?? db
+      const rows = await client
         .update(guests)
         .set({ ...values, updatedAt: new Date() } as Partial<typeof guests.$inferInsert>)
         .where(
@@ -190,6 +191,51 @@ export function drizzleGuestDeps(
       return Number(rows[0]?.count ?? 0)
     },
 
+    async listActiveInvitationsForGuest(guestId) {
+      const rows = await db
+        .select({
+          id: guestInvitations.id,
+          allowedPartySize: guestInvitations.allowedPartySize,
+        })
+        .from(guestInvitations)
+        .innerJoin(guests, eq(guests.id, guestInvitations.guestId))
+        .where(
+          and(
+            eq(guestInvitations.guestId, guestId),
+            isNull(guestInvitations.revokedAt),
+            isNull(guests.deletedAt),
+          ),
+        )
+      return rows
+    },
+
+    async setInvitationRsvp(invitationId, values, tx) {
+      const client = (tx as Db | undefined) ?? db
+      await client
+        .update(guestInvitations)
+        .set({
+          confirmedPartySize: values.confirmedPartySize,
+          rsvpSource: values.rsvpSource,
+          rsvpAt: values.rsvpAt,
+        })
+        .where(eq(guestInvitations.id, invitationId))
+    },
+
+    async assertMember(tx, weddingId, userId) {
+      const client = (tx as Db | undefined) ?? db
+      const rows = await client
+        .select({ id: weddingMembers.id })
+        .from(weddingMembers)
+        .where(
+          and(
+            eq(weddingMembers.weddingId, weddingId),
+            eq(weddingMembers.userId, userId),
+          ),
+        )
+        .limit(1)
+      return rows.length > 0
+    },
+
     async getPlan(tx, weddingId, userId) {
       const client = (tx as Db | undefined) ?? db
       const rows = await client
@@ -218,8 +264,9 @@ export function drizzleGuestDeps(
       return rows[0] ?? null
     },
 
-    async insertInvitation(values) {
-      const rows = await db
+    async insertInvitation(values, tx) {
+      const client = (tx as Db | undefined) ?? db
+      const rows = await client
         .insert(guestInvitations)
         .values(values as typeof guestInvitations.$inferInsert)
         .returning({ id: guestInvitations.id })
@@ -270,8 +317,9 @@ export function drizzleGuestDeps(
       return (rows[0] as InvitationRow | undefined) ?? null
     },
 
-    async revokeByGuestId(guestId) {
-      const rows = await db
+    async revokeByGuestId(guestId, tx) {
+      const client = (tx as Db | undefined) ?? db
+      const rows = await client
         .update(guestInvitations)
         .set({ revokedAt: new Date() })
         .where(

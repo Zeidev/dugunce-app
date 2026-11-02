@@ -14,6 +14,7 @@ const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex
 
 function makeDeps(overrides: Record<string, unknown> = {}) {
   return {
+    transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({ __tx: true })),
     findGuestForInvitation: vi.fn().mockResolvedValue({
       id: 'g1',
       weddingId: 'w1',

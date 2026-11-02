@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { toHttpError as guestsHttpError } from '../../src/routes/guests.js'
 import { toHttpError as invitationsHttpError } from '../../src/routes/invitations.js'
 import { AppError } from '../../src/lib/errors.js'
-import { GuestLimitError } from '../../src/guests/service.js'
+import { GuestLimitError, NotMemberError } from '../../src/guests/service.js'
 import { RsvpError, RsvpClosedError } from '../../src/guests/rsvp.js'
 import { PartySizeError } from '../../src/guests/invitation.js'
 
@@ -27,6 +27,12 @@ describe('çift tarafı hata eşlemesi', () => {
       details?: Record<string, unknown>
     }
     expect(out.details).toEqual({ limit: 30, current: 28, requested: 5 })
+  })
+
+  it('NotMemberError → 404 (403 değil — varlık sızdırmaz)', () => {
+    const out = guestsHttpError(new NotMemberError()) as AppError
+    expect(out.statusCode).toBe(404)
+    expect(out.code).toBe('NOT_FOUND')
   })
 
   it('PartySizeError → 422', () => {

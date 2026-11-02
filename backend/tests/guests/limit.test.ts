@@ -19,6 +19,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
     revokeInvitations: vi.fn(),
     countActiveGuests: vi.fn().mockResolvedValue(0),
     lockWeddingForUpdate: vi.fn().mockResolvedValue(undefined),
+    assertMember: vi.fn().mockResolvedValue(true),
     getPlan: vi.fn().mockResolvedValue('FREE'),
     ...overrides,
   }

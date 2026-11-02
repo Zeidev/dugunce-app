@@ -116,4 +116,22 @@ export const RATE_LIMITS = {
     max: 10,
     keyFn: (req: Request): string => req.auth?.userId ?? req.ip ?? 'unknown',
   },
+  /**
+   * Davetiye görüntüleme — KİMLİK DOĞRULAMASIZ uç.
+   *
+   * Token uzayı 256-bit olduğu için enumeration umutsuz, ama bu uç
+   * serv00'ın 10 bağlantılık havuzunu tüketebilir. IP başına sınır.
+   */
+  invitationByIp: { windowMs: 60 * 1000, max: 30 },
+  /**
+   * RSVP gönderimi — KİMLİK DOĞRULAMASIZ YAZMA ucu.
+   *
+   * Token başına sınır: aynı davetiye için tekrar tekrar yazmayı
+   * engeller (idempotent olsa da DB'ye gider).
+   */
+  rsvpByToken: {
+    windowMs: 60 * 1000,
+    max: 10,
+    keyFn: (req: Request): string => String(req.params['token'] ?? req.ip ?? 'unknown'),
+  },
 } as const

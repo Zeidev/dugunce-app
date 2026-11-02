@@ -6,8 +6,10 @@ import {
   listGuests,
   updateGuest,
   deleteGuest,
+  setGuestRsvp,
   getGuestUsage,
   GuestLimitError,
+  NotMemberError,
 } from '../guests/service.js'
 import { createInvitation, PartySizeError } from '../guests/invitation.js'
 import { drizzleGuestDeps } from '../guests/store.js'
@@ -125,6 +127,33 @@ export function createGuestsRouter(deps: {
     },
   )
 
+  // --- RSVP (çiftin telefonla gelen yanıtı girmesi) ---
+  router.patch(
+    '/:guestId/rsvp',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const body = req.body as { rsvp?: unknown; partySize?: unknown }
+        const updated = await setGuestRsvp(
+          {
+            weddingId: weddingIdOf(req),
+            userId: req.auth!.userId,
+            guestId: String(req.params['guestId']),
+            rsvp: body?.rsvp as 'ATTENDING' | 'DECLINED' | 'PENDING',
+            ...(typeof body?.partySize === 'number' ? { partySize: body.partySize } : {}),
+          },
+          store,
+        )
+        if (!updated) {
+          next(AppError.notFound('Davetli bulunamadı'))
+          return
+        }
+        res.json({ guest: updated })
+      } catch (err) {
+        next(toHttpError(err))
+      }
+    },
+  )
+
   // --- Sil ---
   router.delete(
     '/:guestId',
@@ -199,6 +228,11 @@ export function createGuestsRouter(deps: {
  * - geçersiz girdi   → 400
  */
 export function toHttpError(err: unknown): unknown {
+  // 404, 403 DEĞİL: 403 "kaynak var ama yetkin yok" der ve düğünün
+  // varlığını sızdırır (SECURITY §1.1).
+  if (err instanceof NotMemberError) {
+    return AppError.notFound(err.message)
+  }
   if (err instanceof GuestLimitError) {
     return AppError.limitReached(err.message, {
       limit: err.limit,
