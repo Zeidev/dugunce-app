@@ -55,7 +55,7 @@ Environment: `production`. Yedekler sunucuda `/tmp/dist-backup-*.tgz` (son 5).
 |---|---|
 | Kotlin satırı | **~10600** (önce 1695) |
 | Ekran | **27** enum değeri, hepsi bağlı (önce 4) |
-| Test | **112+** (önce 0) |
+| Test | **122+** (önce 0) |
 | APK | 18 MB, `mobile-ci` ✅ |
 | CI | testler + APK her push'ta |
 
@@ -107,7 +107,7 @@ kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
 | 4 | Offline yazma kuyruğu | Spec v1.1'e erteledi; okuma önbelleği var |
 | 5 | Rehberden davetli seçimi | İzin akışı gerekli, manuel yol çalışıyor |
 | 6 | Satın alma (Play Billing) | Aşama 2.5 |
-| 7 | Davetli **arama** parametresi backend'de | Sunucu tarafı taraf/RSVP filtresi var, metin arama yok — istemci yüklü sayfada süzüyor |
+| 7 | ~~Davetli arama parametresi~~ | ✅ **KAPANDI** — `?search=` ILIKE (ad+telefon), 10 test, canlıda |
 | 9 | ~~Kategori uçları~~ | ✅ **KAPANDI (2026-11-02)** — `/weddings/:id/categories` + 12 sistem kategorisi seed, canlıda |
 | 8 | Sayfalama (cursor) | Spec §6b.7 istiyor; backend listeleri henüz sayfalamıyor. 30 davetli limiti altında sorun değil, premium'da gerekli |
 | 10 | ~~Kart ucu~~ | ✅ **KAPANDI** — `/weddings/:id/cards` CRUD + güvenlik testleri, canlıda doğrulandı |
