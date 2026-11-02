@@ -103,7 +103,7 @@ kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
 |---|---|---|
 | 1 | Görev fotoğrafları | Aşama 6 (R2) yapılmadı |
 | 2 | Push bildirim (FCM/APNs) | İzin akışı var, gönderim altyapısı yok |
-| 3 | Deep link (magic link → uygulama) | `docs/DEEPLINK-SETUP.md` var, KMP tarafı yok |
+| 3 | ~~Deep link (Android)~~ | ✅ **KAPANDI** — `/auth` + `/invite` intent-filter, onCreate/onNewIntent işleniyor. **iOS universal link** hâlâ eksik (AASA + Swift tarafı) |
 | 4 | Offline yazma kuyruğu | Spec v1.1'e erteledi; okuma önbelleği var |
 | 5 | Rehberden davetli seçimi | İzin akışı gerekli, manuel yol çalışıyor |
 | 6 | Satın alma (Play Billing) | Aşama 2.5 |
