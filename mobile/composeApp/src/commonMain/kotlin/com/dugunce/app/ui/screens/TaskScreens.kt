@@ -891,15 +891,27 @@ fun HelperListScreen(
                                 )
                             }
                             if (!revoked) {
-                                com.dugunce.app.ui.components.TextAction(
-                                    "İptal et",
-                                    onClick = {
-                                        scope.launch {
-                                            repository.revokeHelper(weddingId, h.id)
-                                            reloadKey++
-                                        }
-                                    },
-                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                    com.dugunce.app.ui.components.TextAction(
+                                        "İptal et",
+                                        onClick = {
+                                            scope.launch {
+                                                repository.revokeHelper(weddingId, h.id)
+                                                reloadKey++
+                                            }
+                                        },
+                                    )
+                                    com.dugunce.app.ui.components.TextAction(
+                                        "Sil",
+                                        onClick = {
+                                            scope.launch {
+                                                // Görevler CASCADE ile temizlenir, mesajlar kalır
+                                                repository.deleteHelper(weddingId, h.id)
+                                                reloadKey++
+                                            }
+                                        },
+                                    )
+                                }
                             }
                         }
                     }

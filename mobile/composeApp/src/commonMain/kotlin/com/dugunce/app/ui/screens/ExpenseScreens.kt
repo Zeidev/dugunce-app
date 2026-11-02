@@ -82,6 +82,8 @@ fun ExpenseFormScreen(
     var firstMonth by remember { mutableStateOf(Dates.currentMonth()) }
     var categories by remember { mutableStateOf<List<com.dugunce.app.data.CategoryDto>>(emptyList()) }
     var categoryId by remember { mutableStateOf<String?>(null) }
+    var showNewCategory by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
 
@@ -202,6 +204,47 @@ fun ExpenseFormScreen(
                             val cat = categories[idx]
                             CategoryPill(cat.name, categoryId == cat.id) { categoryId = cat.id }
                         }
+                        item {
+                            CategoryPill("+ Yeni", false) { showNewCategory = !showNewCategory }
+                        }
+                    }
+                }
+            }
+
+            if (showNewCategory) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        DugunceTextField(
+                            value = newCategoryName,
+                            onValueChange = { newCategoryName = it },
+                            label = "Yeni kategori",
+                            placeholder = "Örn. Nikah masası",
+                            modifier = Modifier.weight(1f),
+                            enabled = !saving,
+                        )
+                        DugunceButton(
+                            "Ekle",
+                            onClick = {
+                                val name = newCategoryName.trim()
+                                if (name.isEmpty()) return@DugunceButton
+                                scope.launch {
+                                    repository.createCategory(weddingId, name).fold(
+                                        onSuccess = { created ->
+                                            categories = categories + created
+                                            categoryId = created.id
+                                            newCategoryName = ""
+                                            showNewCategory = false
+                                        },
+                                        onFailure = { saveError = it.message },
+                                    )
+                                }
+                            },
+                            enabled = newCategoryName.trim().isNotEmpty(),
+                            fullWidth = false,
+                        )
                     }
                 }
             }
