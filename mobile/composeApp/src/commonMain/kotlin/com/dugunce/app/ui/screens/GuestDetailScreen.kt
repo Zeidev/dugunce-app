@@ -343,7 +343,10 @@ internal fun encodeUrl(input: String): String {
     val sb = StringBuilder()
     for (ch in input) {
         when {
-            ch.isLetterOrDigit() || ch in "-_.~" -> sb.append(ch)
+            // YALNIZCA ASCII harf/rakam korunur. `isLetterOrDigit()` Türkçe
+            // 'ş', 'ğ', 'ı' için de true döner ve onları kodlamadan bırakır —
+            // WhatsApp linkinde bozuk karaktere yol açar.
+            (ch in 'a'..'z') || (ch in 'A'..'Z') || (ch in '0'..'9') || ch in "-_.~" -> sb.append(ch)
             ch == ' ' -> sb.append("%20")
             else -> {
                 val bytes = ch.toString().encodeToByteArray()

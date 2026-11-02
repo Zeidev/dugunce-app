@@ -48,11 +48,28 @@ object Money {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return null
 
-        // Türkçe format: nokta binlik, virgül ondalık
+        // Türkçe format: nokta BİNLİK, virgül ondalık.
+        //
+        // "12.000,50" → "12000.50"  (nokta binlik ayırıcı, atılır)
+        // "12000.50"  → "12000.50"  (nokta ondalık — korunur!)
+        //
+        // Ayırt etme kuralı: virgül varsa nokta binliktir. Virgül yoksa
+        // ve noktadan sonra 3 hane varsa binliktir ("12.000"), 1-2 hane
+        // varsa ondalıktır ("12000.50").
         val normalized = if (trimmed.contains(',')) {
             trimmed.replace(".", "").replace(',', '.')
         } else {
-            trimmed
+            val dotCount = trimmed.count { it == '.' }
+            when {
+                dotCount == 0 -> trimmed
+                // Birden fazla nokta → hepsi binlik ayırıcı
+                dotCount > 1 -> trimmed.replace(".", "")
+                // Tek nokta: sonrasında tam 3 hane varsa binlik
+                else -> {
+                    val decimals = trimmed.substringAfterLast('.').length
+                    if (decimals == 3) trimmed.replace(".", "") else trimmed
+                }
+            }
         }
 
         if (!Regex("""^\d+(\.\d{1,2})?$""").matches(normalized)) return null

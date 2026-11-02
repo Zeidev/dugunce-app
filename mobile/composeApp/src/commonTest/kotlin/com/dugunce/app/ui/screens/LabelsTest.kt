@@ -87,11 +87,13 @@ class RsvpLabelTest {
     }
 
     @Test
-    fun `her rsvp icin ikon var`() {
-        // Renk tek başına anlam taşımamalı — ikon zorunlu
-        assertTrue(rsvpIcon("ATTENDING") != null)
-        assertTrue(rsvpIcon("DECLINED") != null)
-        assertTrue(rsvpIcon("PENDING") != null)
+    fun `her rsvp icin ayri ikon var`() {
+        // Renk tek başına anlam taşımamalı — ikon zorunlu (brief §3.1).
+        // Üç durumun ikonu BİRBİRİNDEN FARKLI olmalı, yoksa ayrım kaybolur.
+        val attending = rsvpIcon("ATTENDING")
+        val declined = rsvpIcon("DECLINED")
+        val pending = rsvpIcon("PENDING")
+        assertEquals(3, setOf(attending, declined, pending).size, "ikonlar ayrışmalı")
     }
 }
 
@@ -108,10 +110,11 @@ class TaskStatusLabelTest {
     }
 
     @Test
-    fun `her durum icin ikon var`() {
-        assertTrue(taskStatusIcon("TODO") != null)
-        assertTrue(taskStatusIcon("DOING") != null)
-        assertTrue(taskStatusIcon("DONE") != null)
+    fun `her gorev durumu icin ayri ikon var`() {
+        val todo = taskStatusIcon("TODO")
+        val doing = taskStatusIcon("DOING")
+        val done = taskStatusIcon("DONE")
+        assertEquals(3, setOf(todo, doing, done).size, "ikonlar ayrışmalı")
     }
 
     @Test

@@ -17,9 +17,18 @@ import kotlin.test.assertTrue
  */
 class DtoContractTest {
 
+    /**
+     * ÜRETİM yapılandırmasının AYNISI (ApiClient.json).
+     *
+     * `encodeDefaults = true` olmadan varsayılan değerler gövdeye
+     * yazılmaz; backend `side` alanını göremez. Test bu yüzden üretim
+     * ayarını birebir kullanır.
+     */
     private val json = Json {
         ignoreUnknownKeys = true
+        isLenient = false
         explicitNulls = false
+        encodeDefaults = true
     }
 
     // --- Gerçek backend yanıtları ---
