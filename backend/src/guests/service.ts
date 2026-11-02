@@ -150,7 +150,11 @@ export interface ListGuestsOptions {
 
 export interface GuestDeps {
   transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>
-  insertGuest(values: Record<string, unknown>): Promise<GuestRecord>
+  insertGuest(values: Record<string, unknown>, tx: unknown): Promise<GuestRecord>
+  insertGuests(
+    rows: Record<string, unknown>[],
+    tx: unknown,
+  ): Promise<GuestRecord[]>
   listByWedding(
     weddingId: string,
     userId: string,
@@ -169,6 +173,84 @@ export interface GuestDeps {
   softDelete(guestId: string): Promise<boolean>
   /** Davetli silinince token'ları ölür (Review Focus #5). */
   revokeInvitations(guestId: string): Promise<number>
+  /**
+   * Aktif (silinmemiş) davetli sayısı.
+   *
+   * NOT: `COUNT(*)` ile `FOR UPDATE` birlikte KULLANILAMAZ
+   * (PostgreSQL: "FOR UPDATE is not allowed with aggregate functions").
+   * Kilit bu yüzden `lockWeddingForUpdate` ile düğün satırına vurulur.
+   */
+  countActiveGuests(
+    tx: unknown,
+    weddingId: string,
+    userId: string,
+  ): Promise<number>
+  /**
+   * Düğün satırını transaction boyunca kilitler.
+   *
+   * Aynı düğüne yapılan eşzamanlı davetli eklemelerini serileştirir —
+   * limit yarışını kapatan asıl mekanizma budur (Review Focus #1).
+   * `COUNT(*) FOR UPDATE` PostgreSQL'de yasak olduğu için bu yol seçildi.
+   */
+  lockWeddingForUpdate(tx: unknown, weddingId: string): Promise<void>
+  /** Düğünün planı — üyelik join'i ile, istemciden ASLA alınmaz. */
+  getPlan(tx: unknown, weddingId: string, userId: string): Promise<'FREE' | 'PREMIUM'>
+}
+
+// ---------------------------------------------------------------------------
+// Limit
+// ---------------------------------------------------------------------------
+
+/**
+ * Ücretsiz plan davetli limiti — **kayıt** sayısı, kişi sayısı değil
+ * (SECURITY §10.2). Kullanıcı kararı 2026-11-02: 10 → 30.
+ */
+export const FREE_GUEST_LIMIT = 30
+
+/** Tek toplu eklemede azami kayıt — kaba kötüye kullanım koruması. */
+export const MAX_BULK_SIZE = 100
+
+export class GuestLimitError extends Error {
+  constructor(
+    public readonly limit: number,
+    public readonly current: number,
+    public readonly requested: number = 1,
+  ) {
+    super(
+      `Ücretsiz planda en fazla ${limit} davetli eklenebilir ` +
+        `(şu an ${current}, eklenmek istenen ${requested}). ` +
+        `Premium'a geçerek sınırsız davetli ekleyebilirsiniz.`,
+    )
+    this.name = 'GuestLimitError'
+  }
+}
+
+/**
+ * Limit kontrolü + işlemi AYNI transaction içinde yürütür.
+ *
+ * Neden: sayım ile yazma arasında başka bir istek araya girerse limit
+ * aşılır. `countActiveGuests` store tarafında `FOR UPDATE` ile kilitlenir,
+ * böylece eşzamanlı iki transaction sırayla çalışır.
+ */
+async function withLimitCheck<T>(
+  params: { weddingId: string; userId: string; addCount: number },
+  deps: GuestDeps,
+  fn: (tx: unknown) => Promise<T>,
+): Promise<T> {
+  return deps.transaction(async (tx) => {
+    // ÖNCE kilitle: aynı düğüne eşzamanlı yazma varsa bekle.
+    // Kilit sayımdan önce alınmalı, sonra değil — aksi halde TOCTOU açığı kalır.
+    await deps.lockWeddingForUpdate(tx, params.weddingId)
+
+    const plan = await deps.getPlan(tx, params.weddingId, params.userId)
+    if (plan === 'PREMIUM') return fn(tx)
+
+    const current = await deps.countActiveGuests(tx, params.weddingId, params.userId)
+    if (current + params.addCount > FREE_GUEST_LIMIT) {
+      throw new GuestLimitError(FREE_GUEST_LIMIT, current, params.addCount)
+    }
+    return fn(tx)
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -185,18 +267,103 @@ export async function createGuest(
   params: CreateGuestParams,
   deps: GuestDeps,
 ): Promise<GuestRecord> {
+  // Doğrulama limit kontrolünden ÖNCE — geçersiz girdi için kota harcanmasın
   const input = validateGuestInput(params.input)
 
-  return deps.transaction(async (tx) => {
-    return deps.insertGuest({
+  return withLimitCheck(
+    { weddingId: params.weddingId, userId: params.userId, addCount: 1 },
+    deps,
+    async (tx) =>
+      deps.insertGuest(
+        {
+          weddingId: params.weddingId,
+          name: input.name,
+          phone: input.phone ?? null,
+          side: input.side,
+          note: input.note ?? null,
+        },
+        tx,
+      ),
+  )
+}
+
+export interface BulkCreateGuestsParams {
+  weddingId: string
+  userId: string
+  inputs: unknown[]
+}
+
+/**
+ * Davetlileri toplu ekler — ya hepsi ya hiçbiri.
+ *
+ * Tek bir girdi geçersizse veya limit aşılırsa **hiçbiri** eklenmez.
+ * Kısmi ekleme, kullanıcının listede ne olduğunu bilememesi demektir.
+ */
+export async function createGuestsBulk(
+  params: BulkCreateGuestsParams,
+  deps: GuestDeps,
+): Promise<GuestRecord[]> {
+  if (!Array.isArray(params.inputs) || params.inputs.length === 0) {
+    throw new Error('En az bir davetli girilmeli')
+  }
+  if (params.inputs.length > MAX_BULK_SIZE) {
+    throw new Error(`Tek seferde en fazla ${MAX_BULK_SIZE} davetli eklenebilir`)
+  }
+
+  // Önce HEPSİNİ doğrula — sonra tek transaction
+  const validated = params.inputs.map((i) => validateGuestInput(i))
+
+  return withLimitCheck(
+    {
       weddingId: params.weddingId,
-      name: input.name,
-      phone: input.phone ?? null,
-      side: input.side,
-      note: input.note ?? null,
-      tx,
-    })
-  })
+      userId: params.userId,
+      addCount: validated.length,
+    },
+    deps,
+    async (tx) =>
+      deps.insertGuests(
+        validated.map((v) => ({
+          weddingId: params.weddingId,
+          name: v.name,
+          phone: v.phone ?? null,
+          side: v.side,
+          note: v.note ?? null,
+        })),
+        tx,
+      ),
+  )
+}
+
+export interface GuestUsage {
+  limit: number | null
+  used: number
+  remaining: number | null
+  plan: 'FREE' | 'PREMIUM'
+}
+
+/**
+ * Kota göstergesi için kullanım bilgisi (design §6b.6).
+ *
+ * `limit: null` premium demektir — UI "sınırsız" gösterir.
+ */
+export async function getGuestUsage(
+  params: { weddingId: string; userId: string },
+  deps: Pick<GuestDeps, 'countActiveGuests' | 'getPlan'>,
+): Promise<GuestUsage> {
+  const [plan, used] = await Promise.all([
+    deps.getPlan(null, params.weddingId, params.userId),
+    deps.countActiveGuests(null, params.weddingId, params.userId),
+  ])
+
+  if (plan === 'PREMIUM') {
+    return { limit: null, used, remaining: null, plan }
+  }
+  return {
+    limit: FREE_GUEST_LIMIT,
+    used,
+    remaining: Math.max(0, FREE_GUEST_LIMIT - used),
+    plan,
+  }
 }
 
 export interface ListGuestsParams {

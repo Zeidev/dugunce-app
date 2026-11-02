@@ -19,6 +19,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
     softDelete: vi.fn().mockResolvedValue(true),
     revokeInvitations: vi.fn().mockResolvedValue(0),
     countActiveGuests: vi.fn().mockResolvedValue(0),
+    lockWeddingForUpdate: vi.fn().mockResolvedValue(undefined),
     getPlan: vi.fn().mockResolvedValue('FREE'),
     ...overrides,
   }
@@ -132,6 +133,8 @@ describe('createGuest', () => {
     await createGuest({ weddingId: 'w1', userId: 'u1', input: { name: 'Ayşe' } }, d)
     const written = d.insertGuest.mock.calls[0]![0] as Record<string, unknown>
     expect(written['weddingId']).toBe('w1')
+    // tx values içinde DEĞİL, ayrı parametre olmalı — aksi halde kolon sanılır
+    expect(written).not.toHaveProperty('tx')
   })
 
   it('geçersiz girdi hata fırlatır, yazma yapılmaz', async () => {
