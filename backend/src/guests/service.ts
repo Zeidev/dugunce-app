@@ -166,6 +166,7 @@ export interface GuestDeps {
     userId: string,
   ): Promise<GuestRecord | null>
   updateGuest(
+    guestId: string,
     values: Record<string, unknown>,
     weddingId: string,
     userId: string,
@@ -440,7 +441,7 @@ export async function updateGuest(
     values['phone'] = parsed.phone === null ? null : normalizePhone(parsed.phone)
   }
 
-  return deps.updateGuest(values, params.weddingId, params.userId)
+  return deps.updateGuest(params.guestId, values, params.weddingId, params.userId)
 }
 
 export interface DeleteGuestParams {

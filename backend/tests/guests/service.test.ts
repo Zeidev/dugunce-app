@@ -193,7 +193,7 @@ describe('updateGuest', () => {
   it('alanları günceller', async () => {
     const d = makeDeps()
     await updateGuest({ weddingId: 'w1', userId: 'u1', guestId: 'g1', patch: { name: 'Fatma' } }, d)
-    expect(d.updateGuest).toHaveBeenCalled()
+    expect(d.updateGuest).toHaveBeenCalledWith('g1', expect.anything(), 'w1', 'u1')
   })
 
   it('üye olunmayan davetli null döner (404)', async () => {
