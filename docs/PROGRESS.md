@@ -35,8 +35,13 @@
 | Yardımcı PWA | `https://dugunce.com.tr/h` | ✅ 200, oturum tabanlı sürüm canlıda |
 | PostgreSQL | serv00 (yalnız SSH tüneli) | ✅ migration 0005 uygulandı |
 
-**Son deploy:** 2026-11-02 gece, elle (rsync + migration + `devil www restart`).
-**Deploy otomasyonu:** ❌ hazır değil — 0 repo secret, 0 environment, `deploy-backend` workflow kayıtlı değil.
+**Deploy:** ✅ **otomatik.** `deploy-backend` workflow'u elle tetiklenir
+(`gh workflow run deploy-backend.yml -f confirm=deploy`), onay kapısı + build +
+rsync + `npm ci` + migration + restart + `/health/deep` kontrolü yapar.
+Son doğrulanmış koşu: `41488084722` ✅ (36 sn).
+
+Repo secret'ları: `SERV00_HOST`, `SERV00_USER`, `SERV00_DOMAIN`, `SERV00_SSH_KEY`.
+Environment: `production`. Yedekler sunucuda `/tmp/dist-backup-*.tgz` (son 5).
 
 ---
 
@@ -100,7 +105,7 @@ api.http.delete("weddings/$weddingId/guests/$guestId")
 
 | Öncelik | İş | Neden |
 |---|---|---|
-| **P0** | Deploy otomasyonu (secrets + environment) | Şu an her deploy elle; tek unutulan adım canlıyı bozar |
+| ~~P0~~ | ~~Deploy otomasyonu~~ | ✅ tamamlandı (2026-11-02) |
 | **P0** | Mobil testler (`commonTest`) | 1695 satır test edilmemiş kod |
 | **P1** | Aşama 2.5 — satın alma | Tüm limitler hazır, kapı yok; premium satılamıyor |
 | **P1** | Mobil eksik ekranlar (ayarlar, harcama formu, taksit) | Çift ürünü kullanamıyor |
