@@ -107,6 +107,8 @@ kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
 | 4 | Offline yazma kuyruğu | Spec v1.1'e erteledi; okuma önbelleği var |
 | 5 | Rehberden davetli seçimi | İzin akışı gerekli, manuel yol çalışıyor |
 | 6 | Satın alma (Play Billing) | Aşama 2.5 |
+| 7 | Davetli **arama** parametresi backend'de | Sunucu tarafı taraf/RSVP filtresi var, metin arama yok — istemci yüklü sayfada süzüyor |
+| 8 | Sayfalama (cursor) | Spec §6b.7 istiyor; backend listeleri henüz sayfalamıyor. 30 davetli limiti altında sorun değil, premium'da gerekli |
 
 ### Düzeltilen bug (2026-11-02)
 
