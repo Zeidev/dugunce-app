@@ -6,6 +6,7 @@ import { createRequireWeddingMember } from './middleware/require-member.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createWeddingsRouter } from './routes/weddings.js'
 import { createInvitesRouter } from './routes/invites.js'
+import { createExpensesRouter, createBudgetSummaryRouter } from './routes/expenses.js'
 import { drizzleAuthDeps, drizzleMembershipDeps } from './auth/auth-store.js'
 import { loadEnv } from './config/env.js'
 
@@ -41,6 +42,10 @@ export function createApp(): Express {
   const invites = createInvitesRouter({ requireAuth, requireMember })
   app.use('/api/v1/weddings/:weddingId/invites', invites.weddingInvites)
   app.use('/api/v1/invites', invites.publicInvites)
+
+  // Bütçe
+  app.use('/api/v1/weddings/:weddingId/expenses', createExpensesRouter({ requireAuth, requireMember }))
+  app.use('/api/v1/weddings/:weddingId/budget-summary', createBudgetSummaryRouter({ requireAuth, requireMember }))
 
   // 404 ve hata yönetimi en sonda
   app.use(notFoundHandler)
