@@ -1,10 +1,14 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
-      "package_name": "app.dugunce",
-      "sha256_cert_fingerprints": ["PLACEHOLDER_SHA256_FINGERPRINT"]
+      "package_name": "com.dugunce.app",
+      "sha256_cert_fingerprints": [
+        "PLACEHOLDER_SHA256_FINGERPRINT"
+      ]
     }
   }
 ]

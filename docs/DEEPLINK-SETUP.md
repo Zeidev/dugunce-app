@@ -199,4 +199,23 @@ adb shell am start -a android.intent.action.VIEW \
 | `apple-app-site-association` | ⏳ `TEAMID` placeholder |
 | `assetlinks.json` | ⏳ `PLACEHOLDER_SHA256_FINGERPRINT` |
 
+### Düzeltme (2026-11-02)
+
+`assetlinks.json` içindeki `package_name` **`app.dugunce`** yazıyordu; gerçek
+`applicationId` **`com.dugunce.app`** (`composeApp/build.gradle.kts`). Yanlış
+paket adıyla Android hiçbir zaman uygulamayı açmaz — link sessizce tarayıcıda
+kalırdı. Düzeltildi.
+
+**Parmak izi neden hâlâ placeholder:** release keystore henüz yok. Debug
+keystore her CI koşusunda yeniden üretildiği için parmak izi sabit değil;
+onu yazmak işe yaramaz. Sıra:
+
+1. Release keystore üret (`keytool -genkeypair ...`)
+2. Parmak izini al: `keytool -list -v -keystore release.jks | grep SHA256`
+3. `assetlinks.json`'a yaz, CI'a keystore'u secret olarak ekle
+4. `https://dugunce.com.tr/.well-known/assetlinks.json` üzerinden doğrula
+
+Aynı şey `apple-app-site-association` içindeki `TEAMID` için de geçerli —
+Apple Developer hesabı açılmadan doldurulamaz.
+
 Bu dosyalar Aşama 7'de (mobil uygulama) gerçek değerlerle doldurulacak. O zamana kadar magic link web üzerinden çalışır (6 haneli kod yolu) — **işlevsel engel yok.**
