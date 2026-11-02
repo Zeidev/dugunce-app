@@ -30,6 +30,22 @@ describe('.env yükleme', () => {
     expect(dotenvLine).toBeLessThan(envLine)
   })
 
+  it('migrate-cli.ts de dotenv yükler (üretimde .env okunmalı)', () => {
+    // server.ts'e eklenmişti ama migrate-cli'e eklenmemişti; sonuç:
+    // üretimde migration "DATABASE_URL: Required" ile patladı.
+    const src = readFileSync(join(ROOT, 'src/db/migrate-cli.ts'), 'utf8')
+    expect(/dotenv/.test(src)).toBe(true)
+  })
+
+  it('migrate-cli dotenv\'i diğer importlardan ÖNCE yükler', () => {
+    const src = readFileSync(join(ROOT, 'src/db/migrate-cli.ts'), 'utf8')
+    const lines = src.split('\n')
+    const dotenvLine = lines.findIndex((l) => /dotenv/.test(l))
+    const envLine = lines.findIndex((l) => /config\/env/.test(l))
+    expect(dotenvLine).toBeGreaterThanOrEqual(0)
+    expect(dotenvLine).toBeLessThan(envLine)
+  })
+
   it('dotenv bağımlılığı package.json\'da var', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
       dependencies?: Record<string, string>

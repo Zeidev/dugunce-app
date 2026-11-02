@@ -1,3 +1,7 @@
+// .env dosyasını EN BAŞTA yükle — loadEnv() process.env okur.
+// `dotenv/config` yan etki importu; sırası kritik.
+import 'dotenv/config'
+
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
