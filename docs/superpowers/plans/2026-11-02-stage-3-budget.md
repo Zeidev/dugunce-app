@@ -1152,6 +1152,71 @@ git commit -m "feat(api): add expense and budget-summary routes"
 
 ---
 
+## Task 10: Taksit ödeme durumu (plandan sapma — boşluk kapatma)
+
+**Neden eklendi:** Task 5 ödenmiş taksiti *koruyor* ama Aşama 3'te hiçbir görev
+bir taksiti ödenmiş *işaretlemiyor*. Yani `status='PAID'` üretimde hiç
+oluşamıyor, `paid_at` hiç yazılmıyor ve Task 9'un "Taksit ödendi → `paid_at`
+saklanır" kabul maddesi karşılanmıyordu. Bu, planın kendi içinde tutarsızlığı;
+sessizce atlanmaz.
+
+**Files:**
+- Modify: `backend/src/expenses/service.ts`
+- Modify: `backend/src/expenses/store.ts`
+- Modify: `backend/src/routes/expenses.ts`
+- Test: `backend/tests/expenses/payment.test.ts`
+
+**Interfaces:**
+- Consumes: Task 4, 5, 7, 8
+- Produces: `setInstallmentPaid`, `PATCH /installments/:installmentId`
+
+- [ ] **Step 1: Failing test yaz**
+
+```ts
+describe('taksit ödeme durumu', () => {
+  it('PENDING taksit PAID yapılır ve paid_at yazılır', async () => {
+    const d = makeDeps()
+    const r = await setInstallmentPaid(
+      { weddingId: 'w1', userId: 'u1', installmentId: 'i1', paid: true }, d,
+    )
+    expect(r.status).toBe('PAID')
+    expect(r.paidAt).toBeInstanceOf(Date)
+    expect(d.markInstallmentPaid).toHaveBeenCalledWith('w1', 'u1', 'i1', true)
+  })
+
+  it('PAID taksit geri alınır ve paid_at temizlenir', async () => { ... })
+
+  it('zaten PAID olan taksit tekrar PAID edilirse paid_at DEĞİŞMEZ (idempotent)', async () => { ... })
+
+  it('üye olunmayan taksit null döner (404 için)', async () => { ... })
+})
+```
+
+- [ ] **Step 2: Servis**
+
+`setInstallmentPaid` — idempotent. Zaten istenen durumdaysa mevcut kaydı
+döndürür, `paid_at`'i yeniden yazmaz (muhasebe kaydı bozulmasın).
+
+- [ ] **Step 3: Store**
+
+`markInstallmentPaid(weddingId, userId, installmentId, paid)` — `installments`
+JOIN `wedding_members` ON `userId`. `paid=true` → `status='PAID', paid_at=now()`;
+`paid=false` → `status='PENDING', paid_at=NULL`.
+
+- [ ] **Step 4: Route**
+
+| Method | Path | Açıklama |
+|---|---|---|
+| PATCH | `/weddings/:weddingId/installments/:installmentId` | `{ paid: boolean }` |
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(expenses): add installment payment status endpoint"
+```
+
+---
+
 ## Task 9: Aşama 3 kapanış kontrolü
 
 **Files:**

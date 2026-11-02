@@ -378,3 +378,71 @@ export async function deleteExpense(
   if (!existing) return false
   return deps.softDelete(params.expenseId)
 }
+
+// ---------------------------------------------------------------------------
+// Taksit ödeme durumu
+// ---------------------------------------------------------------------------
+
+export interface InstallmentRecord {
+  id: string
+  weddingId: string
+  expenseId: string
+  number: number
+  status: 'PENDING' | 'PAID'
+  amountKurus: Kurus
+  dueMonth: string
+  paidAt: Date | null
+}
+
+export interface PaymentDeps {
+  /** Üyelik join'i ile — başka düğünün taksiti dönmez (SECURITY §1.1). */
+  findInstallment: (
+    weddingId: string,
+    userId: string,
+    installmentId: string,
+  ) => Promise<InstallmentRecord | null>
+  markInstallmentPaid: (
+    weddingId: string,
+    userId: string,
+    installmentId: string,
+    paid: boolean,
+  ) => Promise<InstallmentRecord>
+}
+
+export interface SetInstallmentPaidParams {
+  weddingId: string
+  userId: string
+  installmentId: string
+  paid: boolean
+}
+
+/**
+ * Taksiti ödenmiş / ödenmemiş olarak işaretler.
+ *
+ * **İdempotent:** zaten istenen durumdaysa yazma yapılmaz ve `paid_at`
+ * korunur. Bu kritik — ağ tekrar denemesi veya çift tıklama ilk ödeme
+ * tarihini ezmemeli (muhasebe kaydı).
+ *
+ * Ödemenin geri alınması (`paid: false`) `paid_at`'i temizler; böylece
+ * Task 5'teki "ödenmiş taksit koruması" da açılır (taksit artık PENDING).
+ *
+ * @returns null — taksit yoksa veya kullanıcı o düğünün üyesi değilse (404)
+ */
+export async function setInstallmentPaid(
+  params: SetInstallmentPaidParams,
+  deps: PaymentDeps,
+): Promise<InstallmentRecord | null> {
+  const { weddingId, userId, installmentId, paid } = params
+
+  const existing = await deps.findInstallment(weddingId, userId, installmentId)
+  if (!existing) return null
+
+  const targetStatus = paid ? 'PAID' : 'PENDING'
+
+  // İdempotent: durum zaten hedefle aynıysa dokunma
+  if (existing.status === targetStatus) {
+    return existing
+  }
+
+  return deps.markInstallmentPaid(weddingId, userId, installmentId, paid)
+}

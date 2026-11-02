@@ -5,7 +5,7 @@ import {
   installments,
   weddingMembers,
 } from '../db/schema.js'
-import type { ExpenseDeps, ExpenseRecord, InstallmentInput, UpdateExpenseDeps } from './service.js'
+import type { ExpenseDeps, ExpenseRecord, InstallmentInput, UpdateExpenseDeps, PaymentDeps } from './service.js'
 import type { BudgetSummaryDeps, SideBreakdown, CategoryBreakdown, MonthTotal } from './summary.js'
 import type { Kurus } from '../money/money.js'
 import { expenseCategories } from '../db/schema.js'
@@ -25,8 +25,14 @@ function memberJoinCondition(weddingId: string, userId: string) {
   )
 }
 
-export function drizzleExpenseDeps(): ExpenseDeps & UpdateExpenseDeps & BudgetSummaryDeps {
-  const db = getDb()
+/**
+ * @param dbOverride — test için enjekte edilebilir Drizzle örneği (PGlite).
+ *   Verilmezse üretim bağlantısı kullanılır.
+ */
+export function drizzleExpenseDeps(
+  dbOverride?: ReturnType<typeof getDb>,
+): ExpenseDeps & UpdateExpenseDeps & BudgetSummaryDeps & PaymentDeps {
+  const db = dbOverride ?? getDb()
 
   return {
     // --- Transaction ---
@@ -310,6 +316,84 @@ export function drizzleExpenseDeps(): ExpenseDeps & UpdateExpenseDeps & BudgetSu
         if (key in result) result[key] = BigInt(row.total)
       }
       return result
+    },
+
+    // --- Taksit ödeme durumu (Task 10) ---
+    async findInstallment(weddingId, userId, installmentId) {
+      const rows = await db
+        .select({
+          id: installments.id,
+          weddingId: installments.weddingId,
+          expenseId: installments.expenseId,
+          number: installments.number,
+          status: installments.status,
+          amountKurus: installments.amountKurus,
+          dueMonth: installments.dueMonth,
+          paidAt: installments.paidAt,
+        })
+        .from(installments)
+        .innerJoin(
+          weddingMembers,
+          and(
+            eq(weddingMembers.weddingId, installments.weddingId),
+            eq(weddingMembers.userId, userId),
+          ),
+        )
+        .innerJoin(expenses, eq(expenses.id, installments.expenseId))
+        .where(
+          and(
+            eq(installments.weddingId, weddingId),
+            eq(installments.id, installmentId),
+            // Silinmiş harcamanın taksiti ödenmiş işaretlenemez
+            isNull(expenses.deletedAt),
+          ),
+        )
+        .limit(1)
+
+      const row = rows[0]
+      if (!row) return null
+      return {
+        ...row,
+        status: row.status as 'PENDING' | 'PAID',
+        amountKurus: BigInt(row.amountKurus),
+      }
+    },
+
+    async markInstallmentPaid(weddingId, userId, installmentId, paid) {
+      const rows = await db
+        .update(installments)
+        .set({
+          status: paid ? 'PAID' : 'PENDING',
+          paidAt: paid ? new Date() : null,
+        })
+        .where(
+          and(
+            eq(installments.weddingId, weddingId),
+            eq(installments.id, installmentId),
+            // Üyelik kontrolü — başka düğünün taksiti güncellenemez
+            sql`EXISTS (SELECT 1 FROM ${weddingMembers}
+                        WHERE ${weddingMembers.weddingId} = ${installments.weddingId}
+                          AND ${weddingMembers.userId} = ${userId})`,
+          ),
+        )
+        .returning({
+          id: installments.id,
+          weddingId: installments.weddingId,
+          expenseId: installments.expenseId,
+          number: installments.number,
+          status: installments.status,
+          amountKurus: installments.amountKurus,
+          dueMonth: installments.dueMonth,
+          paidAt: installments.paidAt,
+        })
+
+      const row = rows[0]
+      if (!row) throw new Error('Taksit güncellenemedi')
+      return {
+        ...row,
+        status: row.status as 'PENDING' | 'PAID',
+        amountKurus: BigInt(row.amountKurus),
+      }
     },
 
     async sumByCategory(weddingId, userId): Promise<CategoryBreakdown[]> {

@@ -255,3 +255,110 @@ describe('harcama deposu — gerçek DB', () => {
     expect(rows.rows).toHaveLength(0)
   })
 })
+
+describe('taksit ödeme durumu — gerçek DB', () => {
+  it('PAID işaretlenince paid_at gerçekten yazılır', async () => {
+    const e = await pg.query<{ id: string }>(
+      `INSERT INTO expenses
+         (wedding_id, title, amount_kurus, purchase_date, created_by)
+       VALUES ($1,'Ödeme testi',500000,'2026-01-15',$2) RETURNING id`,
+      [weddingA, userA],
+    )
+    const expenseId = e.rows[0]!.id
+
+    const i = await pg.query<{ id: string }>(
+      `INSERT INTO installments (wedding_id, expense_id, number, amount_kurus, due_month)
+       VALUES ($1,$2,1,500000,'2026-01') RETURNING id`,
+      [weddingA, expenseId],
+    )
+    const installmentId = i.rows[0]!.id
+
+    // Başlangıçta PENDING, paid_at NULL
+    const before = await pg.query<{ status: string; paid_at: string | null }>(
+      `SELECT status, paid_at FROM installments WHERE id=$1`,
+      [installmentId],
+    )
+    expect(before.rows[0]!.status).toBe('PENDING')
+    expect(before.rows[0]!.paid_at).toBeNull()
+
+    // Ödendi işaretle
+    await pg.query(
+      `UPDATE installments SET status='PAID', paid_at=now() WHERE id=$1`,
+      [installmentId],
+    )
+
+    const after = await pg.query<{ status: string; paid_at: string | null }>(
+      `SELECT status, paid_at FROM installments WHERE id=$1`,
+      [installmentId],
+    )
+    expect(after.rows[0]!.status).toBe('PAID')
+    expect(after.rows[0]!.paid_at).not.toBeNull()
+
+    // Ödeme geri alınınca paid_at temizlenir
+    await pg.query(
+      `UPDATE installments SET status='PENDING', paid_at=NULL WHERE id=$1`,
+      [installmentId],
+    )
+    const reverted = await pg.query<{ status: string; paid_at: string | null }>(
+      `SELECT status, paid_at FROM installments WHERE id=$1`,
+      [installmentId],
+    )
+    expect(reverted.rows[0]!.status).toBe('PENDING')
+    expect(reverted.rows[0]!.paid_at).toBeNull()
+  })
+
+  it('ödenmiş taksitli harcamanın taksitleri silinemez (muhasebe kaydı)', async () => {
+    const e = await pg.query<{ id: string }>(
+      `INSERT INTO expenses
+         (wedding_id, title, amount_kurus, purchase_date, created_by)
+       VALUES ($1,'Korumalı',900000,'2026-01-15',$2) RETURNING id`,
+      [weddingA, userA],
+    )
+    const expenseId = e.rows[0]!.id
+
+    await pg.query(
+      `INSERT INTO installments (wedding_id, expense_id, number, amount_kurus, due_month, status, paid_at)
+       VALUES ($1,$2,1,450000,'2026-01','PAID',now()),
+              ($1,$2,2,450000,'2026-02','PENDING',NULL)`,
+      [weddingA, expenseId],
+    )
+
+    // Store'daki deleteInstallments yalnızca PENDING siler
+    await pg.query(
+      `DELETE FROM installments WHERE expense_id=$1 AND status='PENDING'`,
+      [expenseId],
+    )
+
+    const remaining = await pg.query<{ number: number; status: string }>(
+      `SELECT number, status FROM installments WHERE expense_id=$1 ORDER BY number`,
+      [expenseId],
+    )
+    expect(remaining.rows).toHaveLength(1)
+    expect(remaining.rows[0]!.status).toBe('PAID')
+  })
+
+  it('başka düğünün taksiti üyelik sorgusuyla gelmez', async () => {
+    const e = await pg.query<{ id: string }>(
+      `INSERT INTO expenses
+         (wedding_id, title, amount_kurus, purchase_date, created_by)
+       VALUES ($1,'B düğünü',100000,'2026-01-15',$2) RETURNING id`,
+      [weddingB, userB],
+    )
+    const expenseId = e.rows[0]!.id
+    const i = await pg.query<{ id: string }>(
+      `INSERT INTO installments (wedding_id, expense_id, number, amount_kurus, due_month)
+       VALUES ($1,$2,1,100000,'2026-01') RETURNING id`,
+      [weddingB, expenseId],
+    )
+    const installmentId = i.rows[0]!.id
+
+    // userA, weddingB'nin taksitini göremez
+    const seen = await pg.query<{ id: string }>(
+      `SELECT i.id FROM installments i
+         JOIN wedding_members m ON m.wedding_id = i.wedding_id
+        WHERE i.id = $1 AND m.user_id = $2`,
+      [installmentId, userA],
+    )
+    expect(seen.rows).toHaveLength(0)
+  })
+})

@@ -47,6 +47,13 @@ describe('bütçe route bağlama', () => {
     expect(res.status).toBe(401)
   })
 
+  it('PATCH /installments/:id — token yoksa 401', async () => {
+    const res = await request(createApp())
+      .patch(`/api/v1/weddings/${weddingId}/installments/i1`)
+      .send({ paid: true })
+    expect(res.status).toBe(401)
+  })
+
   it('bozuk token 401 (500 değil)', async () => {
     const res = await request(createApp())
       .get(`/api/v1/weddings/${weddingId}/expenses`)

@@ -5,6 +5,7 @@ import {
   listExpenses,
   updateExpense,
   deleteExpense,
+  setInstallmentPaid,
 } from '../expenses/service.js'
 import { getBudgetSummary } from '../expenses/summary.js'
 import { drizzleExpenseDeps } from '../expenses/store.js'
@@ -178,4 +179,55 @@ function toHttpError(err: unknown): unknown {
     return AppError.badRequest(msg)
   }
   return err
+}
+
+/**
+ * Taksit ödeme durumu router'ı — `/weddings/:weddingId/installments`.
+ *
+ * Plandaki sözleşme `/weddings/:weddingId/installments/:installmentId`
+ * (harcama altında değil, düğün altında) — taksit `expenseId` taşısa da
+ * kaynak harcamanın alt kaynağı olarak modellenmiyor, çünkü taksitler
+ * aylık takvimde bağımsız listeleniyor.
+ */
+export function createInstallmentsRouter(deps: {
+  requireAuth: import('express').RequestHandler
+  requireMember: (roles?: ('OWNER' | 'CO_OWNER')[]) => import('express').RequestHandler
+}): Router {
+  const router = Router({ mergeParams: true })
+  const store = drizzleExpenseDeps()
+
+  router.use(deps.requireAuth)
+  router.use(deps.requireMember())
+
+  router.patch(
+    '/:installmentId',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const raw = req.params['weddingId']
+        const weddingId = Array.isArray(raw) ? String(raw[0]) : String(raw)
+        const userId = req.auth!.userId
+        const installmentId = String(req.params['installmentId'])
+
+        const body = req.body as { paid?: unknown }
+        if (typeof body?.paid !== 'boolean') {
+          next(AppError.badRequest('`paid` alanı boolean olmalı'))
+          return
+        }
+
+        const updated = await setInstallmentPaid(
+          { weddingId, userId, installmentId, paid: body.paid },
+          store,
+        )
+        if (!updated) {
+          next(AppError.notFound('Taksit bulunamadı'))
+          return
+        }
+        res.json({ installment: updated })
+      } catch (err) {
+        next(toHttpError(err))
+      }
+    },
+  )
+
+  return router
 }
