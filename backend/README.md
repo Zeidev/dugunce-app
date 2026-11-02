@@ -8,6 +8,12 @@ Node.js + Express + TypeScript + PostgreSQL backend for **Düğünce** — a wed
 
 ---
 
+## CI
+
+Her `backend/**` değişikliğinde GitHub Actions çalışır: Vitest (PGlite),
+gerçek PostgreSQL service container ile entegrasyon testleri, typecheck
+ve build.
+
 ## Hızlı başlangıç
 
 ```bash
