@@ -300,12 +300,77 @@ Presigned PUT için R2 bucket CORS ayarı:
 
 ## 6. Doğrulama kontrol listesi
 
-Her servis kurulduktan sonra:
+### 6.0 Gerçek ölçüm — 2026-11-02 (nameserver + Brevo sonrası)
+
+`dig` ile doğrulandı (`@1.1.1.1`):
+
+| Kayıt | Durum | Değer / not |
+|---|---|---|
+| NS | ✅ | `becky.ns.cloudflare.com`, `carlos.ns.cloudflare.com` |
+| Brevo code (TXT @) | ✅ | `brevo-code:58f84eec...` |
+| DMARC (TXT `_dmarc`) | ⚠️ | `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` — **raporlar Brevo'ya gidiyor, bize gelmiyor** (aşağıya bak) |
+| DKIM 1 (CNAME `brevo1._domainkey`) | ✅ | → `b1.dugunce-com-tr.dkim.brevo.com` → `brevo17.dkim.brevo.com` (2048-bit, 2 parça) |
+| DKIM 2 (CNAME `brevo2._domainkey`) | ✅ | → `b2.dugunce-com-tr.dkim.brevo.com` → `brevo18.dkim.brevo.com` |
+| **SPF (TXT @ `v=spf1`)** | ❌ **EKSİK** | Aşağıya bak |
+| A kaydı (root, www, api, admin) | ❌ | Henüz yok — serv00 ve Pages kurulmadı |
+
+**Not:** Brevo DKIM'i **CNAME** olarak veriyor (`brevo1`/`brevo2._domainkey`), TXT olarak değil. `dig TXT mail._domainkey...` boş döner — bu bir hata değil, yanlış sorgu. Doğru sorgu:
 
 ```bash
-# E-posta (Brevo doğrulaması sonrası)
+dig +short CNAME brevo1._domainkey.dugunce.com.tr
+dig +short TXT   brevo1._domainkey.dugunce.com.tr   # CNAME zincirini çözer
+```
+
+### 6.0.1 SPF kaydı — önerilir, ama **zorunlu değil**
+
+`dugunce.com.tr` altında `v=spf1` ile başlayan TXT **yok**. Yalnızca `brevo-code` var.
+
+**Dürüst değerlendirme:** Bu bir *hata* değil. Brevo, paylaşımlı IP'de domain kimlik doğrulamasını **Brevo code + DKIM** ile yapar; SPF'yi dedicated IP kurulumunda verir ([Brevo dokümanı](https://help.brevo.com/hc/en-us/articles/12163873383186-Authenticate-your-domain-with-Brevo-Brevo-code-DKIM-DMARC), [bağımsız özet](https://inboxight.com/guides/spf-dkim-dmarc-brevo)). Yani **DKIM + DMARC + Brevo code üçlüsü tamamsa domain authenticate olur** ve mailler imzalı gider.
+
+**Yine de eklenmesi önerilir**, iki sebeple:
+
+1. **SPF alignment** — DMARC `p=none` → `quarantine` → `reject` yolculuğunda SPF hizalaması işi kolaylaştırır
+2. **Gmail/Yahoo toplu gönderici kuralları** (Şubat 2024) SPF+DKIM+DMARC ister. Düğünce 300 mail/gün'de "toplu gönderici" sayılmaz (eşik ~5000/gün), yani **şu an zorunlu değil** — ama büyürse gerekir
+
+**Eklenecek kayıt (Cloudflare → DNS → Add record):**
+
+| Type | Name | Content | Proxy |
+|---|---|---|---|
+| TXT | `@` | `v=spf1 include:spf.brevo.com mx ~all` | — (DNS only) |
+
+**Kritik:** Aynı isimde (`@`) iki ayrı TXT kaydı **olabilir** — Cloudflare bunları ayrı satır tutar, `brevo-code` ile SPF çakışmaz. Ama **iki ayrı `v=spf1` kaydı olmamalı**; ikinci bir SPF kaydı `permerror` üretir ve ikisini birden geçersiz kılar. İleride başka bir gönderici eklenirse (ör. başka bir servis) `include:` **aynı satıra** eklenir.
+
+> `~all` (softfail) seçildi, `-all` değil: yanlış yapılandırılmış bir kaynak mailleri tamamen öldürmesin. `-all`'a geçiş DMARC ile aynı takvimde (2-4 hafta gözlem sonrası).
+
+Doğrulama:
+```bash
+dig TXT dugunce.com.tr @1.1.1.1 +short | grep spf1
+# Beklenen: "v=spf1 include:spf.brevo.com mx ~all"
+```
+
+### 6.0.2 ⚠️ DMARC rapor adresi Brevo'ya işaret ediyor
+
+Mevcut kayıt: `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com`
+
+`rua` (aggregate report URI) Brevo'nun kendi adresi. Bu, raporların **bize değil Brevo'ya** gitmesi demek. Brevo'nun varsayılanı bu — sorun değil, ama **kendi domain'imizin kimlik doğrulama sağlığını göremiyoruz**: hangi IP'ler bizim adımıza mail atıyor, kim taklit ediyor, SPF/DKIM nerede kırılıyor — hiçbiri bize ulaşmıyor.
+
+**Öneri (şimdi değil, mail gönderimi çalıştıktan sonra):**
+
+`kvkk@dugunce.com.tr` gibi bir adres açılıp `rua` oraya çevrilir. Ama:
+
+1. **Şimdi yapma** — henüz mailbox yok, raporlar kaybolur
+2. `rua`'yı **değiştir**, ikinci DMARC kaydı **ekleme** (iki DMARC kaydı = geçersiz)
+3. İstersen ikisini birlikte tut: `rua=mailto:kvkk@dugunce.com.tr,mailto:rua@dmarc.brevo.com` (virgülle ayrılır, toplam 2 adres sınırı var)
+
+`p=none` doğru — değiştirme. `quarantine`/`reject` ancak 2-4 hafta rapor gözleminden sonra.
+
+### 6.1 Servisler kurulduktan sonra
+
+```bash
+# E-posta
+dig TXT dugunce.com.tr +short | grep spf1
 dig TXT _dmarc.dugunce.com.tr +short
-dig TXT mail._domainkey.dugunce.com.tr +short
+dig TXT brevo1._domainkey.dugunce.com.tr +short
 
 # Web
 curl -sI https://dugunce.com.tr | head -3
@@ -326,6 +391,7 @@ dig api.dugunce.com.tr +short
 | `admin.dugunce.com.tr` | 200, HTTPS |
 | `api.dugunce.com.tr/health` | `{"status":"ok","app":"dugunce-api"}` |
 | `dig TXT _dmarc...` | `v=DMARC1; p=none; ...` |
+| `dig TXT @ \| grep spf1` | `v=spf1 include:spf.brevo.com ~all` |
 | Brevo status | `Authenticated` |
 
 ---
