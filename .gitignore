@@ -14,3 +14,7 @@ mobile/.gradle/
 mobile/build/
 mobile/local.properties
 mobile/.kotlin/
+
+# APK çıktısı — CI artifact olarak saklanır, repo'ya girmez
+/artifacts/
+dist-apk/
