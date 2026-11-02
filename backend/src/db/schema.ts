@@ -418,3 +418,129 @@ export const guestInvitations = pgTable(
     weddingIdx: index('guest_invitations_wedding_idx').on(table.weddingId),
   }),
 )
+
+/**
+ * helpers — yardımcılar (işbirlikçiler).
+ *
+ * KRİTİK: Yardımcı `users` tablosuna GİRMEZ. Hesabı yoktur, girişi yoktur.
+ * Erişimi yalnızca hash'lenmiş token'lı link iledir (design "Yardımcı
+ * web sayfası", SECURITY §1.2). Bu, auth karmaşıklığını ciddi ölçüde azaltır.
+ */
+export const helpers = pgTable(
+  'helpers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => weddings.id, { onDelete: 'cascade' }),
+    displayName: text('display_name').notNull(),
+    /** Ham token ASLA saklanmaz — yalnızca SHA-256 (SECURITY §1.2). */
+    accessTokenHash: text('access_token_hash').notNull().unique(),
+    tokenRevokedAt: timestamp('token_revoked_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Erişimin son görülme anı — 5 dk'da bir güncellenir. */
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    idWeddingUnique: unique('helpers_id_wedding_unique').on(table.id, table.weddingId),
+    weddingIdx: index('helpers_wedding_idx').on(table.weddingId),
+  }),
+)
+
+/**
+ * tasks — görevler.
+ *
+ * v1: görev başına TEK sorumlu. `assignee_helper_id` tek kolon olduğu için
+ * zaten tek atama garanti edilir; çoklu atama v1.1'de join table ile gelir.
+ *
+ * `assigned_at` kritik: mesaj erişimi bu andan sonrasıyla sınırlıdır
+ * (SECURITY §10.3 #4b). Yeniden atamada güncellenmezse yeni yardımcı
+ * önceki yardımcının özel konuşmasını görür.
+ */
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => weddings.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    assigneeHelperId: uuid('assignee_helper_id'),
+    status: text('status').notNull().default('TODO'),
+    dueDate: timestamp('due_date', { withTimezone: true }),
+    priority: text('priority').notNull().default('NORMAL'),
+    assignedAt: timestamp('assigned_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    idWeddingUnique: unique('tasks_id_wedding_unique').on(table.id, table.weddingId),
+    // Composite FK: görev yalnızca KENDİ düğününün yardımcısına atanır.
+    //
+    // DİKKAT: `ON DELETE SET NULL` BURADA KULLANILAMAZ. PostgreSQL
+    // composite FK'da SET NULL verildiğinde FK'nin TÜM kolonlarını
+    // null'lamaya çalışır — `wedding_id` NOT NULL olduğu için hata verir
+    // (doğrulandı: "null value in column wedding_id ... violates
+    // not-null constraint"). `ON DELETE CASCADE` de yanlış olurdu:
+    // yardımcı silinince görev de silinirdi.
+    //
+    // Çözüm: FK NO ACTION kalır; yardımcı silme servis katmanında
+    // transaction içinde yapılır (önce atamaları boşalt, sonra sil).
+    // Doğrudan SQL DELETE ise FK ihlali ile REDDEDİLİR — sessizce
+    // sahipsiz görev bırakmaktan iyidir.
+    assigneeFk: foreignKey({
+      columns: [table.assigneeHelperId, table.weddingId],
+      foreignColumns: [helpers.id, helpers.weddingId],
+      name: 'tasks_assignee_fk',
+    }),
+    weddingIdx: index('tasks_wedding_idx').on(table.weddingId),
+    assigneeIdx: index('tasks_assignee_idx').on(table.assigneeHelperId),
+  }),
+)
+
+/**
+ * messages — görev sohbeti.
+ *
+ * Hem `wedding_id` hem `task_id` taşır (composite FK, SECURITY §10.4 #1).
+ * Erişim `task.assigned_at` ile sınırlanır — yeniden atamada yeni yardımcı
+ * önceki konuşmayı GÖRMEZ (SECURITY §10.3 #4b).
+ *
+ * `sender_helper_id` SET NULL: yardımcı silinirse çiftin konuşma kaydı
+ * bozulmaz, yazar "silinmiş yardımcı" görünür.
+ */
+export const messages = pgTable(
+  'messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id').notNull(),
+    taskId: uuid('task_id').notNull(),
+    senderKind: text('sender_kind').notNull(),
+    senderUserId: uuid('sender_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    senderHelperId: uuid('sender_helper_id').references(() => helpers.id, {
+      onDelete: 'set null',
+    }),
+    body: text('body').notNull(),
+    /** Aynı key ile tekrar gönderim kopya oluşturmaz (SECURITY §10.3 #3). */
+    idempotencyKey: text('idempotency_key'),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    taskFk: foreignKey({
+      columns: [table.taskId, table.weddingId],
+      foreignColumns: [tasks.id, tasks.weddingId],
+      name: 'messages_task_fk',
+    }).onDelete('cascade'),
+    idemUnique: unique('messages_task_idem_unique').on(
+      table.taskId,
+      table.idempotencyKey,
+    ),
+    taskIdx: index('messages_task_idx').on(table.taskId, table.createdAt),
+  }),
+)

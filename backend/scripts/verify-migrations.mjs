@@ -298,6 +298,107 @@ try {
 
   await db.query(`DELETE FROM weddings WHERE id=$1`, [otherWedding.rows[0].id])
 
+  // --- [8] Yardımcı ve görev şeması (Aşama 5) ---
+  console.log('\n[8] Yardımcı ve görev şeması')
+
+  const hlp = await db.query(
+    `INSERT INTO helpers (wedding_id, display_name, access_token_hash)
+     VALUES ($1,'Ayşe','verify-hash-1') RETURNING id, token_revoked_at, last_seen_at`,
+    [wid],
+  )
+  const hid = hlp.rows[0].id
+  if (hlp.rows[0].token_revoked_at === null) ok('helpers.token_revoked_at nullable')
+  else bad('token_revoked_at beklenmedik şekilde dolu')
+
+  // Ham token kolonu OLMAMALI
+  const hCols = await db.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_name='helpers'`,
+  )
+  const hNames = hCols.rows.map((r) => r.column_name)
+  if (!hNames.includes('token')) ok('helpers: ham token kolonu YOK (SECURITY §1.2)')
+  else bad('helpers.token kolonu var — ham token saklanıyor!')
+
+  // access_token_hash UNIQUE
+  try {
+    await db.query(
+      `INSERT INTO helpers (wedding_id, display_name, access_token_hash)
+       VALUES ($1,'İkinci','verify-hash-1')`,
+      [wid],
+    )
+    bad('access_token_hash UNIQUE çalışmadı')
+  } catch {
+    ok('access_token_hash UNIQUE çalışıyor')
+  }
+
+  // Görev
+  const tsk = await db.query(
+    `INSERT INTO tasks (wedding_id, title, assignee_helper_id, assigned_at)
+     VALUES ($1,'Görev',$2, now()) RETURNING id, status, priority, assigned_at`,
+    [wid, hid],
+  )
+  const tid = tsk.rows[0].id
+  if (tsk.rows[0].status === 'TODO') ok('tasks.status default TODO')
+  else bad(`status default yanlış: ${tsk.rows[0].status}`)
+  if (tsk.rows[0].priority === 'NORMAL') ok('tasks.priority default NORMAL')
+  else bad(`priority default yanlış: ${tsk.rows[0].priority}`)
+  if (tsk.rows[0].assigned_at !== null) ok('tasks.assigned_at yazıldı')
+  else bad('assigned_at yazılmadı')
+
+  // COMPOSITE FK: yanlış wedding_id ile atama reddedilmeli
+  const otherW = await db.query(
+    `INSERT INTO weddings (couple_names, wedding_date) VALUES ('X & Y','2027-02-02') RETURNING id`,
+  )
+  try {
+    await db.query(
+      `INSERT INTO tasks (wedding_id, title, assignee_helper_id)
+       VALUES ($1,'Yanlış',$2)`,
+      [otherW.rows[0].id, hid],
+    )
+    bad('COMPOSITE FK çalışmadı — yanlış wedding_id kabul edildi')
+  } catch {
+    ok('COMPOSITE FK yanlış wedding_id reddediyor')
+  }
+  await db.query(`DELETE FROM weddings WHERE id=$1`, [otherW.rows[0].id])
+
+  // Mesaj CHECK kısıtları
+  await db.query(
+    `INSERT INTO messages (wedding_id, task_id, sender_kind, sender_user_id, body)
+     VALUES ($1,$2,'COUPLE',$3,'merhaba')`,
+    [wid, tid, uid],
+  )
+  ok('messages kaydı eklendi')
+
+  try {
+    await db.query(
+      `INSERT INTO messages (wedding_id, task_id, sender_kind, sender_user_id, body)
+       VALUES ($1,$2,'COUPLE',$3,$4)`,
+      [wid, tid, uid, 'a'.repeat(4001)],
+    )
+    bad('body CHECK çalışmadı — 4001 karakter kabul edildi')
+  } catch {
+    ok('body CHECK 4001 karakteri reddediyor')
+  }
+
+  try {
+    await db.query(
+      `INSERT INTO messages (wedding_id, task_id, sender_kind, body)
+       VALUES ($1,$2,'COUPLE','sender yok')`,
+      [wid, tid],
+    )
+    bad('sender tutarlılık CHECK çalışmadı')
+  } catch {
+    ok('sender_kind tutarlılık CHECK çalışıyor')
+  }
+
+  // CASCADE: görev silinince mesajlar gider
+  await db.query(`DELETE FROM tasks WHERE id=$1`, [tid])
+  const afterT = await db.query(
+    `SELECT count(*)::int AS c FROM messages WHERE task_id=$1`,
+    [tid],
+  )
+  if (afterT.rows[0].c === 0) ok('CASCADE: görev → mesajlar silindi')
+  else bad(`CASCADE çalışmadı: ${afterT.rows[0].c} mesaj kaldı`)
+
   // Düğün silinince üyelik + davet CASCADE
   await db.query(`DELETE FROM weddings WHERE id=$1`, [wid])
   const afterW = await db.query(
