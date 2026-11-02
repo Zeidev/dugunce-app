@@ -287,7 +287,7 @@ export function drizzleGuestDeps(
     // --- RSVP ---
     async updateRsvp(values, tx) {
       const invitationId = String(values['invitationId'])
-      const client = (tx as Db | undefined) ?? db
+      const client = db
       const rows = await client
         .update(guestInvitations)
         .set({

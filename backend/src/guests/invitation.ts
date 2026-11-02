@@ -109,7 +109,10 @@ export interface CreatedInvitation {
  */
 export async function createInvitation(
   params: CreateInvitationParams,
-  deps: Pick<InvitationDeps, 'findGuestForInvitation' | 'insertInvitation'>,
+  deps: Pick<
+    InvitationDeps,
+    'findGuestForInvitation' | 'insertInvitation' | 'revokeByGuestId'
+  >,
 ): Promise<CreatedInvitation | null> {
   const allowedPartySize = params.allowedPartySize ?? MIN_PARTY_SIZE
 
@@ -137,6 +140,14 @@ export async function createInvitation(
   const token = generateToken() // 256 bit
   const storedHash = hashToken(token)
   const expiresAt = new Date(Date.now() + INVITATION_TTL_DAYS * 86_400_000)
+
+  // TEK AKTİF TOKEN (SECURITY §10.4 #3 kararı).
+  //
+  // Eski token'lar iptal edilmezse aynı davetlinin iki linki farklı RSVP
+  // durumu gösterir: biriyle verilen yanıt diğerinde null görünür ve
+  // davetli hangi linki açtığına göre farklı şey okur. Yeni token
+  // üretmek eskisini geçersiz kılar — "linki yenile" davranışı.
+  await deps.revokeByGuestId(params.guestId)
 
   await deps.insertInvitation({
     weddingId: params.weddingId,

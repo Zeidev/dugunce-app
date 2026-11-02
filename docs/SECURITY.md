@@ -449,7 +449,7 @@ rsvp_response      → gelen yanıt + zaman
 |---|---|
 | 1 | Görev ve mesajı **aynı `wedding_id`** taşımak zorunda (composite FK) |
 | 2 | Silme davranışı (`CASCADE`/`RESTRICT`/soft delete) her ilişki için **bilinçli** seçilir |
-| 3 | Aynı davetliye birden fazla aktif token izni **kararlaştırılır** |
+| 3 | Aynı davetliye birden fazla aktif token izni **kararlaştırılır** | ✅ **KAPANDI (Aşama 4): TEK aktif token.** Yeni token üretmek eskisini iptal eder. Aksi halde aynı davetlinin iki linki farklı RSVP durumu gösterir — biriyle verilen yanıt diğerinde `null` görünür |
 | 4 | Görev atamalarında **tekrar eden kayıt engellenir** |
 | 5 | Eşzamanlı RSVP ve kota işlemleri **transaction** ile korunur |
 | 6 | Liste sorgularında `wedding_id` + tarih/durum **indeksleri** kullanılır |
