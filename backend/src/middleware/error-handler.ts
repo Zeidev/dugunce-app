@@ -27,8 +27,15 @@ export function errorHandler(
       logger.debug({ code: err.code, path: req.path, method: req.method }, 'client error')
     }
 
+    // `details` yalnızca AppError.limitReached gibi açıkça set eden
+    // yapıcılar tarafından doldurulur; keyfi alan sızmaz.
+    const details = (err as AppError & { details?: Record<string, unknown> }).details
     res.status(err.statusCode).json({
-      error: { code: err.code, message: err.message },
+      error: {
+        code: err.code,
+        message: err.message,
+        ...(details ? { details } : {}),
+      },
     })
     return
   }

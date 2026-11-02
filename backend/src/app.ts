@@ -11,6 +11,8 @@ import {
   createBudgetSummaryRouter,
   createInstallmentsRouter,
 } from './routes/expenses.js'
+import { createGuestsRouter } from './routes/guests.js'
+import { createInvitationsRouter } from './routes/invitations.js'
 import { drizzleAuthDeps, drizzleMembershipDeps } from './auth/auth-store.js'
 import { loadEnv } from './config/env.js'
 
@@ -20,7 +22,17 @@ import { loadEnv } from './config/env.js'
  * Test edilebilirlik için ayrı: `createApp()` her çağrıda taze bir uygulama
  * döner, dinlemeye başlamaz. Sunucuyu `server.ts` başlatır.
  */
-export function createApp(): Express {
+export interface CreateAppOptions {
+  /**
+   * Test için enjekte edilebilir davetli deposu.
+   *
+   * Verilmezse `drizzleGuestDeps()` gerçek DB bağlantısı kurar. Auth
+   * katmanı testleri DB olmadan çalışabilsin diye açık.
+   */
+  guestStore?: ReturnType<typeof import('./guests/store.js').drizzleGuestDeps>
+}
+
+export function createApp(options: CreateAppOptions = {}): Express {
   const app = express()
 
   // Proxy arkasında (Cloudflare) doğru IP ve protokol
@@ -51,6 +63,24 @@ export function createApp(): Express {
   app.use('/api/v1/weddings/:weddingId/expenses', createExpensesRouter({ requireAuth, requireMember }))
   app.use('/api/v1/weddings/:weddingId/budget-summary', createBudgetSummaryRouter({ requireAuth, requireMember }))
   app.use('/api/v1/weddings/:weddingId/installments', createInstallmentsRouter({ requireAuth, requireMember }))
+
+  // Davetliler — çift tarafı (auth + üyelik)
+  app.use(
+    '/api/v1/weddings/:weddingId/guests',
+    createGuestsRouter({
+      requireAuth,
+      requireMember,
+      ...(options.guestStore ? { store: options.guestStore } : {}),
+    }),
+  )
+
+  // Davetiyeler — davetli tarafı (token tek yetki, auth YOK)
+  app.use(
+    '/api/v1/invitations',
+    createInvitationsRouter(
+      options.guestStore ? { store: options.guestStore } : {},
+    ),
+  )
 
   // 404 ve hata yönetimi en sonda
   app.use(notFoundHandler)

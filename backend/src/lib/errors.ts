@@ -37,6 +37,26 @@ export class AppError extends Error {
     return new AppError(409, code, message)
   }
 
+  /** 410 — kaynak kalıcı olarak gitmiş (ör. RSVP kapanışı). */
+  static gone(message = 'Bu kaynak artık kullanılamıyor', code = 'GONE'): AppError {
+    return new AppError(410, code, message)
+  }
+
+  /** 422 — istek biçimsel olarak geçerli ama iş kuralına uymuyor. */
+  static unprocessable(message = 'İstek işlenemedi', code = 'UNPROCESSABLE'): AppError {
+    return new AppError(422, code, message)
+  }
+
+  /** 403 + limit bilgisi — premium yükseltme teşviki için ek alan taşır. */
+  static limitReached(
+    message = 'Plan limitine ulaşıldı',
+    details?: Record<string, unknown>,
+  ): AppError {
+    const err = new AppError(403, 'LIMIT_REACHED', message)
+    if (details) (err as AppError & { details?: Record<string, unknown> }).details = details
+    return err
+  }
+
   static upgradeRequired(message = 'Uygulama güncellemesi gerekli', code = 'UPGRADE_REQUIRED'): AppError {
     return new AppError(426, code, message)
   }
