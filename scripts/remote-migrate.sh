@@ -6,7 +6,7 @@
 # kendi sunucusundan bağlanılabiliyor.
 #
 # Kullanım (yerelden):
-#   SERV00_USER=p4992 SERV00_HOST=s16.serv00.com bash scripts/remote-migrate.sh
+#   SERV00_USER=razelkull SERV00_HOST=s16.serv00.com bash scripts/remote-migrate.sh
 #
 # Ön koşul: SSH anahtarı kurulu (ssh-copy-id) ve uygulama serv00'a deploy edilmiş.
 

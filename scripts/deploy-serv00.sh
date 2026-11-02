@@ -106,6 +106,16 @@ ssh "$SSH_TARGET" "
   echo '  ✅ Bağımlılıklar kuruldu'
 "
 
+# --- 4b. Migration'ları uygula ---
+echo ""
+echo "[4b/5] Migration'lar uygulanıyor"
+ssh "$SSH_TARGET" "
+  set -e
+  cd ~/'${SERV00_PATH}'
+  node dist/db/migrate-cli.js --force 2>&1 | tail -5
+  echo '  ✅ Migration tamam'
+"
+
 # --- 5. Uygulamayı yeniden başlat ---
 echo ""
 echo "[5/5] Uygulama yeniden başlatılıyor"

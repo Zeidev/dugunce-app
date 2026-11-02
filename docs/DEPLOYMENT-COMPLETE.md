@@ -123,12 +123,50 @@ Bellek taze olsun diye: düğün satırı kilitleniyor, `COUNT` değil.
 
 ---
 
+## Aşama 5.5 canlı deploy (2026-11-02, gece)
+
+Yardımcı oturum katmanı canlıya alındı. **Kritik bulgu:** frontend güncellenmiş,
+backend güncellenmemişti — `/h` sayfası çalışmıyor durumdaydı.
+
+| Adım | Sonuç |
+|---|---|
+| SSH erişimi | ✅ `razelkull@s16.serv00.com` (repodaki `p4992` yanlıştı, düzeltildi) |
+| Eski `dist/` yedeği | ✅ `/tmp/dist-backup-*.tgz` (sunucuda) |
+| `dist/` rsync | ✅ `0005_great_beast.sql` + `helpers/session*.js` gitti |
+| Migration 0005 (canlı DB) | ✅ `helper_sessions` VAR, `helpers.expires_at` VAR, mevcut 1 yardımcı backfill edildi |
+| Passenger restart | ✅ `devil www restart api.dugunce.com.tr` |
+
+### Canlı uçtan uca doğrulama (gerçek HTTP, geçici yardımcı ile)
+
+| # | Test | Sonuç |
+|---|---|---|
+| 1 | `POST /helper/session` geçerli token | ✅ 201, `HttpOnly; Secure; SameSite=None` + ayrı `h_csrf` |
+| 2 | CORS | ✅ `allow-credentials: true`, `allow-headers` CSRF dahil |
+| 3 | Oturumla `GET /helper/tasks` | ✅ 200 |
+| 4 | Oturumsuz erişim | ✅ 401 |
+| 5 | Çerefsiz, CSRF başlıklı | ✅ 401 |
+| 6 | CSRF'siz PATCH | ✅ 403 |
+| 7 | Yanlış CSRF | ✅ 403 |
+| 8 | CSRF'li PATCH, yabancı görev | ✅ 404 |
+| 9 | Mesaj gönder | ✅ 201, beyaz liste (sızıntı yok) |
+| 10 | Durum değiştir | ✅ 200 |
+| 11 | Başlık değiştirme denemesi | ✅ 400 |
+| 12 | Idempotency (aynı key 2×) | ✅ tek mesaj |
+| 13 | **Revoke → aynı çerez** | ✅ **401, anında** |
+| 14 | Süresi dolmuş token | ✅ 404 |
+| 15 | Eski `GET /helper/:token/tasks` | ✅ 404 (rota kapalı) |
+
+Test verisi (2 geçici yardımcı, 1 görev, mesajlar, oturumlar) **silindi**; canlıda 1 gerçek yardımcı kaldı.
+
+---
+
 ## ⏳ Bekleyen
 
 | Konu | Durum |
 |---|---|
 | **Şifre rotasyonu** | serv00 PostgreSQL + Brevo API anahtarı sohbette açık — değiştirilmeli |
-| **SSH anahtarı** | Deploy anahtarı `authorized_keys`'te — iş bitince silinmeli |
+| **SSH anahtarı** | `razelkull` hesabında `authorized_keys`'te — iş bitince silinmeli |
+| **GitHub deploy secrets** | 0 secret, 0 environment → `deploy-backend` workflow tetiklenemiyor; deploy elle yapıldı |
 | **DMARC `rua`** | `rua@dmarc.brevo.com` — kendi raporlarımız Brevo'ya gidiyor |
 | **`noreply@` sender kaydı** | Brevo'da sender olarak eklenmemiş (domain auth yeterli ama istatistik için gerekli) |
 | Aşama 5 | Yardımcı + görevler |
