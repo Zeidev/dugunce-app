@@ -46,6 +46,11 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle.kts', 'mobile/gradle/libs.versions.toml') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      # Derlemeden ÖNCE: trailing-lambda tuzağı gibi hataları 2 dakika
+      # beklemek yerine anında yakala (üç kez tekrarlandı).
+      - name: Compose kuralları
+        run: node scripts/check-compose-conventions.mjs
+
       - name: Unit tests (commonTest)
         working-directory: mobile
         run: ./gradlew :composeApp:allTests --no-daemon --stacktrace
