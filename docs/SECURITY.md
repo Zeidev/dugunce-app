@@ -1,17 +1,17 @@
-# Davetly — Güvenlik ve Mimari Denetimi
+# Düğünce — Güvenlik ve Mimari Denetimi
 
 **Durum:** Bağlayıcı güvenlik spesifikasyonu
 **Tarih:** 2026-11-02
 **Kapsam:** Tüm platform (backend, mobil, web, admin, altyapı)
 
-> Bu belge **normatiftir**. Tasarım dokümanı (`docs/superpowers/specs/2026-11-01-davetly-design.md`) ile çelişirse **bu belge geçerlidir**.
+> Bu belge **normatiftir**. Tasarım dokümanı (`docs/superpowers/specs/2026-11-02-dugunce-design.md`) ile çelişirse **bu belge geçerlidir**.
 > Hiçbir modül, bu belgedeki ilgili güvenlik kuralları uygulanmadan "tamam" sayılmaz.
 
 ---
 
 ## 0. Temel ilke
 
-**Davetly'nin en büyük teknik riski teknoloji seçimi değildir.** Yanlış kişiye yanlış düğünün verisini göstermek veya bir yardımcıya gereğinden fazla yetki vermektir.
+**Düğünce'nin en büyük teknik riski teknoloji seçimi değildir.** Yanlış kişiye yanlış düğünün verisini göstermek veya bir yardımcıya gereğinden fazla yetki vermektir.
 
 İlk çalışan sürümün başarı ölçütü güzel ekranlar değil, **doğru yetkilendirme ve veri izolasyonudur.**
 
@@ -248,7 +248,7 @@ Admin SPA Cloudflare Pages'te olması güvenlik sorumluluğunu kaldırmaz.
 
 ## 6. KVKK ve kullanıcı gizliliği
 
-Davetly isim, telefon, davetli listesi, katılım durumu, görev konuşmaları ve fotoğraflar gibi kişisel verileri işler.
+Düğünce isim, telefon, davetli listesi, katılım durumu, görev konuşmaları ve fotoğraflar gibi kişisel verileri işler.
 
 ### 6.1 Yayın öncesi netleşmesi gerekenler
 
@@ -457,7 +457,7 @@ Denetimde bulunan ve bu belgeyle kapatılan çelişkiler:
 |---|---|---|
 | A | Yardımcı "hesap oluşturur/giriş yapar" ↔ "uygulama indirmez, link ile girer" | **Bağımsız web erişim modeli.** Yardımcı hesabı yok; normal çift hesabıyla aynı yetki verilmez |
 | B | Görev fotoğrafı MVP'de ↔ "dosya ekleri MVP sonrası" | **v1'de var** (kontrollü alt aşama, Aşama 6) |
-| C | Admin hosting belirsiz ↔ karar verildi | `admin.davetly.com` → **Cloudflare Pages**; `api.davetly.com` → **serv00** |
+| C | Admin hosting belirsiz ↔ karar verildi | `admin.dugunce.com.tr` → **Cloudflare Pages**; `api.dugunce.com.tr` → **serv00** |
 | D | Davetli/aile daveti modeli eksik | `allowed_party_size` + `confirmed_party_size` ayrımı zorunlu |
 | E | Düğün üyeliği ↔ görev ataması karışık | **Üç ayrı kontrol:** üyelik, atama, mesaj erişimi |
 
@@ -469,6 +469,6 @@ Denetimde bulunan ve bu belgeyle kapatılan çelişkiler:
 
 1. **`docs/SECURITY.md`** (bu belge) — güvenlik kuralları
 2. `docs/superpowers/specs/*-design.md` — ürün ve mimari kararlar
-3. `docs/DAVETLY_CLAUDE_BRIEF-v2.md` — referans doküman
+3. `docs/DUGUNCE_CLAUDE_BRIEF-v2.md` — referans doküman
 
 > Geliştirme aracına eski ve yeni kararlar birlikte verilirse **yanlış mimari kurulabilir.** Bu belge güncel kararları tek yerde tutar.

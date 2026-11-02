@@ -25,7 +25,7 @@ jobs:
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: davetly_test
+          POSTGRES_DB: dugunce_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -35,7 +35,7 @@ jobs:
           - 5432:5432
 
     env:
-      DATABASE_URL: postgres://test:test@localhost:5432/davetly_test
+      DATABASE_URL: postgres://test:test@localhost:5432/dugunce_test
       JWT_SECRET: ci-only-secret-that-is-at-least-32-chars-long
       NODE_ENV: test
 

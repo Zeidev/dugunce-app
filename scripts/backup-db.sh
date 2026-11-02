@@ -1,5 +1,5 @@
 #!/usr/local/bin/bash
-# Davetly — şifreli veritabanı yedeği
+# Düğünce — şifreli veritabanı yedeği
 #
 # Kullanım:
 #   BACKUP_GPG_PASSPHRASE='...' ./scripts/backup-db.sh [--keep-days N]
@@ -8,7 +8,7 @@
 #   DATABASE_URL           — PostgreSQL bağlantı dizesi
 #   BACKUP_GPG_PASSPHRASE  — yedeği şifreleyecek parola (AYRI saklanmalı!)
 #
-# Çıktı: backups/davetly-YYYYMMDD-HHMMSS.dump.gpg
+# Çıktı: backups/dugunce-YYYYMMDD-HHMMSS.dump.gpg
 #
 # SECURITY §1.5: Yedek şifreli olmalı ve erişimi kısıtlı olmalı.
 
@@ -25,7 +25,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_DIR="${BACKUP_DIR:-${SCRIPT_DIR}/../backups}"
 TIMESTAMP="$(date -u '+%Y%m%d-%H%M%S')"
-BASENAME="davetly-${TIMESTAMP}.dump"
+BASENAME="dugunce-${TIMESTAMP}.dump"
 PLAIN_PATH="${BACKUP_DIR}/${BASENAME}"
 ENC_PATH="${PLAIN_PATH}.gpg"
 
@@ -33,7 +33,7 @@ mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
 echo "=========================================="
-echo " Davetly — veritabanı yedeği"
+echo " Düğünce — veritabanı yedeği"
 echo " Tarih: $(date -u '+%Y-%m-%d %H:%M UTC')"
 echo "=========================================="
 
@@ -90,10 +90,10 @@ echo "  ✅ Yedek okunabilir ve pg_restore listesi alınabiliyor"
 echo ""
 echo "[4/4] ${KEEP_DAYS} günden eski yedekler siliniyor"
 
-DELETED=$(find "$BACKUP_DIR" -name 'davetly-*.dump.gpg' -type f -mtime "+${KEEP_DAYS}" -print -delete | wc -l | tr -d ' ')
+DELETED=$(find "$BACKUP_DIR" -name 'dugunce-*.dump.gpg' -type f -mtime "+${KEEP_DAYS}" -print -delete | wc -l | tr -d ' ')
 echo "  ✅ ${DELETED} dosya silindi"
 
-REMAINING=$(find "$BACKUP_DIR" -name 'davetly-*.dump.gpg' -type f | wc -l | tr -d ' ')
+REMAINING=$(find "$BACKUP_DIR" -name 'dugunce-*.dump.gpg' -type f | wc -l | tr -d ' ')
 echo "  ℹ️  Kalan yedek sayısı: ${REMAINING}"
 
 echo ""

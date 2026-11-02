@@ -1,15 +1,15 @@
-# Davetly — Tasarım Dokümanı (Taslak / Süreç İçi)
+# Düğünce — Tasarım Dokümanı (Taslak / Süreç İçi)
 
-**Durum:** TASLAK — fikir geliştirme devam ediyor. Onaylanmadı.
+**Durum:** ✅ **ONAYLANDI** — Aşama 1 uygulandı, Aşama 2 planı hazır
 **Tarih:** 2026-11-01
-**Son güncelleme:** 2026-11-02 (builder check: 9 açık soru kapatıldı)
+**Son güncelleme:** 2026-11-02 — isim **Düğünce**, domain **dugunce.com.tr**
 
 > Bu belge bir **çalışma notudur**. Fikir geliştikçe güncellenir.
 > Onaylandığında `writing-plans` ile uygulama planına dönüşecek.
 > Onay olmadan hiçbir kod yazılmaz.
 >
-> ⚠️ **Güvenlik kuralları için bağlayıcı belge: [`docs/SECURITY.md`](../SECURITY.md)**
-> Belge hiyerarşisi: `SECURITY.md` > bu belge > `DAVETLY_CLAUDE_BRIEF-v2.md`
+> ⚠️ **Güvenlik kuralları için bağlayıcı belge: [`docs/SECURITY.md`](../../SECURITY.md)**
+> Belge hiyerarşisi: `SECURITY.md` > bu belge > `DUGUNCE_CLAUDE_BRIEF-v2.md`
 
 ---
 
@@ -172,14 +172,14 @@ Düğün/nişan hazırlığı yapan çiftler için, üç kritik işi tek yerde t
          ▼            ▼                                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  Cloudflare (DNS + proxy + CDN + SSL)                                       │
-│  ├─ Pages: admin.davetly.com  (React SPA, GitHub otomatik deploy)           │
-│  ├─ Pages: davetly.com        (tanıtım + davetiye + yardımcı PWA)           │
-│  ├─ /api/* → api.davetly.com → serv00                                       │
+│  ├─ Pages: admin.dugunce.com.tr  (React SPA, GitHub otomatik deploy)           │
+│  ├─ Pages: dugunce.com.tr        (tanıtım + davetiye + yardımcı PWA)           │
+│  ├─ /api/* → api.dugunce.com.tr → serv00                                       │
 │  └─ R2 (özel bucket) ← görev fotoğrafları                                   │
 └──────────────────────────────┬──────────────────────────────────────────────┘
                                │
 ┌──────────────────────────────▼──────────────────────────────────────────────┐
-│  serv00 (Node.js + Express + TS)   → api.davetly.com                        │
+│  serv00 (Node.js + Express + TS)   → api.dugunce.com.tr                        │
 │  ├─ REST API (/api/v1)          ├─ /api/v1/admin/...                        │
 │  ├─ GET /health                 ├─ Web push (VAPID)                         │
 │  ├─ Presigned URL (R2)          ├─ Polling (sohbet)                         │
@@ -194,7 +194,7 @@ Düğün/nişan hazırlığı yapan çiftler için, üç kritik işi tek yerde t
 | **Admin SPA** | **Cloudflare Pages** | CDN, otomatik GitHub deploy, uyku riski yok |
 | **Tanıtım sitesi** | Cloudflare Pages | Statik, CDN, ücretsiz |
 | **Davetiye + yardımcı PWA** | Cloudflare Pages | Statik, edge cache, Node yorulmaz |
-| **Backend API** | serv00 (`api.davetly.com`) | Node.js + PostgreSQL gerekiyor |
+| **Backend API** | serv00 (`api.dugunce.com.tr`) | Node.js + PostgreSQL gerekiyor |
 | **Veritabanı** | serv00 PostgreSQL | Doğrulandı |
 | **Fotoğraflar** | Cloudflare R2 | Özel bucket, presigned URL |
 
@@ -210,7 +210,7 @@ Düğün/nişan hazırlığı yapan çiftler için, üç kritik işi tek yerde t
 
 **Pages ücretsiz plan sınırları** ([kaynak](https://developers.cloudflare.com/pages/platform/limits/)): 500 build/ay, 1 eşzamanlı build, 20.000 dosya, 25 MiB/dosya, 100 custom domain/proje. Statik istekler **sınırsız ve ücretsiz**.
 
-**Güvenlik notu:** Admin paneli Cloudflare'de barındırılıyor diye güvenlik Cloudflare'e bırakılmaz. Giriş, 2FA, rol kontrolü ve audit **serv00 API'sinde** yapılır. Gizli anahtar React uygulamasına konmaz. İstenirse `admin.davetly.com` önüne Cloudflare Access eklenebilir — ama uygulama içi yetkilendirmenin yerine geçmez.
+**Güvenlik notu:** Admin paneli Cloudflare'de barındırılıyor diye güvenlik Cloudflare'e bırakılmaz. Giriş, 2FA, rol kontrolü ve audit **serv00 API'sinde** yapılır. Gizli anahtar React uygulamasına konmaz. İstenirse `admin.dugunce.com.tr` önüne Cloudflare Access eklenebilir — ama uygulama içi yetkilendirmenin yerine geçmez.
 
 **Yüzey tablosu:**
 
@@ -226,7 +226,7 @@ Düğün/nişan hazırlığı yapan çiftler için, üç kritik işi tek yerde t
 
 ### Yardımcı web sayfası
 
-`https://davetly.com/gorev/<token>` — tahmin edilemez token, yalnızca o yardımcının görevlerine erişir.
+`https://dugunce.com.tr/gorev/<token>` — tahmin edilemez token, yalnızca o yardımcının görevlerine erişir.
 
 İçerik:
 - Görevlerim (yalnızca kendisine atanmış olanlar)
@@ -300,7 +300,7 @@ Yardımcı → (1) POST /photos/presign   → yetki + kota kontrolü → kısa �
 
 **Kota düşüşü:** Aynı düğündeki tüm yardımcıların fotoğrafları **ortak kotadan** düşer. Premium biterse fotoğraflar silinmez, yeni yükleme kapanır.
 
-**R2 ücretsiz katman (tüm Davetly hesabı için ortak):** 10 GB depolama, 1M Class A, 10M Class B, **egress ücretsiz** ([R2 fiyatlandırma](https://developers.cloudflare.com/r2/pricing/)).
+**R2 ücretsiz katman (tüm Düğünce hesabı için ortak):** 10 GB depolama, 1M Class A, 10M Class B, **egress ücretsiz** ([R2 fiyatlandırma](https://developers.cloudflare.com/r2/pricing/)).
 
 **Kapasite hesabı (gerçekçi):** Sıkıştırılmış bir görev fotoğrafı ~400–800 KB. Düğün başına tipik tüketim 5 görev × 3 fotoğraf × 700 KB ≈ **10–12 MB**.
 → 10 GB ÷ 12 MB ≈ **~800 düğün** (gerçekçi)
@@ -317,7 +317,7 @@ Yardımcı → (1) POST /photos/presign   → yetki + kota kontrolü → kısa �
 **Karar (builder check sonrası düzeltildi, 2026-11-02):** URL'de **opaque token**, gömülü payload **değil**.
 
 ```
-https://davetly.com/d#<token>
+https://dugunce.com.tr/d#<token>
 ```
 
 | Konu | Karar | Gerekçe |
@@ -328,7 +328,7 @@ https://davetly.com/d#<token>
 | Sayfa açılışı | Statik HTML (Pages) + `GET /invitations/:token` (1 istek) | Revoke anında etkili |
 | "Geliyorum" | `POST /invitations/:token/rsvp` | GET yan etki yaratmaz (link preview güvenli) |
 
-**Eski tasarım (iptal):** `davetly.com/d/<base64-veri>` — "0 uygulama isteği" vaadi iptal edildi. Sebebi: gömülü payload'da davetli adı değişse veya token iptal edilse bile eski link çalışmaya devam ederdi. Güvenlik > 1 istek tasarrufu.
+**Eski tasarım (iptal):** `dugunce.com.tr/d/<base64-veri>` — "0 uygulama isteği" vaadi iptal edildi. Sebebi: gömülü payload'da davetli adı değişse veya token iptal edilse bile eski link çalışmaya devam ederdi. Güvenlik > 1 istek tasarrufu.
 
 **Yardımcı token'ı ayrı:** 7 karakterlik kod **yalnızca CO_OWNER (2. eş)** içindir. Yardımcı erişimi ≥128 bit hash'lenmiş token iledir (SECURITY §1.2).
 
@@ -344,7 +344,7 @@ https://davetly.com/d#<token>
 | Hediye notu | `gift_note` | — |
 | **Geliyorum / Gelemeyeceğim** | RSVP butonları | ✓ |
 | Kişi sayısı seçici | `allowed_party_size` kadar | ✓ |
-| "Davetly ile düğününü planla" | Büyüme bağlantısı | ✓ |
+| "Düğünce ile düğününü planla" | Büyüme bağlantısı | ✓ |
 
 **Teknik:**
 - Türkçe tarih formatı (`Intl.DateTimeFormat('tr-TR')`)
@@ -392,7 +392,7 @@ serv00, **24 saat istek gelmezse** Node uygulamasını kapatır ([resmî doküma
 > "If there are no requests to the site for 24 hours, the application is automatically shut down and started again automatically on the first next visit."
 
 **Çözüm:**
-1. `GET /health` endpoint'i — sadece `{"status":"ok","app":"davetly-api"}` döner, **DB'ye dokunmaz**
+1. `GET /health` endpoint'i — sadece `{"status":"ok","app":"dugunce-api"}` döner, **DB'ye dokunmaz**
 2. UptimeRobot HTTP monitor → `/health`, aralık **1 saat**
 3. UptimeRobot ücretsiz plan: **50 monitor, 5 dk minimum aralık**, ticari kullanıma açık ([kaynak](https://help.uptimerobot.com/en/articles/11604710-who-should-use-uptimerobot-s-free-plan))
 
@@ -400,7 +400,7 @@ serv00, **24 saat istek gelmezse** Node uygulamasını kapatır ([resmî doküma
 
 **Çözmediği durumlar:** sunucu yeniden başlatması, uygulama çökmesi, kaynak limiti aşımı. Bunlar için ayrı izleme gerekir (v1.1).
 
-**Alternatif (daha ucuz):** serv00'da `crontab` var ([doküman](https://docs.serv00.com/Cron/)). Saatte bir `fetch https://api.davetly.com/health` çalıştıran bir cron job, dış servise hiç gerek bırakmaz. UptimeRobot'un avantajı: uygulama düşerse **alarm** verir. İkisi birlikte kullanılabilir.
+**Alternatif (daha ucuz):** serv00'da `crontab` var ([doküman](https://docs.serv00.com/Cron/)). Saatte bir `fetch https://api.dugunce.com.tr/health` çalıştıran bir cron job, dış servise hiç gerek bırakmaz. UptimeRobot'un avantajı: uygulama düşerse **alarm** verir. İkisi birlikte kullanılabilir.
 
 ---
 
@@ -801,7 +801,7 @@ Gerekçe: basitlik + gizlilik. Çift iki yardımcıya farklı işler verirse, bi
 | Yardımcı görünürlüğü | Yalnızca kendi görevleri (v1) |
 | **2. eş daveti** | **Davet kodu** (yardımcıyla aynı mekanizma, CO_OWNER rolü) |
 | **v1 kapsamı** | **Üç özellik birden** (harcama + davetli + görev/fotoğraf) **+ admin paneli** |
-| **Admin paneli** | **v1'de KESİN** — ayrı React + TS web app, `admin.davetly.com`, e-posta+parola+TOTP 2FA |
+| **Admin paneli** | **v1'de KESİN** — ayrı React + TS web app, `admin.dugunce.com.tr`, e-posta+parola+TOTP 2FA |
 | **Admin yetki** | Tek `SUPER_ADMIN` (v1), genişletilebilir RBAC altyapısı |
 | **Parola hash** | Argon2id |
 | **Audit log** | Zorunlu — kritik işlemler kayda girer |
@@ -809,10 +809,10 @@ Gerekçe: basitlik + gizlilik. Çift iki yardımcıya farklı işler verirse, bi
 | E-posta | Brevo (300/gün ücretsiz) |
 | **Fotoğraf** | **Yalnızca görev fotoğrafı, R2'de özel bucket** |
 | **Fotoğraf kotası** | **Ücretsiz 50 MB / Premium 500 MB (düğün başına)** |
-| **Admin barındırma** | **Cloudflare Pages** (`admin.davetly.com`) |
+| **Admin barındırma** | **Cloudflare Pages** (`admin.dugunce.com.tr`) |
 | **Statik yüzeyler** | **Cloudflare Pages** (tanıtım + davetiye + yardımcı PWA) |
-| **Backend barındırma** | **serv00** (`api.davetly.com`) |
-| **Subdomain planı** | `davetly.com` (tanıtım) · `admin.davetly.com` · `api.davetly.com` |
+| **Backend barındırma** | **serv00** (`api.dugunce.com.tr`) |
+| **Subdomain planı** | `dugunce.com.tr` (tanıtım) · `admin.dugunce.com.tr` · `api.dugunce.com.tr` |
 
 ---
 
@@ -884,7 +884,7 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 10 kişi limiti ve yardımcının premium olduğu **mağaza sayfasında ve onboarding'de açıkça** yazılır. Gizlenirse tuzak hissi olur; açık yazılırsa normal iş modeli olur.
 
 ### Büyüme telafisi
-10 davetli = 10 reklam (100 olsaydı 100 reklam). Telafi: davetiye sayfasının altına "Davetly ile düğününü planla" bağlantısı. Asıl büyüme oradan gelir, davetli sayısından değil.
+10 davetli = 10 reklam (100 olsaydı 100 reklam). Telafi: davetiye sayfasının altına "Düğünce ile düğününü planla" bağlantısı. Asıl büyüme oradan gelir, davetli sayısından değil.
 
 ---
 
@@ -948,7 +948,7 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 | 17 | Offline taslak nereye yazılır? | ✅ **Room'da `pending_` önekli tablo** — ayrı kuyruk sistemi kurulmaz — *benim çağrım* |
 | 18 | Geliştirme sıralaması | ✅ **Aşama 1–8 güvenlik öncelikli sıralama** (`SECURITY.md` §7) |
 | 19 | ~~Yardımcı uygulama indirecek mi?~~ | ✅ **KAPANDI** — Hayır, sadece web link (PWA) |
-| 20 | Alan adı | ⚠️ **ALINMADI** — ama **magic link artık bloke değil** (bkz. §15.2: tek adres doğrulama yolu) |
+| 20 | ~~Alan adı~~ | ✅ **KAPANDI (2026-11-02)** — `dugunce.com.tr` alındı |
 | 21 | ~~Yardımcı fotoğraf ekleme v1'de mi v1.1'de mi?~~ | ✅ **KAPANDI** — v1'de, R2 ile |
 | 22 | Web push (VAPID) anahtarları nerede saklanacak? | Karar bekliyor (GitHub Secrets) |
 | 23 | **R2 ücretsiz 10 GB — kaç düğün kaldırır?** | ⚠️ Gerçekçi ~800 düğün / teorik 200 ücretsiz · 20 premium → izlenmeli |
@@ -956,7 +956,7 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 | 25 | R2 lifecycle + cron temizliği v1'de mi? | Öneri: v1'de basit cron |
 | 26 | ~~Admin frontend hosting~~ | ✅ **KAPANDI** — Cloudflare Pages |
 | 27 | ~~Statik yüzey barındırma~~ | ✅ **KAPANDI** — tanıtım + davetiye + yardımcı PWA hepsi Cloudflare Pages |
-| 28 | Subdomain planı | ✅ `davetly.com` · `admin.davetly.com` · `api.davetly.com` |
+| 28 | Subdomain planı | ✅ `dugunce.com.tr` · `admin.dugunce.com.tr` · `api.dugunce.com.tr` |
 | 29 | Cloudflare Access admin önüne eklenecek mi? | Öneri: v1'de hayır, 2FA yeterli |
 
 ### Builder check ile kapanan konular (2026-11-02)
@@ -969,7 +969,7 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 | B4 | PG'ye erişim? | ✅ **Sadece SSH tüneli** → migration'lar host'ta, CI testleri service container ile |
 | B5 | Auth taşıma? | ✅ **Mobil bearer + Keychain/Keystore, admin/yardımcı cookie**; GET linki tüketmez, POST tüketir |
 | B6 | Davetiye URL'inde ne var? | ✅ **Opaque token, `#fragment`**; gömülü payload iptal edildi |
-| B7 | Staging var mı? | ✅ **3 DB'den biri staging** (`davetly_stage`) |
+| B7 | Staging var mı? | ✅ **3 DB'den biri staging** (`dugunce_stage`) |
 | B8 | iOS nasıl derlenir? | ✅ **Tag + manuel**, ayda ~10 build kotası, Android her push |
 | B9 | Görev başına kaç sorumlu? | ✅ **v1: tek** (`UNIQUE`), çoklu atama v1.1 |
 
@@ -1028,9 +1028,9 @@ Admin SPA + 2FA + RBAC + audit · KMP mobil uygulama · GitHub Actions · test d
 
 | Ortam | Veritabanı | API | Amaç |
 |---|---|---|---|
-| Production | `davetly_prod` | `api.davetly.com` | Canlı |
-| **Staging** | `davetly_stage` | `stage-api.davetly.com` | Migration + restore testi |
-| Test/scratch | `davetly_test` | — | Deneme, silinebilir |
+| Production | `dugunce_prod` | `api.dugunce.com.tr` | Canlı |
+| **Staging** | `dugunce_stage` | `stage-api.dugunce.com.tr` | Migration + restore testi |
+| Test/scratch | `dugunce_test` | — | Deneme, silinebilir |
 
 **Kurallar:**
 - Migration **önce staging'de** çalışır, sonra prod
@@ -1137,7 +1137,7 @@ Tam sözleşme `docs/API.md`'de. Taban: `/api/v1`
 |---|---|---|
 | **GET linki tüketir mi?** | **Hayır** — sadece sayfa açar | E-posta güvenlik tarayıcıları tek kullanımlık linki yakıp kullanıcıyı dışarıda bırakır |
 | Token tüketimi | **POST /auth/verify** anında | Açık kullanıcı eylemi |
-| Deep link | `davetly.com/auth#<token>` — fragment | Token loglara düşmez |
+| Deep link | `dugunce.com.tr/auth#<token>` — fragment | Token loglara düşmez |
 | Deep link dosyaları | `apple-app-site-association` + `assetlinks.json` (Pages'te) | iOS/Android universal link |
 | Kod yedeği | 6 hane, 5 dk geçerli, 3 deneme | Deep link çalışmazsa kurtarma yolu |
 | Access token ömrü | 15 dk | Kısa |
@@ -1146,54 +1146,49 @@ Tam sözleşme `docs/API.md`'de. Taban: `/api/v1`
 
 **Deep link kurulumu için gerekenler (Aşama 2 öncesi):** Apple Team ID, Android paket adı + SHA-256 imza parmak izi.
 
-### 15.2 Brevo — alan adı olmadan gönderim (2026-11-02 eklendi)
+### 15.2 Brevo — domain doğrulama (GÜNCEL: domain alındı)
 
-**Durum:** Brevo hesabı açıldı, alan adı **henüz yok**.
+**Durum:** `dugunce.com.tr` **alındı.** Brevo hesabı açık.
 
-**Bulgu (Brevo dokümanı):** Alan adı zorunlu değil. İki doğrulama yolu var:
+**Karar: Yol A — domain doğrulama.** Tek adres yolu (B) artık gereksiz.
 
-| Yol | Ne yapılır | Sonuç |
-|---|---|---|
-| **A · Alan adı doğrula** | DNS'e Brevo code + DKIM + DMARC kayıtları | Güvenilir teslim, spam riski düşük |
-| **B · Tek adres doğrula** | E-posta adresine gelen 6 haneli kodu gir | Gönderim çalışır, **uyarı işareti kalır** |
+**Yapılacaklar (tek seferlik, Aşama 2 öncesi):**
 
-**Karar: Aşama 2, B ile başlar — A'ya sonra geçilir.**
+1. Brevo → Settings → **Senders, Domains, IPs** → Domains → **Add a domain**
+2. `dugunce.com.tr` gir (başında `http://` veya `www.` olmadan)
+3. Kayıt yöntemi: **Manual** (Cloudflare DNS kullanıldığı için otomatik bağlantı çalışmayabilir)
+4. Cloudflare DNS'e gir:
+   - **Brevo code** (TXT)
+   - **DKIM 1** (TXT)
+   - **DKIM 2** (TXT)
+   - **DMARC** (TXT) — `v=DMARC1; p=none; rua=mailto:dmarc@dugunce.com.tr`
+5. **Verify records** → **Authenticate domain**
+6. Status **Authenticated** olana kadar bekle (5 dk – 24 saat)
+7. Senders → **Add sender** → `noreply@dugunce.com.tr` (domain doğrulandığı için ayrıca kod gerekmez)
 
-```
-Şimdi (alan adı yok):
-  → Brevo'da tek adres doğrula (ör. davetly.app@gmail.com veya mevcut bir adres)
-  → Magic link gönderimi çalışır
-  → Geliştirme ve test yapılabilir
+**Sonuç:**
 
-Alan adı alınınca:
-  → Brevo'da domain doğrula (DNS kayıtları)
-  → Sender'ı noreply@davetly.com yap
-  → Uyarı kalkar, teslim edilebilirlik artar
-```
+| | Değer |
+|---|---|
+| Gönderen | `noreply@dugunce.com.tr` |
+| SPF/DKIM/DMARC | ✓ Doğrulanmış |
+| Spam riski | Düşük |
+| Brevo uyarısı | Yok |
 
-**B yolunun bedeli:**
+**Kritik notlar:**
 
-- Gmail/Yahoo/Microsoft 2024'ten beri gönderen doğrulaması istiyor — ücretsiz adres **spam'e düşme riski taşır**
-- Brevo arayüzünde "doğrulanmamış gönderen" uyarısı görünür
-- **Üretimde kabul edilemez** — kullanıcı magic link'i spam'de bulursa giriş yapamaz
+- **DMARC `p=none` ile başla** — `p=reject` için 2-4 hafta gözlem gerekir
+- DKIM **iki kayıt** (Brevo 2048-bit anahtarı ikiye böler) — ikisi de girilmeli, biri eksikse doğrulama geçmez
+- Cloudflare'da **DNS only** (turuncu bulut kapalı) — mail kayıtları proxy'lenmez
+- Doğrulama sonrası `noreply@` dışında `destek@`, `kvkk@` da kullanılabilir (ayrı mailbox gerekmez)
 
-**Bu yüzden:**
-
-| Ortam | Yol | Kabul edilebilir mi |
-|---|---|---|
-| Geliştirme / test | B (tek adres) | ✅ Evet |
-| Staging | B (tek adres) | ✅ Evet |
-| **Üretim** | **A (domain)** | ❌ B kabul edilemez |
-
-**Sonuç:** Alan adı **Aşama 2'yi bloke etmiyor** (geliştirme B ile yapılır), ama **yayını bloke ediyor**. Alan adı alınmadan Play/App Store'a çıkılmaz.
-
-**Alternatif düşünüldü ve reddedildi:** Resend (3.000/ay) — Brevo'nun 300/gün'ü (~9.000/ay) daha yüksek ve hesap zaten açıldı.
+**Alternatif düşünüldü ve reddedildi:** Resend (3.000/ay) — Brevo'nun 300/gün'ü (~9.000/ay) daha yüksek, hesap zaten açık, domain doğrulaması aynı.
 
 ---
 
 ## 16. Güvenlik, gizlilik ve KVKK
 
-> ⚠️ **Bu bölüm özettir.** Bağlayıcı güvenlik spesifikasyonu: **[`docs/SECURITY.md`](../SECURITY.md)**
+> ⚠️ **Bu bölüm özettir.** Bağlayıcı güvenlik spesifikasyonu: **[`docs/SECURITY.md`](../../SECURITY.md)**
 > Çelişki durumunda `SECURITY.md` geçerlidir. Aşağıdaki liste sadece hızlı referanstır.
 
 ### 16.1 Değişmez güvenlik kuralları
@@ -1232,7 +1227,7 @@ Türkiye'de kişisel veri işlendiği için yayın öncesi uzman görüşü gere
 
 ## 17. Yönetici paneli (Admin)
 
-**Karar:** Ayrı web uygulaması, `admin.davetly.com`. Aynı Node.js backend, `/api/v1/admin/...` uçları.
+**Karar:** Ayrı web uygulaması, `admin.dugunce.com.tr`. Aynı Node.js backend, `/api/v1/admin/...` uçları.
 
 ### 17.1 Kapsam (v1 — kesin)
 
@@ -1258,7 +1253,7 @@ Türkiye'de kişisel veri işlendiği için yayın öncesi uzman görüşü gere
 
 ### 17.2.1 Barındırma ve güvenlik sınırı
 
-Admin SPA **Cloudflare Pages**'te (`admin.davetly.com`), backend **serv00**'da (`api.davetly.com`).
+Admin SPA **Cloudflare Pages**'te (`admin.dugunce.com.tr`), backend **serv00**'da (`api.dugunce.com.tr`).
 
 | Katman | Sorumluluk |
 |---|---|
@@ -1268,9 +1263,9 @@ Admin SPA **Cloudflare Pages**'te (`admin.davetly.com`), backend **serv00**'da (
 **Kurallar:**
 - React uygulamasında **hiçbir gizli anahtar / API secret bulunmaz**
 - Frontend'de menü gizlemek güvenlik değildir; her istek backend'de doğrulanır
-- CORS: yalnızca `admin.davetly.com` kaynağına izin
+- CORS: yalnızca `admin.dugunce.com.tr` kaynağına izin
 - Cookie `Domain`/`SameSite` ayarları cross-origin akışa göre yapılandırılır
-- Opsiyonel: `admin.davetly.com` önüne **Cloudflare Access** eklenebilir — uygulama içi yetkilendirmenin yerine geçmez
+- Opsiyonel: `admin.dugunce.com.tr` önüne **Cloudflare Access** eklenebilir — uygulama içi yetkilendirmenin yerine geçmez
 
 **Deploy akışı (yerel derleme yok):**
 ```
@@ -1464,7 +1459,7 @@ v1'de kapsamlı üçüncü taraf analitik zorunlu değil — gizlilik ve maliyet
 **Kapanan kararlar (2026-11-02):** v1 kapsamı = üç özellik birden · 2. eş = davet kodu · platform = Android+iOS · senkron = server-first+offline-aware · yardımcı = PWA · fotoğraf = R2 · admin paneli = React + 2FA
 
 **Kalan engeller:**
-1. ⚠️ **Alan adı alınmadı** — **Aşama 2'yi bloke etmiyor** (Brevo tek adres doğrulama ile geliştirme yapılabilir), ama **üretim yayınını bloke ediyor** ve `admin.` / `api.` alt alan adları için şart
+1. ✅ ~~Alan adı~~ — **`dugunce.com.tr` alındı (2026-11-02)**. Sıradaki: Brevo domain doğrulama (§15.2) ve Cloudflare DNS kurulumu
 2. ⏳ KVKK saklama süreleri — `SECURITY.md` §6.3'te öneri var, onay bekliyor
 3. ⏳ Admin hesap kurtarma prosedürü — `SECURITY.md` §4.9
 

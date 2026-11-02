@@ -1,6 +1,6 @@
-# DAVETLY — Claude Code Proje Ana Dokümanı
+# DUGUNCE — Claude Code Proje Ana Dokümanı
 
-> **Amaç:** Bu dosya, Davetly uygulamasını geliştirmek için Claude Code'a verilecek ana ürün, teknik mimari, iş kuralları ve geliştirme rehberidir.  
+> **Amaç:** Bu dosya, Düğünce uygulamasını geliştirmek için Claude Code'a verilecek ana ürün, teknik mimari, iş kuralları ve geliştirme rehberidir.  
 > **Dil:** Ürün arayüzünün varsayılan dili Türkçe olacaktır. Kod, değişken ve API isimleri İngilizce kullanılabilir.  
 > **Durum:** Ürün fikri ve ana kapsam tanımlandı; henüz uygulama kodu yazılmadı. Bazı ticari ve teknik kararlar doğrulama bekliyor.  
 > **Önemli:** Bu dokümanda “öneri”, “varsayım” veya “karar bekliyor” olarak işaretlenen maddeleri kullanıcı onayı olmadan kesin ürün kararı gibi uygulama.
@@ -9,7 +9,7 @@
 
 ## 1. Proje özeti
 
-**Davetly**, evlenecek çiftlerin düğün hazırlıklarını tek bir yerden yönetmesini sağlayan, mobil öncelikli bir düğün planlama uygulamasıdır. Üç ana kullanıcı grubu vardır:
+**Düğünce**, evlenecek çiftlerin düğün hazırlıklarını tek bir yerden yönetmesini sağlayan, mobil öncelikli bir düğün planlama uygulamasıdır. Üç ana kullanıcı grubu vardır:
 
 1. **Çift (Couple):** Düğünü oluşturan ve tüm yönetim yetkisine sahip kullanıcı veya kullanıcılar.
 2. **Yardımcı (Helper):** Çiftin davet ettiği, yalnızca kendisine atanmış görevleri ve bu görevlere ait konuşmaları görebilen kişi.
@@ -439,7 +439,7 @@ Gerekçe:
 - İlişkisel veri modeli ve kısıtlar için güçlü.
 - Raporlama/sorgulama ihtiyaçlarına elverişli.
 - Node.js ile `pg` sürücüsü kullanılabilir.
-- Davetly'nin veri modeline uygun.
+- Düğünce'nin veri modeline uygun.
 
 Ancak Serv00 panelinde PostgreSQL servisinin ve sürümünün gerçekten kullanılabildiğini doğrulamadan veritabanı bağlantı kodunu tamamlanmış kabul etme. Önce küçük bir bağlantı testi yap. Eğer PostgreSQL hesabında desteklenmiyorsa MySQL'e geçiş kararı kullanıcıyla konuşulmalı; sessizce veritabanı değiştirme.
 
@@ -463,7 +463,7 @@ Ancak Serv00 panelinde PostgreSQL servisinin ve sürümünün gerçekten kullan�
 Tek geliştirici için başlangıçta **monorepo** daha az operasyonel yük oluşturabilir. Daha önce ayrı mobil/backend/web depoları da düşünülmüştü; henüz kesinleşmedi. Claude Code kullanıcı onayı olmadan repo stratejisini değiştirmesin. Yeni repo açılacaksa önerilen yapı:
 
 ```text
-davetly/
+dugunce/
   mobile/
     composeApp/
     shared/
@@ -942,7 +942,7 @@ Claude Code ilk oturumda hemen tüm uygulamayı üretmeye başlamamalı. Şu sı
 
 ## 17. Karar bekleyen konular — açık liste
 
-Bunlar konuşmada kesinleşmemiştir. Claude Code bunları kesin kabul etmemelidir.
+Bunlar konuşmada kesinleşmemiştir. Claude Code bunları kesin kabul etmemelidir. Yönetici paneli erişimi ve giriş yöntemi ise 21. bölümde kesinleştirilmiştir.
 
 1. Serv00 PostgreSQL sürümü, host/socket ve hesapta kullanılabilirliği.
 2. Serv00 Node.js uygulamasının tam çalışma dizini, Passenger ayarı ve restart yöntemi.
@@ -950,7 +950,7 @@ Bunlar konuşmada kesinleşmemiştir. Claude Code bunları kesin kabul etmemelid
 4. Alan adı mevcut mu; Cloudflare DNS ve proxy nasıl yapılandırılacak?
 5. Cloudflare Tunnel gerekip gerekmediği (şimdilik mimarinin zorunlu parçası değil).
 6. Tek repo mu, ayrı mobil/backend/web repoları mı? Tek geliştirici için monorepo önerilir, fakat karar kesin değil.
-7. Auth: e-posta/şifre, telefon OTP veya sosyal giriş.
+7. Çift/yardımcı kullanıcıları için nihai auth yöntemi ve oturum yenileme politikası (admin girişi için e-posta/şifre + 2FA kararı verilmiştir).
 8. Çiftin ikinci üyesini davet etme akışı.
 9. Bir kullanıcının birden fazla düğüne üye olabilmesi.
 10. Misafirin RSVP yanıtını değiştirebilmesi ve RSVP son tarihi.
@@ -967,6 +967,8 @@ Bunlar konuşmada kesinleşmemiştir. Claude Code bunları kesin kabul etmemelid
 21. Ödeme sağlayıcısı ve mağaza içi satın alma gereksinimleri.
 22. KVKK metinleri, saklama ve silme politikası.
 23. Uygulama adı, logo, alan adı ve mağaza yayın hesapları.
+24. Admin panelinin statik frontend barındırma tercihi (Serv00 statik hosting veya Cloudflare Pages; hesap ve dağıtım doğrulamasından sonra seç).
+25. İlk admin hesabının güvenli bootstrap/provisioning işleminin operasyonel yöntemi.
 
 ---
 
@@ -1016,7 +1018,7 @@ MVP “hazır” sayılmadan önce:
 
 Aşağıdaki talimatı Claude Code oturumunun ilk mesajı olarak kullan:
 
-> Bu depoda Davetly adlı düğün planlama uygulamasını geliştireceğiz. Önce `DAVETLY_CLAUDE_BRIEF.md` dosyasını baştan sona oku ve ürün kapsamı, roller, teknik mimari, Serv00 kısıtları, güvenlik gereksinimleri ve karar bekleyen konuları anladığını özetle.  
+> Bu depoda Düğünce adlı düğün planlama uygulamasını geliştireceğiz. Önce `DUGUNCE_CLAUDE_BRIEF.md` dosyasını baştan sona oku ve ürün kapsamı, roller, teknik mimari, Serv00 kısıtları, güvenlik gereksinimleri ve karar bekleyen konuları anladığını özetle.  
 >
 > Ben tek başıma geliştiriyorum, CachyOS kullanıyorum, Kotlin biliyorum ve yerel mobil derleme yapmak istemiyorum. Kaynak kodunu yerelde düzenleyip GitHub'a göndereceğim; derlemeler GitHub Actions üzerinde çalışacak. Mobil istemci için Kotlin Multiplatform + Compose Multiplatform, backend için Node.js + Express + TypeScript ve veritabanı için Serv00 hesabında doğrulanması şartıyla PostgreSQL tercih ediyoruz.  
 >
@@ -1028,4 +1030,194 @@ Aşağıdaki talimatı Claude Code oturumunun ilk mesajı olarak kullan:
 
 ---
 
-**Bu dokümanın temel ilkesi:** Davetly'yi önce güvenli, çalışan ve gerçekten kullanılabilir bir düğün planlama MVP'si olarak çıkar. Tek geliştiricinin sürdüremeyeceği karmaşıklık ekleme; doğrulanmamış hosting özelliklerine veya ücretsiz olduğu varsayılan servislere bağımlı mimari kurma.
+**Bu dokümanın temel ilkesi:** Düğünce'yi önce güvenli, çalışan ve gerçekten kullanılabilir bir düğün planlama MVP'si olarak çıkar. Tek geliştiricinin sürdüremeyeceği karmaşıklık ekleme; doğrulanmamış hosting özelliklerine veya ücretsiz olduğu varsayılan servislere bağımlı mimari kurma.
+
+
+---
+
+## 21. Yönetici paneli (Admin) — kararlaştırılmış mimari
+
+### 21.1 Ürün kararı ve kapsam
+
+Düğünce için çiftlerin mobil uygulamasından ve misafir/yardımcı web sayfalarından ayrı, web tabanlı bir yönetici paneli geliştirilecektir.
+
+Kararlar:
+- Admin paneli ayrı bir frontend uygulaması olacaktır; önerilen adres `admin.dugunce.com.tr`.
+- Backend olarak mevcut Node.js + Express + TypeScript API kullanılacaktır; ayrı bir admin backend/mikroservis kurulmayacaktır.
+- İlk aşamada panelin tek yöneticisi ürün sahibidir.
+- Yetki altyapısı ileride destek personeli ve diğer personel rollerinin eklenmesine hazır tasarlanacaktır.
+- Admin girişi e-posta + parola ve zorunlu iki aşamalı doğrulama (2FA) kullanacaktır.
+- Admin hesabı için herkese açık kayıt veya normal kullanıcı hesabından otomatik admin'e yükselme olmayacaktır.
+- Admin paneli ilk MVP'de temel operasyonları sunacak; gelişmiş gelir/ödeme, kampanya ve destek otomasyonları sonraki aşamalara bırakılacaktır.
+
+### 21.2 Frontend ve dağıtım
+
+- Admin frontend: React + TypeScript. Gereksiz SSR/karmaşıklık ekleme; ilk sürüm için statik SPA yeterlidir.
+- UI masaüstü öncelikli, mobil uyumlu ve Düğünce'nin sage green / off-white / beige tasarım diliyle tutarlı olmalıdır.
+- Admin frontend'i API'den ayrı derlenip dağıtılabilmelidir.
+- Önerilen alan adı: `admin.dugunce.com.tr`; API: `api.dugunce.com.tr`.
+- Statik frontend'in Serv00 üzerinde mi yoksa Cloudflare Pages üzerinde mi barındırılacağı henüz kesin değildir. GitHub Actions ile otomatik dağıtım öncesinde mevcut hesap/alan adı/erişim imkânları doğrulanmalı; doğrulanmamış bir özelliği varsayma.
+- Admin API uçları mevcut backend içinde `/api/v1/admin/...` altında gruplanmalıdır.
+- Admin frontend'e gizli API anahtarı veya R2 secret koyma. Tüm ayrıcalıklı işlemler backend üzerinden yapılmalıdır.
+
+### 21.3 Admin kimlik doğrulama ve 2FA
+
+Admin erişimi normal kullanıcı auth akışından mantıksal olarak ayrılmalıdır. Aynı `users` tablosu kullanılacaksa bile admin yetkisi ayrı, açık ve denetlenebilir bir üyelik/rol kaydıyla verilmelidir; e-posta adresine veya istemciden gelen role güvenilmemelidir.
+
+Önerilen akış:
+1. Admin e-posta ve parolasını girer.
+2. Backend parola hash'ini doğrular.
+3. Hesapta etkin TOTP 2FA varsa kısa ömürlü, henüz admin API erişimi vermeyen bir `2FA pending` aşaması oluşturulur.
+4. TOTP kodu doğrulanınca admin oturumu açılır.
+5. İlk kurulumda TOTP kaydı QR kodu ile eşleştirilir; etkinleştirme için doğrulama kodu istenir.
+6. Tek kullanımlık kurtarma kodları üretilir; yalnızca hash'leri saklanır ve her kod bir kez kullanılabilir.
+
+Güvenlik gereksinimleri:
+- Admin hesapları için güçlü parola hash algoritması (Argon2id veya uygun güncel eşdeğeri), login rate limit ve başarısız giriş takibi.
+- TOTP tabanlı 2FA (RFC 6238 uyumlu) tercih edilir. 2FA devre dışı bırakma veya sıfırlama yüksek güvence gerektiren, denetim kaydına giren işlem olmalıdır.
+- Admin oturumları kısa/uygun süreli, iptal edilebilir ve güvenli cookie yaklaşımıyla korunmalıdır (`HttpOnly`, `Secure`, uygun `SameSite`; cookie tabanlı akışta CSRF koruması).
+- 2FA tamamlanmadan admin endpoint'lerine erişim verilmemelidir.
+- Kurtarma kodları düz metin olarak veritabanında tutulmamalıdır.
+- Admin için herkese açık parola sıfırlama/hesap oluşturma uçları gelişigüzel açılmamalı; e-posta doğrulama ve güvenli hesap kurtarma akışı tasarlanmalıdır.
+- İlk süper yönetici hesabı yalnızca güvenli, tek seferlik CLI/operasyonel provisioning komutuyla oluşturulmalıdır. Seed dosyasına gerçek parola veya secret yazılmamalıdır.
+
+### 21.4 Yetki modeli ve ileride personel ekleme
+
+İlk sürümde tek bir `SUPER_ADMIN` rolü yeterlidir; ancak backend rol/izin kontrolü genişletilebilir olmalıdır. İleride önerilen roller:
+- `SUPER_ADMIN`: tüm platform yönetimi ve personel/rol yönetimi.
+- `SUPPORT`: destek talepleri ve sınırlı hesap/düğün durum bilgileri; hassas içeriklere varsayılan erişim yok.
+- `OPERATIONS`: sistem sağlığı, depolama ve operasyonel raporlar.
+- `BILLING`: ödeme/abonelik ve fatura işlemleri; diğer özel alanlara erişim yok.
+
+Roller backend'de izinlere (permissions) eşlenmelidir. Sadece frontend menüsünü gizlemek güvenlik değildir. Her admin API isteği backend'de admin oturumunu, rolü ve ilgili izni kontrol etmelidir. Personel ekleme, rol değiştirme ve erişim iptali yalnızca yetkili yönetici tarafından yapılmalıdır.
+
+### 21.5 Admin paneli modülleri ve aşamalı kapsam
+
+**İlk admin MVP'si:**
+- Genel bakış: toplam kullanıcı, aktif düğün, ücretsiz/premium sayıları, yeni kayıtlar ve temel kullanım metrikleri.
+- Kullanıcı yönetimi: arama, filtreleme, hesap durumu ve üyelik özeti.
+- Düğün yönetimi: düğün kimliği, tarih, sahip/üyeler, görev/davetli sayıları ve durum bilgisi.
+- Sistem sağlığı: API health, veritabanı bağlantı durumu, son hata/uyarı özeti, uygulama sürümü ve son başarılı yedekleme zamanı (yedekleme altyapısı kurulduktan sonra).
+- Admin işlem kayıtları: yönetici kim, ne zaman, hangi işlemi yaptı.
+
+**İkinci aşama:**
+- R2 fotoğraf depolama kullanımının toplam ve düğün bazında izlenmesi.
+- Ücretsiz/premium depolama kotası ve yükleme hataları.
+- Abonelik/ödeme sağlayıcısı entegre edildikten sonra ödeme ve iade yönetimi.
+- Destek talepleri ve kullanıcı geri bildirimleri.
+
+**Daha sonraki aşama:**
+- Promosyon kodları, kampanyalar, duyurular ve gelişmiş analitik.
+- Personel daveti ve ayrıntılı rol/izin yönetimi.
+
+Admin paneli kullanıcıların özel bütçe, görev sohbeti veya fotoğraflarını rutin olarak açıp inceleyen bir gözetim aracı olmamalıdır. Varsayılan görünüm operasyon için gerekli minimum metaveriyi göstermelidir. İçerik erişimi gerçekten destek/ güvenlik için gerekiyorsa gerekçe, kapsam ve erişen admin kayda alınmalı; erişim en az ayrıcalık ilkesine göre sınırlandırılmalıdır.
+
+### 21.6 Admin veritabanı taslağı
+
+Mevcut kullanıcı ve audit tablolarıyla uyumlu olacak şekilde aşağıdaki yapıyı değerlendir:
+
+#### `admin_accounts` veya `admin_memberships`
+- `id`
+- `user_id` (mevcut `users` tablosuna FK; ayrı admin kimliği gerekiyorsa gerekçelendir)
+- `status` (`invited`, `active`, `suspended`)
+- `created_at`
+- `created_by_admin_id` (nullable, ilk bootstrap için)
+- `last_login_at`
+
+#### `admin_roles`
+- `id`
+- `code` (ör. `SUPER_ADMIN`, `SUPPORT`)
+- `name`
+- `created_at`
+
+#### `admin_permissions` ve `admin_role_permissions`
+- İzin kodlarını (ör. `users.read`, `users.suspend`, `weddings.read`, `billing.manage`, `admins.manage`) rol bazında tanımlar.
+- İzin kontrolü backend middleware/service katmanında uygulanır.
+
+#### `admin_user_roles`
+- `admin_account_id`
+- `role_id`
+- `assigned_by_admin_id`
+- `created_at`
+
+#### `admin_mfa_factors`
+- `id`
+- `admin_account_id`
+- `factor_type` (ilk sürümde `totp`)
+- `secret_encrypted` (TOTP secret düz metin saklanmamalı; uygulama anahtarı/veri şifreleme yaklaşımı belirlenmeli)
+- `confirmed_at`
+- `created_at`
+
+#### `admin_recovery_codes`
+- `id`
+- `admin_account_id`
+- `code_hash`
+- `used_at` (nullable)
+- `created_at`
+
+#### `admin_sessions` (veya güvenli session store)
+- `id`
+- `admin_account_id`
+- `session_token_hash`
+- `created_at`
+- `expires_at`
+- `revoked_at`
+- `last_seen_at`
+- `ip_hash` ve `user_agent_summary` gibi asgari güvenlik metaverileri (gereksiz kişisel veri toplama)
+
+#### `admin_audit_logs`
+- `id`
+- `admin_account_id`
+- `action`
+- `target_type`
+- `target_id`
+- `reason` (özellikle hassas/istisnai erişimlerde)
+- `metadata` (parola, token, MFA secret veya özel içerik içermemeli)
+- `ip_hash` (gerekiyorsa)
+- `created_at`
+
+Bu şema başlangıç taslağıdır. Uygulama mevcut `users`, `audit_logs` ve session mimarisini inceledikten sonra gereksiz tekrar oluşturmadan migration tasarlamalıdır. TOTP secret'ları ve session token'ları asla düz metin saklanmamalıdır.
+
+### 21.7 Önerilen admin API uçları
+
+- `POST /api/v1/admin/auth/login`
+- `POST /api/v1/admin/auth/verify-2fa`
+- `POST /api/v1/admin/auth/logout`
+- `POST /api/v1/admin/auth/mfa/enroll`
+- `POST /api/v1/admin/auth/mfa/confirm`
+- `POST /api/v1/admin/auth/mfa/recovery`
+- `GET /api/v1/admin/me`
+- `GET /api/v1/admin/overview`
+- `GET /api/v1/admin/users`
+- `GET /api/v1/admin/users/:id`
+- `POST /api/v1/admin/users/:id/suspend` (izin + gerekçe + audit)
+- `GET /api/v1/admin/weddings`
+- `GET /api/v1/admin/weddings/:id`
+- `GET /api/v1/admin/system/health`
+- `GET /api/v1/admin/audit-logs`
+
+Sonraki aşama uçları: `/storage`, `/subscriptions`, `/payments`, `/support`, `/announcements`, `/admins` ve `/roles`. Uçları ihtiyaç oluşmadan topluca geliştirme. Her endpoint için permission kontrolü, doğrulama, rate limit ve audit gereksinimini tanımla.
+
+### 21.8 Admin kabul kriterleri ve testler
+
+- Normal bir kullanıcı admin paneline veya admin API'lerine erişemez.
+- Admin hesabı herkese açık kayıtla oluşturulamaz.
+- Parola doğrulaması sonrası 2FA tamamlanmadan yönetim verisi döndürülmez.
+- Geçersiz/tekrar kullanılan kurtarma kodu reddedilir.
+- Admin oturumu logout, süre aşımı veya yönetici tarafından iptal ile geçersiz olur.
+- Yetkisiz rol/izin kombinasyonları backend'de reddedilir; frontend'i atlayarak doğrudan API çağrısı yapmak erişim sağlamaz.
+- Kullanıcı askıya alma, rol değiştirme ve hassas veri erişimi gibi kritik işlemler audit log üretir.
+- Audit log içinde parola, token, TOTP secret, kurtarma kodu veya hassas kullanıcı içeriği bulunmaz.
+- Admin paneli çiftin bütçe/sohbet/fotoğraf içeriğini varsayılan olarak göstermez.
+- Dashboard metrikleri gerçek veritabanı sorgularından gelir; demo/sahte sayılar üretim ekranında gösterilmez.
+- Sistem health endpoint'i secret, bağlantı dizesi veya iç altyapı ayrıntısı sızdırmaz.
+- Admin frontend'de saklanan hiçbir değer backend yetkisinin yerine geçmez.
+
+### 21.9 Claude Code için admin geliştirme talimatı
+
+Admin panelini planlarken önce mevcut repo, auth, `users`, session ve audit yapısını incele. Bu bölümdeki kararları uygula; admin yetkisini yalnızca frontend'de kontrol etme. İlk aşamada tek SUPER_ADMIN hesabı ve e-posta/parola + TOTP 2FA akışını kur. İlk admin'i güvenli tek seferlik provisioning komutuyla oluştur. Personel rolleri için genişletilebilir RBAC tasarla ancak ilk sürümde gereksiz rol ekranları geliştirme. Admin frontend'i React + TypeScript statik uygulama olarak ayrı tut; hosting hedefini doğrulamadan Cloudflare Pages veya Serv00 özelliğini varsayma. Önce tehdit modeli, veri modeli, migration, auth akışı ve test planı sun; onay almadan mevcut kullanıcı auth sistemini veya veri modelini kökten değiştirme.
+
+
+### 20.1 Başlangıç talimatına admin paneli eki
+
+> Ayrıca 21. bölümdeki Düğünce Admin Paneli kararlarını uygula. Admin paneli ayrı React + TypeScript web uygulaması ve `admin.dugunce.com.tr` adresi için tasarlanacaktır; mevcut Node.js API üzerinde `/api/v1/admin` uçlarını kullanacaktır. İlk yönetici ürün sahibidir; personel rolleri için genişletilebilir RBAC altyapısı hazırlanmalıdır. Admin girişi e-posta/şifre + zorunlu TOTP 2FA kullanmalıdır. İlk admin güvenli tek seferlik provisioning ile oluşturulmalı, herkese açık admin kaydı olmamalıdır. 2FA tamamlanmadan admin API erişimi verme. Tüm kritik admin işlemlerini denetim kaydına al. Admin paneli kullanıcıların özel bütçe, görev sohbeti veya fotoğraf içeriklerini varsayılan olarak göstermemelidir. Önce mevcut auth/session/audit mimarisini incele ve öneri sun; onay almadan büyük refaktör yapma.

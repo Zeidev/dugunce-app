@@ -1,7 +1,7 @@
-# DAVETLY_CLAUDE_BRIEF.md — Baştan Sona Analiz
+# DUGUNCE_CLAUDE_BRIEF.md — Baştan Sona Analiz
 
 **Analiz tarihi:** 2026-11-02
-**Analiz edilen dosya:** `docs/DAVETLY_CLAUDE_BRIEF.md`
+**Analiz edilen dosya:** `docs/DUGUNCE_CLAUDE_BRIEF.md`
 **Boyut:** 1.031 satır · 45.272 bayt
 **SHA-256:** `ba0b2e55…6ebfe04` — orijinalle birebir aynı (doğrulandı)
 

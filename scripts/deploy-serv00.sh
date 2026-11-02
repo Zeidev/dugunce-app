@@ -1,5 +1,5 @@
 #!/usr/local/bin/bash
-# Davetly backend — serv00 deploy betiği
+# Düğünce backend — serv00 deploy betiği
 #
 # Kullanım:
 #   ./scripts/deploy-serv00.sh
@@ -7,7 +7,7 @@
 # Gerekli ortam değişkenleri:
 #   SERV00_HOST   — sX.serv00.com
 #   SERV00_USER   — serv00 kullanıcı adı
-#   SERV00_DOMAIN — api.davetly.com (serv00 panelinde tanımlı alan adı)
+#   SERV00_DOMAIN — api.dugunce.com.tr (serv00 panelinde tanımlı alan adı)
 #   SERV00_PATH   — uzak dizin (varsayılan: ~/domains/$SERV00_DOMAIN/public_nodejs)
 #
 # SSH anahtarı önceden kurulmuş olmalı (~/.ssh/config veya ssh-agent).
@@ -26,7 +26,7 @@ SSH_TARGET="${SERV00_USER}@${SERV00_HOST}"
 LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/backend"
 
 echo "=========================================="
-echo " Davetly backend deploy"
+echo " Düğünce backend deploy"
 echo " Hedef: ${SSH_TARGET}:${SERV00_PATH}"
 echo " Tarih: $(date -u '+%Y-%m-%d %H:%M UTC')"
 echo "=========================================="

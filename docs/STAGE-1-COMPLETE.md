@@ -47,7 +47,7 @@ Test Files  6 passed (6)
 ## Doğrulanan davranışlar
 
 ### `/health`
-- ✅ 200 döner, `{status:"ok",app:"davetly-api"}`
+- ✅ 200 döner, `{status:"ok",app:"dugunce-api"}`
 - ✅ **DB'ye dokunmaz** — 7ms yanıt süresi
 - ✅ `Cache-Control: no-store, no-cache, must-revalidate`
 
@@ -125,7 +125,7 @@ Bu adımlar **gerçek hesapta** çalıştırılmalı — yerelde doğrulanamaz:
 **Aşama 2 — Kimlik ve yetkilendirme** (`stage-2-auth.md`)
 
 Ama önce:
-1. ⚠️ **Alan adı alınmalı** — Brevo magic link ve `api.davetly.com` için
+1. ⚠️ **Alan adı alınmalı** — Brevo magic link ve `api.dugunce.com.tr` için
 2. ⏳ serv00 doğrulaması geçmeli
 
 ---
