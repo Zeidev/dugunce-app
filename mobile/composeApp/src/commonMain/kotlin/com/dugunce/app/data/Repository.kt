@@ -5,6 +5,7 @@ import com.dugunce.app.api.ApiErrorBody
 import com.dugunce.app.api.ApiException
 import com.dugunce.app.api.NetworkException
 import io.ktor.client.call.body
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -116,11 +117,16 @@ class Repository(
         ensureSuccess(res)
     }
 
+    /**
+     * Davetliyi siler.
+     *
+     * Backend'de DELETE `/weddings/:id/guests/:gid` var (204). PATCH yolu
+     * `deleted` alanını KABUL ETMEZ: `patchSchema` bilinmeyen alanı
+     * `.strip()` ile atar, geriye boş nesne kalınca "Güncelleme boş olamaz"
+     * hatası döner. Silme bu yüzden PATCH değil DELETE ile yapılır.
+     */
     suspend fun deleteGuest(weddingId: String, guestId: String): Result<Unit> = safeCall {
-        val res = api.http.patch("weddings/$weddingId/guests/$guestId") {
-            setBody(mapOf("deleted" to true))
-        }
-        // DELETE yok, PATCH ile soft delete
+        val res = api.http.delete("weddings/$weddingId/guests/$guestId")
         ensureSuccess(res)
     }
 
