@@ -40,6 +40,7 @@ import com.dugunce.app.ui.screens.ExpenseDetailScreen
 import com.dugunce.app.ui.screens.ExpenseFormScreen
 import com.dugunce.app.ui.screens.FirstExpenseScreen
 import com.dugunce.app.ui.screens.FirstGuestScreen
+import com.dugunce.app.ui.screens.GuestDetailScreen
 import com.dugunce.app.ui.screens.GuestFormScreen
 import com.dugunce.app.ui.screens.GuestListScreen
 import com.dugunce.app.ui.screens.HelperInviteScreen
