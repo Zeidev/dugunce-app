@@ -107,12 +107,15 @@ if ! command -v psql >/dev/null 2>&1; then
   skip "psql bulunamadı"
 elif [ -z "${PGHOST:-}" ] || [ -z "${PGUSER:-}" ] || [ -z "${PGDATABASE:-}" ]; then
   skip "PGHOST / PGUSER / PGDATABASE tanımlı değil"
+  echo "     Örnek: PGHOST=pgsqlX.serv00.com PGUSER=LOGIN PGDATABASE=LOGIN_db bash -s < $0"
 else
-  PGVER=$(psql -tAc "SELECT version();" 2>/dev/null)
-  if [ -n "$PGVER" ]; then
-    ok "bağlantı kuruldu: $(echo "$PGVER" | cut -c1-50)"
+  PGERR=$(psql -tAc "SELECT version();" 2>&1)
+  if [ -n "$PGERR" ] && echo "$PGERR" | grep -q "^PostgreSQL"; then
+    ok "bağlantı kuruldu: $(echo "$PGERR" | cut -c1-50)"
   else
     bad "PostgreSQL bağlantısı kurulamadı (PGHOST=$PGHOST)"
+    # Sebebi göster — "kurulamadı" tek başına hata ayıklamaya yetmez
+    echo "$PGERR" | head -3 | sed 's/^/     /'
   fi
 fi
 

@@ -99,6 +99,10 @@ Düğün/nişan hazırlığı yapan çiftler için, üç kritik işi tek yerde t
 | PG kullanıcı | DB adıyla **otomatik oluşur**, ayrı rol açma yok | aynı |
 | PG uzantılar | `uuid-ossp`, `pgcrypto`, `pg_trgm`, `postgis`… | aynı |
 
+> ⚠️ **DOĞRULANMIŞ (2026-11-02):** PostgreSQL uygulama sunucusunda **DEĞİL**. `psql -h localhost` serv00'da **"Connection refused"** veriyor. PostgreSQL ayrı bir sunucuda (`pgsqlX.serv00.com` → `dbX.serv00.com`). Uygulamanın oraya bağlanabildiği **henüz kanıtlanmadı** — `scripts/discover-pg.sh` ile doğrulanmalı.
+>
+> Bu, aşağıdaki "SSH tüneli" notunu **uygulama için de** geçerli kılabilir. Eğer serv00 uygulama sunucusu `pgsqlX:5432`'ye doğrudan bağlanamıyorsa **mimari değişikliği gerekir** (ör. Cloudflare Tunnel, harici ücretsiz PostgreSQL, ya da uygulamanın tünel üzerinden çalışması). Aşama 5'e geçmeden çözülmeli.
+
 > ⚠️ **Kritik sonuç (builder check):** PostgreSQL'e **doğrudan dış erişim yok** — yalnızca SSH tüneli.
 > Bu, şunları belirler:
 > - **Migration'lar CI'dan doğrudan çalışamaz.** SSH tüneli üzerinden ya da deploy sonrası host üzerinde çalışır.
