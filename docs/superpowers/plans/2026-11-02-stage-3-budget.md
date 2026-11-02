@@ -63,7 +63,7 @@ backend/src/
 - Consumes: yok
 - Produces: `Kurus` tipi (bigint), `toKurus(tl: string | number): bigint`, `toTl(kurus: bigint): string`, `formatTl(kurus: bigint): string`, `splitKurus(total: bigint, parts: number): bigint[]`, `sumKurus(values: bigint[]): bigint`
 
-- [ ] **Step 1: Failing test yaz**
+- [x] **Step 1: Failing test yaz**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -263,7 +263,7 @@ export function splitKurus(total: Kurus, parts: number): Kurus[] {
 Run: `cd backend && npx vitest run tests/money/money.test.ts`
 Expected: PASS (~20 test)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/money/money.ts backend/tests/money/money.test.ts
@@ -1192,18 +1192,18 @@ describe('taksit ödeme durumu', () => {
 })
 ```
 
-- [ ] **Step 2: Servis**
+- [x] **Step 2: Servis**
 
 `setInstallmentPaid` — idempotent. Zaten istenen durumdaysa mevcut kaydı
 döndürür, `paid_at`'i yeniden yazmaz (muhasebe kaydı bozulmasın).
 
-- [ ] **Step 3: Store**
+- [x] **Step 3: Store**
 
 `markInstallmentPaid(weddingId, userId, installmentId, paid)` — `installments`
 JOIN `wedding_members` ON `userId`. `paid=true` → `status='PAID', paid_at=now()`;
 `paid=false` → `status='PENDING', paid_at=NULL`.
 
-- [ ] **Step 4: Route**
+- [x] **Step 4: Route**
 
 | Method | Path | Açıklama |
 |---|---|---|
@@ -1222,22 +1222,22 @@ git commit -m "feat(expenses): add installment payment status endpoint"
 **Files:**
 - Create: `docs/STAGE-3-COMPLETE.md`
 
-- [ ] **Step 1: Kabul listesi**
+- [x] **Step 1: Kabul listesi**
 
-- [ ] Para `bigint` kuruş, float yok
-- [ ] Taksit toplamı = harcama toplamı (kuruş hassasiyetinde)
-- [ ] Yuvarlama farkı son taksite
-- [ ] Ay sonu taşması yok (31 Oca → Şub)
-- [ ] İlk taksit ayı satın alma tarihinden farklı olabilir
-- [ ] Ödenmiş taksit sessizce değiştirilemez
-- [ ] Taksit ödendi → `paid_at` saklanır
-- [ ] Soft delete, listede görünmez
-- [ ] Özet: toplam ≠ bu ay (çift sayım yok)
-- [ ] Composite FK yanlış wedding_id'yi reddeder
-- [ ] Tüm testler geçiyor
-- [ ] Typecheck temiz
+- [x] Para `bigint` kuruş, float yok
+- [x] Taksit toplamı = harcama toplamı (kuruş hassasiyetinde)
+- [x] Yuvarlama farkı son taksite
+- [x] Ay sonu taşması yok (31 Oca → Şub)
+- [x] İlk taksit ayı satın alma tarihinden farklı olabilir
+- [x] Ödenmiş taksit sessizce değiştirilemez
+- [x] Taksit ödendi → `paid_at` saklanır
+- [x] Soft delete, listede görünmez
+- [x] Özet: toplam ≠ bu ay (çift sayım yok)
+- [x] Composite FK yanlış wedding_id'yi reddeder
+- [x] Tüm testler geçiyor
+- [x] Typecheck temiz
 
-- [ ] **Step 2: Sonucu belgele ve commit**
+- [x] **Step 2: Sonucu belgele ve commit**
 
 ```bash
 git add docs/STAGE-3-COMPLETE.md
