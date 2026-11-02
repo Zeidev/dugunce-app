@@ -1,0 +1,84 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test & Typecheck
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: davetly_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgres://test:test@localhost:5432/davetly_test
+      JWT_SECRET: ci-only-secret-that-is-at-least-32-chars-long
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Run migrations
+        working-directory: backend
+        run: npm run db:migrate -- --force
+
+      - name: Run tests
+        working-directory: backend
+        run: npm test
+
+      - name: Build
+        working-directory: backend
+        run: npm run build
+
+      - name: Verify build output exists
+        working-directory: backend
+        run: test -f dist/server.js
+
+      - name: Check for leaked secrets in build output
+        working-directory: backend
+        run: |
+          if grep -rIl -E 'postgres://[^@]+@|sk_live_|BEGIN (RSA |EC )?PRIVATE KEY' dist/ 2>/dev/null; then
+            echo "::error::Build output contains what looks like a secret"
+            exit 1
+          fi
+          echo "No secrets found in build output"
