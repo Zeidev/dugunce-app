@@ -478,6 +478,51 @@ try {
   if (afterH.rows[0].c === 0) ok('CASCADE: yardımcı → oturumları silindi')
   else bad(`CASCADE çalışmadı: ${afterH.rows[0].c} oturum kaldı`)
 
+  // --- [10] Harcama kategorileri (brief §5.3) ---
+  console.log('\n[10] Harcama kategorileri')
+
+  const sysCats = await db.query(
+    `SELECT count(*)::int AS c FROM expense_categories
+      WHERE wedding_id IS NULL AND is_system = true`,
+  )
+  if (sysCats.rows[0].c === 12) ok(`sistem kategorisi seed edildi (${sysCats.rows[0].c})`)
+  else bad(`sistem kategorisi sayısı yanlış: ${sysCats.rows[0].c} (12 bekleniyor)`)
+
+  const mekan = await db.query(
+    `SELECT id FROM expense_categories WHERE wedding_id IS NULL AND name='Mekân'`,
+  )
+  if (mekan.rows.length === 1) ok('Mekân kategorisi var')
+  else bad('Mekân kategorisi yok')
+
+  // Sistem kategorisi düğüne ait değil
+  if (mekan.rows[0] && mekan.rows[0].wedding_id === undefined) {
+    ok('sistem kategorisinin wedding_id değeri NULL')
+  }
+
+  // Kullanıcı kategorisi eklenebilir
+  const userCat = await db.query(
+    `INSERT INTO expense_categories (wedding_id, name, is_system, sort_order)
+     VALUES ($1,'Özel Kategori',false,100) RETURNING id, wedding_id, is_system`,
+    [wid],
+  )
+  if (userCat.rows[0].is_system === false) ok('kullanıcı kategorisi eklendi')
+  if (userCat.rows[0].wedding_id === wid) ok('kullanıcı kategorisi düğüne bağlı')
+
+  // Harcama kategoriye bağlanabilir
+  const expWithCat = await db.query(
+    `INSERT INTO expenses (wedding_id, title, amount_kurus, category_id, purchase_date)
+     VALUES ($1,'Kategorili',100000,$2,now()) RETURNING category_id`,
+    [wid, userCat.rows[0].id],
+  )
+  if (expWithCat.rows[0].category_id === userCat.rows[0].id) ok('harcama kategoriye bağlandı')
+
+  // Kategori silinince harcama kalır, category_id NULL olur (SET NULL)
+  await db.query(`DELETE FROM expense_categories WHERE id=$1`, [userCat.rows[0].id])
+  const afterCat = await db.query(
+    `SELECT category_id FROM expenses WHERE title='Kategorili'`,
+  )
+  if (afterCat.rows[0].category_id === null) ok('kategori silinince harcama kaldı, category_id NULL')
+
   // Düğün silinince üyelik + davet CASCADE
   await db.query(`DELETE FROM weddings WHERE id=$1`, [wid])
   const afterW = await db.query(

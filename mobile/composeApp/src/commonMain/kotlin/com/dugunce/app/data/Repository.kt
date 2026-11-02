@@ -137,6 +137,22 @@ class Repository(
     fun cachedSummary(weddingId: String): BudgetSummaryDto? =
         cache.get(OfflineCache.SUMMARY, weddingId, BudgetSummaryDto.serializer())
 
+    // --- Kategori (brief §5.3) ---
+
+    suspend fun listCategories(weddingId: String): Result<List<CategoryDto>> = safeCall {
+        val res = api.http.get("weddings/$weddingId/categories")
+        ensureSuccess(res)
+        res.body<CategoryListResponse>().categories
+    }
+
+    suspend fun createCategory(weddingId: String, name: String): Result<CategoryDto> = safeCall {
+        val res = api.http.post("weddings/$weddingId/categories") {
+            setBody(CategoryCreateRequest(name))
+        }
+        ensureSuccess(res)
+        res.body<CategoryResponse>().category
+    }
+
     suspend fun listExpenses(weddingId: String): Result<List<ExpenseDto>> = safeCall {
         val res = api.http.get("weddings/$weddingId/expenses")
         ensureSuccess(res)

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -77,8 +78,15 @@ fun ExpenseFormScreen(
     var dateText by remember { mutableStateOf(Dates.formatShort(Dates.todayIso())) }
     var installmentText by remember { mutableStateOf("1") }
     var firstMonth by remember { mutableStateOf(Dates.currentMonth()) }
+    var categories by remember { mutableStateOf<List<com.dugunce.app.data.CategoryDto>>(emptyList()) }
+    var categoryId by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
+
+    // Kategoriler (brief §5.3) — sistem + düğüne özel
+    LaunchedEffect(weddingId) {
+        repository.listCategories(weddingId).onSuccess { categories = it }
+    }
 
     LaunchedEffect(expenseId) {
         if (expenseId == null) return@LaunchedEffect
@@ -177,6 +185,23 @@ fun ExpenseFormScreen(
                     selected = side,
                     onSelect = { side = it },
                 )
+            }
+
+            if (categories.isNotEmpty()) {
+                item {
+                    FieldLabel("Kategori")
+                    androidx.compose.foundation.lazy.LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        item {
+                            CategoryPill("Kategorisiz", categoryId == null) { categoryId = null }
+                        }
+                        items(categories.size) { idx ->
+                            val cat = categories[idx]
+                            CategoryPill(cat.name, categoryId == cat.id) { categoryId = cat.id }
+                        }
+                    }
+                }
             }
 
             item {
@@ -293,6 +318,7 @@ fun ExpenseFormScreen(
                                 amount = parsedAmount!!,
                                 purchaseDate = isoDate!!,
                                 description = description.trim().ifBlank { null },
+                                categoryId = categoryId,
                                 paidBySide = side,
                                 paymentMethod = method,
                                 paymentStatus = status,
@@ -310,6 +336,31 @@ fun ExpenseFormScreen(
                 },
                 enabled = canSave,
                 loading = saving,
+            )
+        }
+    }
+}
+
+/** Kategori seçim çipi. */
+@Composable
+private fun CategoryPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    val c = DugunceTheme.colors
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 36.dp),
+        shape = RoundedCornerShape(Radius.pill),
+        color = if (selected) c.sageSoft else c.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) c.sage else c.line),
+    ) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.padding(horizontal = Spacing.md),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) c.sage else c.inkSoft,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
     }

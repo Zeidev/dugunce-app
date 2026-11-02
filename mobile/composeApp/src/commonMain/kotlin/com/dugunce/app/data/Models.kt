@@ -186,6 +186,27 @@ data class MonthTotalDto(
 @Serializable
 data class BudgetSummaryResponse(val summary: BudgetSummaryDto)
 
+// --- Kategori (brief §5.3) ---
+
+@Serializable
+data class CategoryDto(
+    val id: String,
+    val weddingId: String? = null,
+    val name: String,
+    val icon: String? = null,
+    val sortOrder: Int = 0,
+    val isSystem: Boolean = false,
+)
+
+@Serializable
+data class CategoryListResponse(val categories: List<CategoryDto>)
+
+@Serializable
+data class CategoryResponse(val category: CategoryDto)
+
+@Serializable
+data class CategoryCreateRequest(val name: String, val icon: String? = null)
+
 @Serializable
 data class InstallmentResponse(val installment: InstallmentDto)
 

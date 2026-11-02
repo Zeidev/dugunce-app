@@ -19,6 +19,7 @@ import { createTasksRouter } from './routes/tasks.js'
 import { createHelperAppRouter } from './routes/helper-app.js'
 import { drizzleAuthDeps, drizzleMembershipDeps } from './auth/auth-store.js'
 import { loadEnv } from './config/env.js'
+import { createCategoriesRouter } from './routes/categories.js'
 
 /**
  * Express uygulamasını oluşturur.
@@ -47,6 +48,7 @@ export interface CreateAppOptions {
   sessionStore?: ReturnType<typeof import('./helpers/session-store.js').drizzleSessionDeps>
   /** Testlerde IP bazlı sınırları kapatmak için. */
   helperRateLimit?: boolean
+  categoryStore?: ReturnType<typeof import('./expenses/categories.js').drizzleCategoryDeps>
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -86,6 +88,14 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use('/api/v1/weddings/:weddingId/expenses', createExpensesRouter({ requireAuth, requireMember }))
   app.use('/api/v1/weddings/:weddingId/budget-summary', createBudgetSummaryRouter({ requireAuth, requireMember }))
   app.use('/api/v1/weddings/:weddingId/installments', createInstallmentsRouter({ requireAuth, requireMember }))
+  app.use(
+    '/api/v1/weddings/:weddingId/categories',
+    createCategoriesRouter({
+      requireAuth,
+      requireMember,
+      ...(options.categoryStore ? { store: options.categoryStore } : {}),
+    }),
+  )
 
   // Davetliler — çift tarafı (auth + üyelik)
   app.use(
