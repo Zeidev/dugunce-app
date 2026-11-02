@@ -4,9 +4,12 @@ import {
   text,
   timestamp,
   integer,
+  bigint,
+  boolean,
   jsonb,
   index,
   unique,
+  foreignKey,
 } from 'drizzle-orm/pg-core'
 
 /**
@@ -175,6 +178,155 @@ export const invites = pgTable(
   }),
 )
 
+// ---------------------------------------------------------------------------
+// Bütçe tabloları (Aşama 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * expense_categories — harcama kategorileri.
+ *
+ * `wedding_id` null ise sistem kategorisi (herkes kullanabilir).
+ */
+export const expenseCategories = pgTable(
+  'expense_categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id').references(() => weddings.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    icon: text('icon'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isSystem: boolean('is_system').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    weddingIdx: index('expense_categories_wedding_idx').on(table.weddingId),
+  }),
+)
+
+/**
+ * cards — kredi/banka kartları.
+ *
+ * GÜVENLİK: Tam kart numarası, CVV veya son kullanma tarihi ASLA saklanmaz.
+ * Yalnızca etiket ve son 4 hane (SECURITY §1.4 ruhu).
+ */
+export const cards = pgTable(
+  'cards',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => weddings.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    bankName: text('bank_name'),
+    lastFour: text('last_four'),
+    statementDay: integer('statement_day'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    weddingIdx: index('cards_wedding_idx').on(table.weddingId),
+  }),
+)
+
+/**
+ * persons — harcamayı yapan gerçek kişiler (opsiyonel detay).
+ */
+export const persons = pgTable(
+  'persons',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => weddings.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    side: text('side').notNull().default('SHARED'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    weddingIdx: index('persons_wedding_idx').on(table.weddingId),
+  }),
+)
+
+/**
+ * expenses — satın almanın kendisi.
+ *
+ * `amount_kurus` bigint: para asla float değil (SECURITY §10.1).
+ * `deleted_at` soft delete: kota ve raporlar tutarlı kalsın.
+ */
+export const expenses = pgTable(
+  'expenses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => weddings.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description'),
+    amountKurus: bigint('amount_kurus', { mode: 'bigint' }).notNull(),
+    currency: text('currency').notNull().default('TRY'),
+    categoryId: uuid('category_id').references(() => expenseCategories.id, {
+      onDelete: 'set null',
+    }),
+    paidBySide: text('paid_by_side').notNull().default('SHARED'),
+    paidByPersonId: uuid('paid_by_person_id').references(() => persons.id, {
+      onDelete: 'set null',
+    }),
+    paymentMethod: text('payment_method').notNull().default('CASH'),
+    paymentStatus: text('payment_status').notNull().default('PAID'),
+    cardId: uuid('card_id').references(() => cards.id, { onDelete: 'set null' }),
+    installmentCount: integer('installment_count'),
+    firstInstallmentMonth: text('first_installment_month'),
+    purchaseDate: timestamp('purchase_date', { withTimezone: true }).notNull(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    // Composite FK hedefi (SECURITY §1.1)
+    idWeddingUnique: unique('expenses_id_wedding_unique').on(table.id, table.weddingId),
+    weddingIdx: index('expenses_wedding_idx').on(table.weddingId),
+    dateIdx: index('expenses_date_idx').on(table.purchaseDate),
+    categoryIdx: index('expenses_category_idx').on(table.categoryId),
+    deletedIdx: index('expenses_deleted_idx').on(table.deletedAt),
+  }),
+)
+
+/**
+ * installments — her ay ödenecek parça.
+ *
+ * COMPOSITE FK: (expense_id, wedding_id) → expenses(id, wedding_id).
+ * Yanlış wedding_id ile yazma DB tarafından reddedilir (SECURITY §1.1).
+ */
+export const installments = pgTable(
+  'installments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id').notNull(),
+    expenseId: uuid('expense_id').notNull(),
+    number: integer('number').notNull(),
+    amountKurus: bigint('amount_kurus', { mode: 'bigint' }).notNull(),
+    dueMonth: text('due_month').notNull(),
+    status: text('status').notNull().default('PENDING'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    expenseFk: foreignKey({
+      columns: [table.expenseId, table.weddingId],
+      foreignColumns: [expenses.id, expenses.weddingId],
+      name: 'installments_expense_fk',
+    }).onDelete('cascade'),
+    uniqueNumber: unique('installments_expense_number_unique').on(
+      table.expenseId,
+      table.number,
+    ),
+    dueIdx: index('installments_due_idx').on(table.dueMonth),
+    weddingIdx: index('installments_wedding_idx').on(table.weddingId),
+    statusIdx: index('installments_status_idx').on(table.status),
+  }),
+)
+
 // --- Tipler ---
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
@@ -184,3 +336,10 @@ export type Wedding = typeof weddings.$inferSelect
 export type NewWedding = typeof weddings.$inferInsert
 export type WeddingMember = typeof weddingMembers.$inferSelect
 export type Invite = typeof invites.$inferSelect
+export type Expense = typeof expenses.$inferSelect
+export type NewExpense = typeof expenses.$inferInsert
+export type Installment = typeof installments.$inferSelect
+export type NewInstallment = typeof installments.$inferInsert
+export type Card = typeof cards.$inferSelect
+export type ExpenseCategory = typeof expenseCategories.$inferSelect
+export type Person = typeof persons.$inferSelect
