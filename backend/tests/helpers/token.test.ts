@@ -11,7 +11,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     displayName: 'Ayşe',
     tokenRevokedAt: null,
     lastSeenAt: null,
-    wedding: { id: 'w1', coupleNames: 'Elif & Mert', deletedAt: null },
+    wedding: { id: 'w1', coupleNames: 'Elif & Mert', status: 'ACTIVE' },
     ...overrides,
   }
 }
@@ -51,10 +51,10 @@ describe('resolveHelperToken (Review Focus #4)', () => {
     expect(await resolveHelperToken('tok', d)).toBeNull()
   })
 
-  it('silinmiş düğünün yardımcısı null', async () => {
+  it('silinmiş (DELETED) düğünün yardımcısı null', async () => {
     const d = makeDeps({
       findByTokenHash: vi.fn().mockResolvedValue(
-        makeRow({ wedding: { id: 'w1', coupleNames: 'X', deletedAt: new Date() } }),
+        makeRow({ wedding: { id: 'w1', coupleNames: 'X', status: 'DELETED' } }),
       ),
     })
     expect(await resolveHelperToken('tok', d)).toBeNull()

@@ -115,14 +115,20 @@ EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
--- sender_kind tutarlılığı: COUPLE ise sender_user_id, HELPER ise
--- sender_helper_id dolu olmalı. İkisi birden dolu veya ikisi de boş olamaz.
+-- sender_kind yalnızca COUPLE veya HELPER olabilir.
+--
+-- DİKKAT: "HELPER ise sender_helper_id dolu olmalı" kuralı BURADA
+-- KULLANILAMAZ. `sender_helper_id` FK'si ON DELETE SET NULL; yardımcı
+-- silinince kolon null olur ve böyle bir CHECK bunu reddeder — yani
+-- mesajı olan hiçbir yardımcı silinemez. Aynı çelişki sender_user_id
+-- için de geçerli.
+--
+-- "Tam olarak bir gönderen" değişmezi SERVİS katmanında korunur
+-- (sendMessage her zaman birini yazar). Geçmişin yardımcı silindikten
+-- sonra da yaşaması bilinçli tercih: yazar "silinmiş yardımcı" görünür.
 DO $$ BEGIN
-  ALTER TABLE "messages" ADD CONSTRAINT "messages_sender_consistency_check"
-    CHECK (
-      ("sender_kind" = 'COUPLE' AND "sender_user_id" IS NOT NULL)
-      OR ("sender_kind" = 'HELPER' AND "sender_helper_id" IS NOT NULL)
-    );
+  ALTER TABLE "messages" ADD CONSTRAINT "messages_sender_kind_check"
+    CHECK ("sender_kind" IN ('COUPLE', 'HELPER'));
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;

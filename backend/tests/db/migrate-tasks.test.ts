@@ -175,24 +175,40 @@ describe('messages CHECK kısıtları', () => {
     ).rejects.toThrow(/check|body/i)
   })
 
-  it('COUPLE ama sender_user_id yok → REDDEDİLİR', async () => {
+  it('geçersiz sender_kind REDDEDİLİR', async () => {
     await expect(
       pg.query(
         `INSERT INTO messages (wedding_id, task_id, sender_kind, body)
-         VALUES ($1,$2,'COUPLE','metin')`,
+         VALUES ($1,$2,'ADMIN','metin')`,
         [weddingId, taskId],
       ),
     ).rejects.toThrow(/check|sender/i)
   })
 
-  it('HELPER ama sender_helper_id yok → REDDEDİLİR', async () => {
-    await expect(
-      pg.query(
-        `INSERT INTO messages (wedding_id, task_id, sender_kind, body)
-         VALUES ($1,$2,'HELPER','metin')`,
-        [weddingId, taskId],
-      ),
-    ).rejects.toThrow(/check|sender/i)
+  it('COUPLE + sender_user_id NULL KABUL (yardımcı/kullanıcı silinince geçmiş kalır)', async () => {
+    // Bu bilinçli: sender_user_id FK'si ON DELETE SET NULL. Sıkı bir
+    // CHECK, kullanıcı silinince geçmişi de silmeye zorlardı.
+    await pg.query(
+      `INSERT INTO messages (wedding_id, task_id, sender_kind, body)
+       VALUES ($1,$2,'COUPLE','geçmiş mesaj')`,
+      [weddingId, taskId],
+    )
+    const r = await pg.query(
+      `SELECT id FROM messages WHERE body='geçmiş mesaj'`,
+    )
+    expect(r.rows).toHaveLength(1)
+  })
+
+  it('HELPER + sender_helper_id NULL KABUL (yardımcı silinince geçmiş kalır)', async () => {
+    await pg.query(
+      `INSERT INTO messages (wedding_id, task_id, sender_kind, body)
+       VALUES ($1,$2,'HELPER','yardımcı geçmişi')`,
+      [weddingId, taskId],
+    )
+    const r = await pg.query(
+      `SELECT id FROM messages WHERE body='yardımcı geçmişi'`,
+    )
+    expect(r.rows).toHaveLength(1)
   })
 
   it('HELPER + sender_helper_id → KABUL', async () => {

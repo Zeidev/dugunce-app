@@ -30,7 +30,8 @@ export interface HelperTokenRow {
   wedding: {
     id: string
     coupleNames: string
-    deletedAt: Date | null
+    /** ACTIVE | ARCHIVED | DELETED — silinmiş düğün 'DELETED'. */
+    status: string
   }
 }
 
@@ -53,7 +54,8 @@ export async function resolveHelperToken(
   const row = await deps.findByTokenHash(hashToken(rawToken))
   if (!row) return null
   if (row.tokenRevokedAt) return null
-  if (row.wedding.deletedAt) return null
+  // Silinmiş veya arşivlenmiş düğünün yardımcısı erişemez
+  if (row.wedding.status !== 'ACTIVE') return null
 
   // Yan etki: son görülme. Throttle'lı, hata çözümlemeyi engellemez.
   const stale =
