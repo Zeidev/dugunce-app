@@ -220,8 +220,16 @@ class Repository(
         side: String? = null,
         rsvp: String? = null,
         search: String? = null,
+        limit: Int? = null,
+        cursor: String? = null,
     ): Result<List<GuestDto>> = safeCall {
-        val query = queryString("side" to side, "rsvp" to rsvp, "search" to search)
+        val query = queryString(
+            "side" to side,
+            "rsvp" to rsvp,
+            "search" to search,
+            "limit" to limit?.toString(),
+            "cursor" to cursor,
+        )
         val res = api.http.get("weddings/$weddingId/guests$query")
         ensureSuccess(res)
         val list = res.body<GuestListResponse>().guests

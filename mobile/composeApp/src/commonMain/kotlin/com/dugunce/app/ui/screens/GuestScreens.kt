@@ -85,6 +85,9 @@ fun GuestListScreen(
     var filterSide by remember { mutableStateOf<String?>(null) }
     var filterRsvp by remember { mutableStateOf<String?>(null) }
     var offline by remember { mutableStateOf(false) }
+    // Sayfalama (spec §6b.7): ilk sayfa 50, "daha fazla" ile devam
+    var hasMore by remember { mutableStateOf(false) }
+    var loadingMore by remember { mutableStateOf(false) }
 
     // spec §6b.7: taraf ve RSVP filtresi SUNUCUDA uygulanır — istemci tüm
     // listeyi çekip elemez. (Arama metni için backend'de parametre yok;
@@ -98,6 +101,7 @@ fun GuestListScreen(
             side = filterSide,
             rsvp = filterRsvp,
             search = query.ifBlank { null },
+            limit = PAGE_SIZE,
         )
         val u = repository.guestUsage(weddingId)
         if (g.isFailure) {
@@ -113,7 +117,9 @@ fun GuestListScreen(
             loading = false
             return@LaunchedEffect
         }
-        guests = g.getOrNull() ?: emptyList()
+        val page = g.getOrNull() ?: emptyList()
+        guests = page
+        hasMore = page.size == PAGE_SIZE
         usage = u.getOrNull()
         offline = false
         loading = false
@@ -200,6 +206,37 @@ fun GuestListScreen(
                 } else {
                     items(filtered, key = { it.id }) { guest ->
                         GuestRow(guest) { onOpenGuest(guest.id) }
+                    }
+
+                    if (hasMore) {
+                        item {
+                            DugunceButton(
+                                if (loadingMore) "Yükleniyor…" else "Daha fazla",
+                                onClick = {
+                                    if (loadingMore || guests.isEmpty()) return@DugunceButton
+                                    loadingMore = true
+                                    scope.launch {
+                                        repository.listGuests(
+                                            weddingId,
+                                            side = filterSide,
+                                            rsvp = filterRsvp,
+                                            search = query.ifBlank { null },
+                                            limit = PAGE_SIZE,
+                                            cursor = guests.last().id,
+                                        ).fold(
+                                            onSuccess = { next ->
+                                                guests = guests + next
+                                                hasMore = next.size == PAGE_SIZE
+                                            },
+                                            onFailure = { error = it.message },
+                                        )
+                                        loadingMore = false
+                                    }
+                                },
+                                variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
+                                loading = loadingMore,
+                            )
+                        }
                     }
                 }
 
@@ -588,3 +625,6 @@ fun BulkGuestScreen(
         }
     }
 }
+
+/** Davetli sayfa boyutu — backend varsayılanıyla aynı (50). */
+private const val PAGE_SIZE = 50
