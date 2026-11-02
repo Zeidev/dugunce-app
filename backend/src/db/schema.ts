@@ -343,3 +343,78 @@ export type NewInstallment = typeof installments.$inferInsert
 export type Card = typeof cards.$inferSelect
 export type ExpenseCategory = typeof expenseCategories.$inferSelect
 export type Person = typeof persons.$inferSelect
+
+/**
+ * guests — davetli listesi.
+ *
+ * LİMİT BU TABLOYA UYGULANIR: kayıt sayısı, kişi sayısı değil
+ * (SECURITY §10.2). "4 kişilik aile" tek kayıttır.
+ *
+ * `side` yalnızca BRIDE | GROOM — davetli her zaman bir tarafa aittir.
+ * (Harcamadaki `paid_by_side` ise SHARED olabilir; farklı kavramlar.)
+ */
+export const guests = pgTable(
+  'guests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => weddings.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** E.164 normalize edilir. Nullable — WhatsApp olmadan da davetli eklenebilir. */
+    phone: text('phone'),
+    side: text('side').notNull().default('BRIDE'),
+    inviteStatus: text('invite_status').notNull().default('NOT_SENT'),
+    rsvp: text('rsvp').notNull().default('PENDING'),
+    /** Çiftin kendi notu ("Ayşe'nin kuzeni"). Davetliye gösterilmez. */
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => ({
+    // Composite FK hedefi (SECURITY §1.1)
+    idWeddingUnique: unique('guests_id_wedding_unique').on(table.id, table.weddingId),
+    weddingIdx: index('guests_wedding_idx').on(table.weddingId),
+    deletedIdx: index('guests_deleted_idx').on(table.deletedAt),
+    sideIdx: index('guests_side_idx').on(table.weddingId, table.side),
+  }),
+)
+
+/**
+ * guest_invitations — davetiye (token'lı link).
+ *
+ * HAM TOKEN ASLA SAKLANMAZ — yalnızca SHA-256 hash (SECURITY §1.2).
+ * `allowed_party_size` (çiftin izni) ile `confirmed_party_size` (davetlinin
+ * beyanı) AYRI alanlar (SECURITY §10.2).
+ */
+export const guestInvitations = pgTable(
+  'guest_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id').notNull(),
+    guestId: uuid('guest_id').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    /** Çiftin izin verdiği azami kişi sayısı. Varsayılan 1 (yalnız davetli). */
+    allowedPartySize: integer('allowed_party_size').notNull().default(1),
+    /** Davetlinin bildirdiği gerçek kişi sayısı. RSVP öncesi null. */
+    confirmedPartySize: integer('confirmed_party_size'),
+    /** Yanıtı kim verdi — GUEST (kendi) veya COUPLE (telefonla geleni çift girdi). */
+    rsvpSource: text('rsvp_source'),
+    rsvpAt: timestamp('rsvp_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // COMPOSITE FK: davetiye yalnızca KENDİ düğününün davetlisine bağlanır.
+    // Yanlış wedding_id ile yazma DB tarafından reddedilir (SECURITY §1.1, §10.4).
+    guestFk: foreignKey({
+      columns: [table.guestId, table.weddingId],
+      foreignColumns: [guests.id, guests.weddingId],
+      name: 'guest_invitations_guest_fk',
+    }).onDelete('cascade'),
+    guestIdx: index('guest_invitations_guest_idx').on(table.guestId),
+    weddingIdx: index('guest_invitations_wedding_idx').on(table.weddingId),
+  }),
+)
