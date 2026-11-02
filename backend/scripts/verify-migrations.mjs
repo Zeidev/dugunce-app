@@ -219,6 +219,85 @@ try {
   )
   ok('refresh_token eklendi')
 
+  // --- [7] Davetli şeması (Aşama 4) ---
+  console.log('\n[7] Davetli şeması')
+
+  const guest = await db.query(
+    `INSERT INTO guests (wedding_id, name, side) VALUES ($1,'Ayşe','BRIDE')
+     RETURNING id, rsvp, invite_status, phone, deleted_at`,
+    [wid],
+  )
+  const gid = guest.rows[0].id
+  if (guest.rows[0].rsvp === 'PENDING') ok('guests.rsvp default PENDING')
+  else bad(`rsvp default yanlış: ${guest.rows[0].rsvp}`)
+  if (guest.rows[0].invite_status === 'NOT_SENT') ok('guests.invite_status default NOT_SENT')
+  else bad(`invite_status default yanlış: ${guest.rows[0].invite_status}`)
+  if (guest.rows[0].phone === null) ok('guests.phone nullable')
+  else bad('phone beklenmedik şekilde dolu')
+
+  // Davetiye
+  const invRow = await db.query(
+    `INSERT INTO guest_invitations (wedding_id, guest_id, token_hash, expires_at)
+     VALUES ($1,$2,'test-token-hash', now() + interval '90 days')
+     RETURNING id, allowed_party_size, confirmed_party_size`,
+    [wid, gid],
+  )
+  const invId = invRow.rows[0].id
+  if (invRow.rows[0].allowed_party_size === 1) ok('allowed_party_size default 1')
+  else bad(`allowed_party_size default yanlış: ${invRow.rows[0].allowed_party_size}`)
+  if (invRow.rows[0].confirmed_party_size === null) ok('confirmed_party_size nullable')
+  else bad('confirmed_party_size beklenmedik şekilde dolu')
+
+  // token_hash UNIQUE
+  try {
+    await db.query(
+      `INSERT INTO guest_invitations (wedding_id, guest_id, token_hash, expires_at)
+       VALUES ($1,$2,'test-token-hash', now() + interval '90 days')`,
+      [wid, gid],
+    )
+    bad('token_hash UNIQUE çalışmadı — aynı hash iki kez yazıldı')
+  } catch {
+    ok('token_hash UNIQUE çalışıyor')
+  }
+
+  // Ham token kolonu OLMAMALI
+  const invCols = await db.query(
+    `SELECT column_name FROM information_schema.columns
+      WHERE table_name='guest_invitations'`,
+  )
+  const colNames = invCols.rows.map((r) => r.column_name)
+  if (!colNames.includes('token')) ok('ham token kolonu YOK (SECURITY §1.2)')
+  else bad('guest_invitations.token kolonu var — ham token saklanıyor!')
+  if (colNames.includes('token_hash')) ok('token_hash kolonu VAR')
+  else bad('token_hash kolonu yok')
+
+  // COMPOSITE FK: yanlış wedding_id reddedilmeli
+  const otherWedding = await db.query(
+    `INSERT INTO weddings (couple_names, wedding_date)
+     VALUES ('X & Y','2027-01-01') RETURNING id`,
+  )
+  try {
+    await db.query(
+      `INSERT INTO guest_invitations (wedding_id, guest_id, token_hash, expires_at)
+       VALUES ($1,$2,'wrong-wedding-hash', now() + interval '1 day')`,
+      [otherWedding.rows[0].id, gid],
+    )
+    bad('COMPOSITE FK çalışmadı — yanlış wedding_id kabul edildi')
+  } catch {
+    ok('COMPOSITE FK yanlış wedding_id reddediyor')
+  }
+
+  // CASCADE: davetli silinince davetiye gider
+  await db.query(`DELETE FROM guests WHERE id=$1`, [gid])
+  const afterG = await db.query(
+    `SELECT count(*)::int AS c FROM guest_invitations WHERE id=$1`,
+    [invId],
+  )
+  if (afterG.rows[0].c === 0) ok('CASCADE: davetli → davetiye silindi')
+  else bad(`CASCADE çalışmadı: ${afterG.rows[0].c} davetiye kaldı`)
+
+  await db.query(`DELETE FROM weddings WHERE id=$1`, [otherWedding.rows[0].id])
+
   // Düğün silinince üyelik + davet CASCADE
   await db.query(`DELETE FROM weddings WHERE id=$1`, [wid])
   const afterW = await db.query(
