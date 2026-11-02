@@ -69,7 +69,13 @@ import kotlinx.coroutines.launch
  * composable içine gömme" — burada repository üzerinden).
  */
 @Composable
-fun App(repository: Repository, tokens: TokenStore) {
+fun App(
+    repository: Repository,
+    tokens: TokenStore,
+    initialAuthToken: String? = null,
+    initialInviteCode: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
+) {
     var themeMode by remember {
         mutableStateOf(
             when (tokens.themeMode) {
@@ -85,6 +91,32 @@ fun App(repository: Repository, tokens: TokenStore) {
         val scope = rememberCoroutineScope()
         var bootstrapping by remember { mutableStateOf(true) }
         var lastSentEmail by remember { mutableStateOf<String?>(null) }
+
+        // Deep link — magic link veya davet kodu (DEEPLINK-SETUP.md)
+        LaunchedEffect(initialAuthToken, initialInviteCode) {
+            when {
+                initialAuthToken != null -> {
+                    repository.verify(initialAuthToken).fold(
+                        onSuccess = {
+                            val w = repository.listWeddings().getOrNull()?.firstOrNull()
+                            if (w != null) {
+                                state.wedding = w
+                                tokens.selectedWeddingId = w.id
+                                state.resetTo(Screen.DASHBOARD)
+                            } else {
+                                state.resetTo(Screen.CREATE_WEDDING)
+                            }
+                        },
+                        onFailure = { state.showBanner("Bağlantı geçersiz veya süresi dolmuş") },
+                    )
+                    onDeepLinkConsumed()
+                }
+                initialInviteCode != null -> {
+                    state.resetTo(Screen.ACCEPT_INVITE)
+                    onDeepLinkConsumed()
+                }
+            }
+        }
 
         // Açılış: oturum varsa düğünü yükle, yoksa onboarding
         LaunchedEffect(Unit) {
