@@ -33,9 +33,10 @@ describe('FREE_GUEST_LIMIT', () => {
 describe('davetli limiti (Review Focus #1)', () => {
   it('29 kayıt varken 30. davetli eklenir', async () => {
     const d = makeDeps({ countActiveGuests: vi.fn().mockResolvedValue(29) })
-    await expect(
-      createGuest({ weddingId: 'w1', userId: 'u1', input: { name: 'Ayşe' } }, d),
-    ).resolves.toBeDefined()
+    const g = await createGuest({ weddingId: 'w1', userId: 'u1', input: { name: 'Ayşe' } }, d)
+    // Gerçekten yazıldı mı — sadece "hata fırlatmadı" yetmez
+    expect(d.insertGuest).toHaveBeenCalledTimes(1)
+    expect(g.id).toBe('g1')
   })
 
   it('30 kayıt varken 31. davetli reddedilir', async () => {
@@ -58,9 +59,11 @@ describe('davetli limiti (Review Focus #1)', () => {
       countActiveGuests: vi.fn().mockResolvedValue(500),
       getPlan: vi.fn().mockResolvedValue('PREMIUM'),
     })
-    await expect(
-      createGuest({ weddingId: 'w1', userId: 'u1', input: { name: 'Ayşe' } }, d),
-    ).resolves.toBeDefined()
+    const g = await createGuest({ weddingId: 'w1', userId: 'u1', input: { name: 'Ayşe' } }, d)
+    expect(g.id).toBe('g1')
+    expect(d.insertGuest).toHaveBeenCalledTimes(1)
+    // Premium'da sayım hiç yapılmamalı — gereksiz sorgu
+    expect(d.countActiveGuests).not.toHaveBeenCalled()
   })
 
   it('limit kontrolü TRANSACTION İÇİNDE yapılır (yarış koşulu)', async () => {
