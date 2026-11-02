@@ -21,7 +21,7 @@
 ### Gerekli ortam değişkenleri
 
 ```bash
-export DATABASE_URL='postgres://kullanici:sifre@pgsqlX.serv00.com:5432/davetly_prod'
+export DATABASE_URL='postgres://kullanici:sifre@pgsqlX.serv00.com:5432/dugunce_prod'
 export BACKUP_GPG_PASSPHRASE='<güçlü-rastgele-parola>'
 ```
 
@@ -40,13 +40,13 @@ Yaptığı:
 4. **Yedeği açıp doğrula** (`pg_restore --list`)
 5. 30 günden eski yedekleri sil
 
-Çıktı: `backups/davetly-YYYYMMDD-HHMMSS.dump.gpg`
+Çıktı: `backups/dugunce-YYYYMMDD-HHMMSS.dump.gpg`
 
 ### Otomatikleştirme (serv00 crontab)
 
 ```cron
 # Her gün 03:00 UTC
-0 3 * * * cd ~/davetly && BACKUP_GPG_PASSPHRASE='...' DATABASE_URL='...' ./scripts/backup-db.sh >> ~/backup.log 2>&1
+0 3 * * * cd ~/dugunce && BACKUP_GPG_PASSPHRASE='...' DATABASE_URL='...' ./scripts/backup-db.sh >> ~/backup.log 2>&1
 ```
 
 ### Offsite kopya
@@ -56,8 +56,8 @@ Yedek serv00'da kalırsa hesap silindiğinde gider. Günlük olarak dışarı ko
 ```bash
 # Yerel makineden çekme
 rsync -avz --delete \
-  LOGIN@sX.serv00.com:~/davetly/backups/ \
-  ~/davetly-backups/
+  LOGIN@sX.serv00.com:~/dugunce/backups/ \
+  ~/dugunce-backups/
 ```
 
 ---
@@ -67,16 +67,16 @@ rsync -avz --delete \
 ### Test ortamına (güvenli)
 
 ```bash
-export DATABASE_URL='postgres://...@pgsqlX.serv00.com:5432/davetly_stage'
+export DATABASE_URL='postgres://...@pgsqlX.serv00.com:5432/dugunce_stage'
 export BACKUP_GPG_PASSPHRASE='...'
-./scripts/restore-db.sh backups/davetly-20261102-030000.dump.gpg
+./scripts/restore-db.sh backups/dugunce-20261102-030000.dump.gpg
 ```
 
 ### Üretime (dikkatli)
 
 ```bash
 # Script "evet" yazmanızı ister
-./scripts/restore-db.sh backups/davetly-20261102-030000.dump.gpg
+./scripts/restore-db.sh backups/dugunce-20261102-030000.dump.gpg
 ```
 
 Script şunları yapar:
@@ -106,7 +106,7 @@ Her ay en az bir kez:
 
 | Veri | Süre | Nerede |
 |---|---|---|
-| Günlük yedek | 30 gün | serv00 `~/davetly/backups/` |
+| Günlük yedek | 30 gün | serv00 `~/dugunce/backups/` |
 | Aylık yedek | 12 ay | offsite (yerel makine / harici disk) |
 | Silinen düğün verisi | Yedeklerde 90 gün sonra temizlenir | — |
 

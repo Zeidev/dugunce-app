@@ -1,5 +1,5 @@
 #!/usr/local/bin/bash
-# serv00 ortam doğrulaması — Davetly Aşama 1a
+# serv00 ortam doğrulaması — Düğünce Aşama 1a
 #
 # Kullanım:
 #   ssh LOGIN@sX.serv00.com 'bash -s' < scripts/verify-serv00.sh
@@ -20,7 +20,7 @@ bad()  { echo "  ❌ $1"; fail=1; }
 skip() { echo "  ⏭️  $1 (atlandı)"; }
 
 echo "=========================================="
-echo " Davetly — serv00 ortam doğrulaması"
+echo " Düğünce — serv00 ortam doğrulaması"
 echo " Tarih: $(date -u '+%Y-%m-%d %H:%M UTC')"
 echo "=========================================="
 echo ""
@@ -41,12 +41,12 @@ fi
 echo ""
 echo "[2/7] npm install (native derleme gerektirmeyen paket)"
 # ---------------------------------------------------------------
-VTEST=/tmp/davetly-vtest-$$
+VTEST=/tmp/dugunce-vtest-$$
 mkdir -p "$VTEST" && cd "$VTEST" || { bad "Geçici dizin oluşturulamadı"; exit 1; }
 
 cat > package.json <<'PKGEOF'
 {
-  "name": "davetly-verify",
+  "name": "dugunce-verify",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
@@ -56,18 +56,18 @@ cat > package.json <<'PKGEOF'
 PKGEOF
 
 NPM_BIN=$(command -v npm22 || command -v npm)
-if $NPM_BIN install --no-audit --no-fund >/tmp/davetly-npm.log 2>&1; then
+if $NPM_BIN install --no-audit --no-fund >/tmp/dugunce-npm.log 2>&1; then
   ok "npm install çalışıyor (pure-JS paket)"
 else
-  bad "npm install patladı — /tmp/davetly-npm.log dosyasına bak"
-  tail -5 /tmp/davetly-npm.log | sed 's/^/       /'
+  bad "npm install patladı — /tmp/dugunce-npm.log dosyasına bak"
+  tail -5 /tmp/dugunce-npm.log | sed 's/^/       /'
 fi
 
 # ---------------------------------------------------------------
 echo ""
 echo "[3/7] Drizzle ORM + postgres sürücü (pure JS)"
 # ---------------------------------------------------------------
-if $NPM_BIN install drizzle-orm postgres --no-audit --no-fund >/tmp/davetly-npm2.log 2>&1; then
+if $NPM_BIN install drizzle-orm postgres --no-audit --no-fund >/tmp/dugunce-npm2.log 2>&1; then
   NODE_BIN=$(command -v node22 || command -v node)
   if $NODE_BIN -e "require('drizzle-orm'); require('postgres');" 2>/dev/null; then
     ok "drizzle-orm + postgres yüklendi ve require edilebiliyor"
@@ -76,18 +76,18 @@ if $NPM_BIN install drizzle-orm postgres --no-audit --no-fund >/tmp/davetly-npm2
   fi
 else
   bad "drizzle-orm/postgres kurulamadı"
-  tail -5 /tmp/davetly-npm2.log | sed 's/^/       /'
+  tail -5 /tmp/dugunce-npm2.log | sed 's/^/       /'
 fi
 
 # ---------------------------------------------------------------
 echo ""
 echo "[4/7] @node-rs/argon2 (prebuilt binary)"
 # ---------------------------------------------------------------
-if $NPM_BIN install @node-rs/argon2 --no-audit --no-fund >/tmp/davetly-npm3.log 2>&1; then
+if $NPM_BIN install @node-rs/argon2 --no-audit --no-fund >/tmp/dugunce-npm3.log 2>&1; then
   NODE_BIN=$(command -v node22 || command -v node)
   HASH_OUT=$($NODE_BIN -e "
     const a = require('@node-rs/argon2');
-    a.hash('davetly-test').then(h => { console.log(h.slice(0, 30)); });
+    a.hash('dugunce-test').then(h => { console.log(h.slice(0, 30)); });
   " 2>/dev/null)
   if [ -n "$HASH_OUT" ]; then
     ok "argon2 hash üretiyor: ${HASH_OUT}..."
@@ -96,7 +96,7 @@ if $NPM_BIN install @node-rs/argon2 --no-audit --no-fund >/tmp/davetly-npm3.log 
   fi
 else
   bad "@node-rs/argon2 kurulamadı — WASM alternatifi gerekebilir"
-  tail -5 /tmp/davetly-npm3.log | sed 's/^/       /'
+  tail -5 /tmp/dugunce-npm3.log | sed 's/^/       /'
 fi
 
 # ---------------------------------------------------------------

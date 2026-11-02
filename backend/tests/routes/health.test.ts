@@ -6,7 +6,7 @@ describe('GET /health', () => {
   it('200 ve beklenen gövde döner', async () => {
     const res = await request(createApp()).get('/health')
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ status: 'ok', app: 'davetly-api' })
+    expect(res.body).toEqual({ status: 'ok', app: 'dugunce-api' })
   })
 
   it('DB erişimi yapmaz — 100ms altında yanıtlar', async () => {

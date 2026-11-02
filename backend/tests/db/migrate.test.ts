@@ -9,7 +9,7 @@ describe('assertSafeTarget — ortam koruması', () => {
     expect(() =>
       assertSafeTarget({
         nodeEnv: 'test',
-        databaseUrl: 'postgres://u:p@localhost:5432/davetly_test',
+        databaseUrl: 'postgres://u:p@localhost:5432/dugunce_test',
         force: false,
       }),
     ).not.toThrow()
@@ -19,7 +19,7 @@ describe('assertSafeTarget — ortam koruması', () => {
     expect(() =>
       assertSafeTarget({
         nodeEnv: 'production',
-        databaseUrl: 'postgres://u:p@host:5432/davetly_prod',
+        databaseUrl: 'postgres://u:p@host:5432/dugunce_prod',
         force: false,
       }),
     ).toThrow(/force/i)
@@ -29,7 +29,7 @@ describe('assertSafeTarget — ortam koruması', () => {
     expect(() =>
       assertSafeTarget({
         nodeEnv: 'production',
-        databaseUrl: 'postgres://u:p@host:5432/davetly_prod',
+        databaseUrl: 'postgres://u:p@host:5432/dugunce_prod',
         force: true,
       }),
     ).not.toThrow()
@@ -39,7 +39,7 @@ describe('assertSafeTarget — ortam koruması', () => {
     expect(() =>
       assertSafeTarget({
         nodeEnv: 'development',
-        databaseUrl: 'postgres://u:p@host:5432/davetly_prod',
+        databaseUrl: 'postgres://u:p@host:5432/dugunce_prod',
         force: false,
       }),
     ).toThrow(/prod/i)
@@ -49,7 +49,7 @@ describe('assertSafeTarget — ortam koruması', () => {
     expect(() =>
       assertSafeTarget({
         nodeEnv: 'development',
-        databaseUrl: 'postgres://u:p@host:5432/davetly_stage',
+        databaseUrl: 'postgres://u:p@host:5432/dugunce_stage',
         force: false,
       }),
     ).not.toThrow()

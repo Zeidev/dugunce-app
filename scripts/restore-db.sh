@@ -1,8 +1,8 @@
 #!/usr/local/bin/bash
-# Davetly — yedekten geri yükleme
+# Düğünce — yedekten geri yükleme
 #
 # Kullanım:
-#   BACKUP_GPG_PASSPHRASE='...' ./scripts/restore-db.sh backups/davetly-20261102-120000.dump.gpg
+#   BACKUP_GPG_PASSPHRASE='...' ./scripts/restore-db.sh backups/dugunce-20261102-120000.dump.gpg
 #
 # Gerekli ortam değişkenleri:
 #   DATABASE_URL           — hedef PostgreSQL bağlantı dizesi
@@ -30,7 +30,7 @@ if [ ! -f "$BACKUP_FILE" ]; then
 fi
 
 echo "=========================================="
-echo " Davetly — geri yükleme"
+echo " Düğünce — geri yükleme"
 echo " Kaynak: $BACKUP_FILE"
 echo "=========================================="
 
@@ -50,7 +50,7 @@ if echo "$DATABASE_URL" | grep -qiE '[_-]prod|production'; then
   fi
 fi
 
-TMP_DUMP="$(mktemp /tmp/davetly-restore-XXXXXX.dump)"
+TMP_DUMP="$(mktemp /tmp/dugunce-restore-XXXXXX.dump)"
 trap 'rm -f "$TMP_DUMP"' EXIT
 
 # --- 1. Şifre çöz ---

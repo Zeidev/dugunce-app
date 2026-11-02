@@ -17,7 +17,7 @@ function main(): void {
   const server = app.listen(env.PORT, () => {
     logger.info(
       { port: env.PORT, env: env.NODE_ENV },
-      'davetly-api başladı',
+      'dugunce-api başladı',
     )
   })
 

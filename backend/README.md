@@ -1,10 +1,10 @@
-# Davetly Backend
+# Düğünce Backend
 
-Node.js + Express + TypeScript + PostgreSQL backend for **Davetly** — a wedding planning app.
+Node.js + Express + TypeScript + PostgreSQL backend for **Düğünce** — a wedding planning app.
 
 > **Bağlayıcı belgeler:**
 > - [`docs/SECURITY.md`](../docs/SECURITY.md) — güvenlik spesifikasyonu (çelişkide öncelikli)
-> - [`docs/superpowers/specs/2026-11-01-davetly-design.md`](../docs/superpowers/specs/2026-11-01-davetly-design.md) — ürün ve mimari
+> - [`docs/superpowers/specs/2026-11-02-dugunce-design.md`](../docs/superpowers/specs/2026-11-02-dugunce-design.md) — ürün ve mimari
 
 ---
 
@@ -20,7 +20,7 @@ npm run dev               # http://localhost:3000
 
 ```bash
 curl http://localhost:3000/health
-# {"status":"ok","app":"davetly-api"}
+# {"status":"ok","app":"dugunce-api"}
 ```
 
 ---
@@ -40,7 +40,7 @@ curl http://localhost:3000/health
 - ❌ **native `argon2` yok** — `@node-rs/argon2` (prebuilt) kullanılır
 - ✅ **`postgres` sürücüsü** — saf JavaScript
 
-Detay: [`docs/superpowers/specs/2026-11-01-davetly-design.md`](../docs/superpowers/specs/2026-11-01-davetly-design.md) §4.
+Detay: [`docs/superpowers/specs/2026-11-02-dugunce-design.md`](../docs/superpowers/specs/2026-11-02-dugunce-design.md) §4.
 
 ---
 
@@ -151,7 +151,7 @@ ssh LOGIN@sX.serv00.com 'bash -s' < scripts/verify-serv00.sh
 # Deploy
 export SERV00_HOST=sX.serv00.com
 export SERV00_USER=LOGIN
-export SERV00_DOMAIN=api.davetly.com
+export SERV00_DOMAIN=api.dugunce.com.tr
 ./scripts/deploy-serv00.sh
 ```
 

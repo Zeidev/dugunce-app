@@ -1,4 +1,4 @@
-# Davetly — Aşama 1: Güvenli Altyapı ve serv00 Doğrulama
+# Düğünce — Aşama 1: Güvenli Altyapı ve serv00 Doğrulama
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js 22 (serv00), TypeScript 5.x, Express 4.x, Drizzle ORM + `postgres` (pure JS sürücü), Zod, Pino, `@node-rs/argon2`, Vitest, PostgreSQL 16 (serv00).
 
-**Spec:** `docs/SECURITY.md` (bağlayıcı) + `docs/superpowers/specs/2026-11-01-davetly-design.md`
+**Spec:** `docs/SECURITY.md` (bağlayıcı) + `docs/superpowers/specs/2026-11-02-dugunce-design.md`
 
 ## Global Constraints
 
@@ -262,7 +262,7 @@ git commit -m "feat(backend): scaffold with validated env config"
 
 **Interfaces:**
 - Consumes: `loadEnv()` from Task 2
-- Produces: `db` (Drizzle instance), `createApp(): Express`, `GET /health` → `{status:"ok",app:"davetly-api"}`
+- Produces: `db` (Drizzle instance), `createApp(): Express`, `GET /health` → `{status:"ok",app:"dugunce-api"}`
 
 - [ ] **Step 1: Failing test — health endpoint**
 
@@ -277,7 +277,7 @@ describe('GET /health', () => {
   it('200 ve beklenen gövde döner', async () => {
     const res = await request(createApp()).get('/health')
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ status: 'ok', app: 'davetly-api' })
+    expect(res.body).toEqual({ status: 'ok', app: 'dugunce-api' })
   })
 
   it('DB erişimi yapmaz (hızlı yanıtlar)', async () => {
@@ -308,7 +308,7 @@ export { sql }
 
 - [ ] **Step 4: `src/routes/health.ts` yaz**
 
-`GET /health` → `{ status: 'ok', app: 'davetly-api' }`. **DB'ye dokunmaz** (SECURITY §1.5, UptimeRobot pingi).
+`GET /health` → `{ status: 'ok', app: 'dugunce-api' }`. **DB'ye dokunmaz** (SECURITY §1.5, UptimeRobot pingi).
 
 - [ ] **Step 5: `src/app.ts` yaz**
 
@@ -561,7 +561,7 @@ jobs:
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: davetly_test
+          POSTGRES_DB: dugunce_test
         options: >-
           --health-cmd pg_isready --health-interval 10s
           --health-timeout 5s --health-retries 5
@@ -574,7 +574,7 @@ jobs:
       - run: cd backend && npx tsc --noEmit
       - run: cd backend && npx vitest run
         env:
-          DATABASE_URL: postgres://test:test@localhost:5432/davetly_test
+          DATABASE_URL: postgres://test:test@localhost:5432/dugunce_test
           JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
           NODE_ENV: test
 ```
@@ -640,7 +640,7 @@ git commit -m "ci: add serv00 deploy script and manual workflow"
 `scripts/backup-db.sh`:
 - `pg_dump -Fc` (custom format, sıkıştırılmış)
 - `gpg --symmetric --cipher-algo AES256` ile şifrele (parola `BACKUP_GPG_PASSPHRASE` env'den)
-- Çıktı: `backups/davetly-YYYYMMDD-HHMM.dump.gpg`
+- Çıktı: `backups/dugunce-YYYYMMDD-HHMM.dump.gpg`
 - 30 günden eski yedekleri sil
 - Başarısızlıkta çıkış kodu 1
 

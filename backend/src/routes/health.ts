@@ -14,7 +14,7 @@ router.get('/health', (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
   res.status(200).json({
     status: 'ok',
-    app: 'davetly-api',
+    app: 'dugunce-api',
   })
 })
 
