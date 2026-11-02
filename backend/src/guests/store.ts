@@ -1,4 +1,4 @@
-import { eq, and, isNull, sql, desc, inArray, or, ilike } from 'drizzle-orm'
+import { eq, and, isNull, sql, desc, lt, inArray, or, ilike } from 'drizzle-orm'
 import { getDb } from '../db/client.js'
 import { guests, guestInvitations, weddings, weddingMembers } from '../db/schema.js'
 import type {
@@ -7,6 +7,7 @@ import type {
   ListGuestsOptions,
 } from './service.js'
 import type { InvitationDeps, InvitationRow } from './invitation.js'
+import { DEFAULT_GUEST_PAGE } from './service.js'
 import type { RsvpDeps } from './rsvp.js'
 
 /**
@@ -152,12 +153,41 @@ export function drizzleGuestDeps(
         )
       }
 
+      // Keyset sayfalama (spec §6b.7): cursor = son kaydın id'si.
+      //
+      // Offset DEĞİL — offset'te araya kayıt girince sayfa kayar
+      // (kullanıcı aynı kişiyi iki kez görür veya birini atlar).
+      //
+      // Sıralama `(createdAt DESC, id DESC)`; cursor kaydının kendisi
+      // alt sorguyla bulunur, böylece istemciye `createdAt` sızdırmayız
+      // (`GuestRecord` beyaz listesinde yok).
+      // Geçersiz UUID sorguyu patlatır (PostgreSQL uuid tipi) — önce doğrula
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (opts.cursor && UUID_RE.test(opts.cursor)) {
+        const cursorRow = await db
+          .select({ createdAt: guests.createdAt, id: guests.id })
+          .from(guests)
+          .where(and(eq(guests.id, opts.cursor), eq(guests.weddingId, weddingId)))
+          .limit(1)
+        const anchor = cursorRow[0]
+        if (anchor) {
+          conditions.push(
+            or(
+              lt(guests.createdAt, anchor.createdAt),
+              and(eq(guests.createdAt, anchor.createdAt), lt(guests.id, anchor.id)),
+            )!,
+          )
+        }
+      }
+
+      const pageSize = opts.limit ?? DEFAULT_GUEST_PAGE
       const rows = await db
         .select(guestColumns())
         .from(guests)
         .innerJoin(weddingMembers, memberJoin(weddingId, userId))
         .where(and(...conditions))
-        .orderBy(desc(guests.createdAt))
+        .orderBy(desc(guests.createdAt), desc(guests.id))
+        .limit(pageSize)
 
       return rows as GuestRecord[]
     },

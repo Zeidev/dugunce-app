@@ -154,6 +154,10 @@ export interface ListGuestsOptions {
    * PostgreSQL'in `tr_TR` collation'ında doğru çalışır.
    */
   search?: string
+  /** Sayfalama — keyset. Varsayılan 50, azami 200. */
+  limit?: number
+  /** Son kaydın `<createdAt ISO>|<id>` değeri. */
+  cursor?: string
 }
 
 export interface GuestDeps {
@@ -428,7 +432,20 @@ export interface ListGuestsParams {
   rsvp?: (typeof RSVP_STATES)[number]
   /** Ad veya telefon araması (spec §6b.7). */
   search?: string
+  /**
+   * Sayfalama (spec §6b.7: "sayfalama (cursor)").
+   *
+   * `limit` varsayılan 50, azami 200. `cursor` = son görülen kaydın
+   * `createdAt` + `id` birleşimi (keyset pagination).
+   */
+  limit?: number
+  cursor?: string
 }
+
+/** Varsayılan sayfa boyutu. */
+export const DEFAULT_GUEST_PAGE = 50
+/** Azami sayfa boyutu — istemci daha fazlasını isteyemez. */
+export const MAX_GUEST_PAGE = 200
 
 export async function listGuests(
   params: ListGuestsParams,
@@ -449,6 +466,16 @@ export async function listGuests(
   // Arama: boş/whitespace ise yok say
   if (params.search !== undefined && params.search.trim() !== '') {
     opts.search = params.search.trim()
+  }
+  // Sayfalama: limit kelepçelenir, cursor doğrulanır
+  if (params.limit !== undefined) {
+    if (!Number.isInteger(params.limit) || params.limit < 1) {
+      throw new Error('Sayfa boyutu en az 1 olmalı')
+    }
+    opts.limit = Math.min(params.limit, MAX_GUEST_PAGE)
+  }
+  if (params.cursor !== undefined && params.cursor !== '') {
+    opts.cursor = params.cursor
   }
 
   return deps.listByWedding(params.weddingId, params.userId, opts)

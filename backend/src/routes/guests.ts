@@ -50,6 +50,9 @@ export function createGuestsRouter(deps: {
           ...(q['rsvp'] ? { rsvp: q['rsvp'] as 'PENDING' | 'ATTENDING' | 'DECLINED' } : {}),
           // spec §6b.7: ad/telefon araması sunucuda
           ...(q['search'] ? { search: q['search'] } : {}),
+          // spec §6b.7: cursor sayfalama
+          ...(q['limit'] ? { limit: Number(q['limit']) } : {}),
+          ...(q['cursor'] ? { cursor: q['cursor'] } : {}),
         },
         store,
       )
