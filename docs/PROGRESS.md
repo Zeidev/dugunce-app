@@ -22,7 +22,9 @@
 | 8 | Yayın öncesi güvenlik denetimi | ⬜ planlanmadı | — |
 
 **Backend:** 65 dosya, **848 test geçiyor**, 12 atlanmış (DB gerektirenler), typecheck temiz.
-**CI:** `backend-ci` ✅, `mobile-ci` ✅ (son koşu `1e22b40`).
+**CI:** `backend-ci` ✅, `mobile-ci` ✅ (Android, 1m7s), `deploy-backend` ✅ (elle tetiklenir).
+**iOS:** `mobile-ios` ayrı ve elle tetiklenir — macOS runner kapasitesi kısıtlı olduğu için
+her push'ta çalıştırmak kırmızı job üretiyordu (`gh workflow run mobile-ios.yml`).
 
 ---
 
