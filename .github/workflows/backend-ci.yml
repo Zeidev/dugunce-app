@@ -70,9 +70,23 @@ jobs:
         working-directory: backend
         run: node scripts/ci-db-check.mjs
 
+      # dist/ testlerden ÖNCE gerekli: tests/config/deps.test.ts derlenmiş
+      # çıktıyı tarar ve her çalışma zamanı import'unun `dependencies`'te
+      # olduğunu doğrular. Build burada değilse test ENOENT ile düşer.
+      - name: Build
+        working-directory: backend
+        run: npm run build
+
       - name: Run tests
         working-directory: backend
-        run: npx vitest run --reporter=verbose 2>&1 | tee /tmp/test-output.log
+        shell: bash
+        # `set -o pipefail` ZORUNLU. GitHub'ın varsayılan bash'i `bash -e`,
+        # pipefail kapalı: `vitest | tee` boru hattının çıkış kodu tee'dir,
+        # yani vitest düşse bile job YEŞİL kalır. Run 41439711777 tam olarak
+        # bunu yaptı: 1 test FAIL, job success.
+        run: |
+          set -o pipefail
+          npx vitest run --reporter=verbose 2>&1 | tee /tmp/test-output.log
 
       # Test çıktısını artifact olarak yükle — hata olsa bile indirilebilir.
       # Log API'si admin hakkı istiyor; artifact halka açık.
@@ -83,10 +97,6 @@ jobs:
           name: test-output
           path: /tmp/test-output.log
           retention-days: 7
-
-      - name: Build
-        working-directory: backend
-        run: npm run build
 
       - name: Verify build output exists
         working-directory: backend
