@@ -1,0 +1,305 @@
+import { z } from 'zod'
+
+/**
+ * Davetli servisi — iş mantığı.
+ *
+ * Tüm fonksiyonlar `weddingId` + `userId` alır; depo katmanı üyelik
+ * join'i ile kapsamı zorlar (SECURITY §1.1). Servis katmanı da ayrıca
+ * kontrol eder (defense in depth).
+ */
+
+export const GUEST_SIDES = ['BRIDE', 'GROOM'] as const
+export const RSVP_STATES = ['PENDING', 'ATTENDING', 'DECLINED'] as const
+export const INVITE_STATUSES = ['NOT_SENT', 'SENT'] as const
+
+export const MAX_NAME_LENGTH = 100
+export const MAX_NOTE_LENGTH = 500
+
+// ---------------------------------------------------------------------------
+// Telefon normalizasyonu
+// ---------------------------------------------------------------------------
+
+/**
+ * Telefonu E.164'e normalize eder.
+ *
+ * Türkiye odaklı: `0532...`, `532...`, `90532...`, `+90532...` hepsi
+ * `+905321234567` olur. Boş girdi `null` döner (telefon opsiyonel).
+ *
+ * @throws {Error} numara geçersizse
+ */
+export function normalizePhone(input: string | null | undefined): string | null {
+  if (input === null || input === undefined) return null
+
+  const trimmed = input.trim()
+  if (!trimmed) return null
+
+  // Yalnızca rakam ve baştaki + kalır
+  const hadPlus = trimmed.startsWith('+')
+  const digits = trimmed.replace(/[^\d]/g, '')
+
+  if (/\p{L}/u.test(trimmed)) {
+    throw new Error(`Geçersiz telefon numarası: ${input}`)
+  }
+  if (!digits) {
+    throw new Error(`Geçersiz telefon numarası: ${input}`)
+  }
+
+  // Türkiye: 10 hane (5xx...) veya 12 hane (90 + 5xx...)
+  let normalized: string
+  if (hadPlus && digits.startsWith('90') && digits.length === 12) {
+    normalized = `+${digits}`
+  } else if (digits.length === 12 && digits.startsWith('90')) {
+    normalized = `+${digits}`
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    normalized = `+90${digits.slice(1)}`
+  } else if (digits.length === 10 && digits.startsWith('5')) {
+    normalized = `+90${digits}`
+  } else {
+    throw new Error(`Geçersiz telefon numarası: ${input}`)
+  }
+
+  return normalized
+}
+
+// ---------------------------------------------------------------------------
+// Girdi doğrulama
+// ---------------------------------------------------------------------------
+
+const baseSchema = z.object({
+  name: z
+    .string({ required_error: 'İsim zorunlu', invalid_type_error: 'İsim metin olmalı' })
+    .trim()
+    .min(1, { message: 'İsim zorunlu' })
+    .max(MAX_NAME_LENGTH, { message: `İsim en fazla ${MAX_NAME_LENGTH} karakter olabilir` }),
+  phone: z.string().optional(),
+  side: z.enum(GUEST_SIDES).default('BRIDE'),
+  note: z
+    .string()
+    .trim()
+    .max(MAX_NOTE_LENGTH, `Not en fazla ${MAX_NOTE_LENGTH} karakter olabilir`)
+    .optional(),
+})
+
+export interface ValidatedGuestInput {
+  name: string
+  phone?: string
+  side: (typeof GUEST_SIDES)[number]
+  note?: string
+}
+
+/**
+ * Davetli girdisini doğrular.
+ *
+ * `rsvp` ve `inviteStatus` BİLİNÇLİ olarak kabul edilmez — bunlar ayrı
+ * yollardan (RSVP akışı, WhatsApp gönderimi) değişir. Kullanıcıdan
+ * doğrudan alınırsa liste ile gerçek erişim çelişir.
+ */
+export function validateGuestInput(input: unknown): ValidatedGuestInput {
+  const parsed = baseSchema.parse(input)
+
+  const result: ValidatedGuestInput = {
+    name: parsed.name,
+    side: parsed.side,
+  }
+
+  if (parsed.phone !== undefined) {
+    const phone = normalizePhone(parsed.phone)
+    if (phone !== null) result.phone = phone
+  }
+
+  if (parsed.note !== undefined && parsed.note !== '') {
+    result.note = parsed.note
+  }
+
+  return result
+}
+
+const patchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(MAX_NAME_LENGTH).optional(),
+    phone: z.string().nullable().optional(),
+    side: z.enum(GUEST_SIDES).optional(),
+    note: z.string().trim().max(MAX_NOTE_LENGTH).nullable().optional(),
+  })
+  .strip()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Güncelleme boş olamaz' })
+
+export type GuestPatch = z.infer<typeof patchSchema>
+
+// ---------------------------------------------------------------------------
+// Depo arayüzü
+// ---------------------------------------------------------------------------
+
+export interface GuestRecord {
+  id: string
+  weddingId: string
+  name: string
+  phone: string | null
+  side: string
+  inviteStatus: string
+  rsvp: string
+  note: string | null
+  deletedAt: Date | null
+}
+
+export interface ListGuestsOptions {
+  includeDeleted?: boolean
+  side?: (typeof GUEST_SIDES)[number]
+  rsvp?: (typeof RSVP_STATES)[number]
+}
+
+export interface GuestDeps {
+  transaction<T>(fn: (tx: unknown) => Promise<T>): Promise<T>
+  insertGuest(values: Record<string, unknown>): Promise<GuestRecord>
+  listByWedding(
+    weddingId: string,
+    userId: string,
+    opts: ListGuestsOptions,
+  ): Promise<GuestRecord[]>
+  findById(
+    guestId: string,
+    weddingId: string,
+    userId: string,
+  ): Promise<GuestRecord | null>
+  updateGuest(
+    values: Record<string, unknown>,
+    weddingId: string,
+    userId: string,
+  ): Promise<GuestRecord>
+  softDelete(guestId: string): Promise<boolean>
+  /** Davetli silinince token'ları ölür (Review Focus #5). */
+  revokeInvitations(guestId: string): Promise<number>
+}
+
+// ---------------------------------------------------------------------------
+// İşlemler
+// ---------------------------------------------------------------------------
+
+export interface CreateGuestParams {
+  weddingId: string
+  userId: string
+  input: unknown
+}
+
+export async function createGuest(
+  params: CreateGuestParams,
+  deps: GuestDeps,
+): Promise<GuestRecord> {
+  const input = validateGuestInput(params.input)
+
+  return deps.transaction(async (tx) => {
+    return deps.insertGuest({
+      weddingId: params.weddingId,
+      name: input.name,
+      phone: input.phone ?? null,
+      side: input.side,
+      note: input.note ?? null,
+      tx,
+    })
+  })
+}
+
+export interface ListGuestsParams {
+  weddingId: string
+  userId: string
+  includeDeleted?: boolean
+  side?: (typeof GUEST_SIDES)[number]
+  rsvp?: (typeof RSVP_STATES)[number]
+}
+
+export async function listGuests(
+  params: ListGuestsParams,
+  deps: Pick<GuestDeps, 'listByWedding'>,
+): Promise<GuestRecord[]> {
+  if (params.side !== undefined && !GUEST_SIDES.includes(params.side)) {
+    throw new Error(`Geçersiz taraf: ${params.side}`)
+  }
+  if (params.rsvp !== undefined && !RSVP_STATES.includes(params.rsvp)) {
+    throw new Error(`Geçersiz RSVP durumu: ${params.rsvp}`)
+  }
+
+  const opts: ListGuestsOptions = {
+    includeDeleted: params.includeDeleted === true,
+  }
+  if (params.side !== undefined) opts.side = params.side
+  if (params.rsvp !== undefined) opts.rsvp = params.rsvp
+
+  return deps.listByWedding(params.weddingId, params.userId, opts)
+}
+
+export interface UpdateGuestParams {
+  weddingId: string
+  userId: string
+  guestId: string
+  patch: unknown
+}
+
+/**
+ * Davetliyi günceller.
+ *
+ * `rsvp` bu yoldan DEĞİŞTİRİLEMEZ — RSVP akışının kendi transaction'ı
+ * vardır (davetiye + davetli birlikte güncellenir). Burada izin verilseydi
+ * `guest_invitations.confirmed_party_size` ile çelişen bir durum oluşurdu.
+ *
+ * @returns null — davetli yoksa veya kullanıcı üye değilse (404)
+ */
+export async function updateGuest(
+  params: UpdateGuestParams,
+  deps: Pick<GuestDeps, 'findById' | 'updateGuest'>,
+): Promise<GuestRecord | null> {
+  const existing = await deps.findById(params.guestId, params.weddingId, params.userId)
+  if (!existing) return null
+
+  // rsvp bu yoldan değiştirilemez. Sessizce yutmak yerine AÇIK hata ver:
+  // aksi halde istemci "güncelledim" sanır, davetiye tarafı eski kalır.
+  const raw = params.patch
+  if (
+    raw !== null &&
+    typeof raw === 'object' &&
+    'rsvp' in (raw as Record<string, unknown>)
+  ) {
+    throw new Error(
+      'RSVP durumu bu uçtan değiştirilemez; /invitations/:token/rsvp kullanılmalı',
+    )
+  }
+
+  const parsed = patchSchema.parse(params.patch)
+
+  const values: Record<string, unknown> = {}
+  if (parsed.name !== undefined) values['name'] = parsed.name
+  if (parsed.side !== undefined) values['side'] = parsed.side
+  if (parsed.note !== undefined) values['note'] = parsed.note
+  if (parsed.phone !== undefined) {
+    values['phone'] = parsed.phone === null ? null : normalizePhone(parsed.phone)
+  }
+
+  return deps.updateGuest(values, params.weddingId, params.userId)
+}
+
+export interface DeleteGuestParams {
+  weddingId: string
+  userId: string
+  guestId: string
+}
+
+/**
+ * Davetliyi siler (soft delete) ve davetiye token'larını iptal eder.
+ *
+ * Token iptal edilmezse silinmiş davetlinin linki çalışmaya devam eder —
+ * "silindi" yalanı olur (Review Focus #5).
+ *
+ * @returns false — davetli yoksa veya kullanıcı üye değilse (404)
+ */
+export async function deleteGuest(
+  params: DeleteGuestParams,
+  deps: Pick<GuestDeps, 'findById' | 'softDelete' | 'revokeInvitations'>,
+): Promise<boolean> {
+  const existing = await deps.findById(params.guestId, params.weddingId, params.userId)
+  if (!existing) return false
+
+  const deleted = await deps.softDelete(params.guestId)
+  if (deleted) {
+    await deps.revokeInvitations(params.guestId)
+  }
+  return deleted
+}
