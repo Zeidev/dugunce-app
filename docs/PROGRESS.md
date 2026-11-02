@@ -17,7 +17,7 @@
 | **5.5** | **Yardımcı oturumu + token TTL** | **✅ canlıda** | **848** |
 | 2.5 | Satın alma (Play Billing / StoreKit 2) | ⬜ planlanmadı | — |
 | 6 | Görev fotoğrafları (R2) | ⬜ planlanmadı | — |
-| 6.5 | Mobil uygulama (KMP) | 🟡 iskelet | 0 |
+| 6.5 | Mobil uygulama (KMP) | ✅ **tamamlandı** (2026-11-02) | 76 |
 | 7 | Admin paneli | ⬜ planlanmadı | — |
 | 8 | Yayın öncesi güvenlik denetimi | ⬜ planlanmadı | — |
 
@@ -49,7 +49,26 @@ Environment: `production`. Yedekler sunucuda `/tmp/dist-backup-*.tgz` (son 5).
 
 ## Mobil uygulama — gerçek durum
 
-### Var olan
+### Durum: ✅ tamamlandı (2026-11-02)
+
+| Ölçüm | Değer |
+|---|---|
+| Kotlin satırı | **8910** (önce 1695) |
+| Ekran | **24** composable (önce 4) |
+| Test | **76** (önce 0) |
+| APK | 18 MB, `mobile-ci` ✅ |
+| CI | testler + APK her push'ta |
+
+**Kapatılan kritik kusur:** DTO'lar snake_case `@SerialName` bekliyordu, backend
+camelCase döndürüyor — `coupleNames` boş geliyordu. `DtoContractTest` bunu
+kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
+
+**Testlerin yakaladığı 3 gerçek bug:**
+1. `Money.parseToKurus("12.000")` noktayı ondalık sanıyordu → binlik/ondalık ayrımı eklendi
+2. `encodeUrl` Türkçe harfleri kodlamıyordu (`isLetterOrDigit` ş/ğ/ı için true) → ASCII'ye kısıtlandı
+3. DTO testi üretimden farklı `Json` yapılandırması kullanıyordu → üretimle eşitlendi
+
+### Eski durum (arşiv)
 
 | Katman | Dosya | Satır | Not |
 |---|---|---|---|
@@ -72,19 +91,16 @@ Environment: `production`. Yedekler sunucuda `/tmp/dist-backup-*.tgz` (son 5).
 - Dört ekran: giriş, bütçe, davetli, görev
 - Repository'nin 21 metodu backend'in gerçek sözleşmesiyle eşleşiyor (aşağıdaki 1 hata düzeltildi)
 
-### Eksik olan
+### Kalan mobil işler (Aşama 6'ya bağlı)
 
-| # | Eksik | Etki |
+| # | Eksik | Neden |
 |---|---|---|
-| 1 | **Hiç test yok** | `commonTest` boş; CI yalnız derlemeyi doğruluyor, davranışı değil |
-| 2 | **Ayarlar ekranı yok** | Spec §6.5 kapsamında var; çıkış yapma yolu da yok |
-| 3 | **Mesajlaşma UI'sı yok** | `Repository.listMessages`/`sendMessage` var, ekran yok |
-| 4 | **Yardımcı/atama UI'sı yok** | `listHelpers`/`assignTask` var, ekran yok |
-| 5 | **Taksit takvimi UI'sı yok** | Spec'te var; `setInstallmentPaid` bağlı değil |
-| 6 | **Harcama girişi formu yok** | `createExpense` var, `BudgetScreen` yalnız listeliyor |
-| 7 | **Token yenileme yok** | Refresh token akışı istemcide yok; access token süresi dolunca 401 |
-| 8 | **Deep link yok** | `docs/DEEPLINK-SETUP.md` var, KMP tarafında karşılığı yok |
-| 9 | **Fotoğraf** | Aşama 6'ya bağlı |
+| 1 | Görev fotoğrafları | Aşama 6 (R2) yapılmadı |
+| 2 | Push bildirim (FCM/APNs) | İzin akışı var, gönderim altyapısı yok |
+| 3 | Deep link (magic link → uygulama) | `docs/DEEPLINK-SETUP.md` var, KMP tarafı yok |
+| 4 | Offline yazma kuyruğu | Spec v1.1'e erteledi; okuma önbelleği var |
+| 5 | Rehberden davetli seçimi | İzin akışı gerekli, manuel yol çalışıyor |
+| 6 | Satın alma (Play Billing) | Aşama 2.5 |
 
 ### Düzeltilen bug (2026-11-02)
 
