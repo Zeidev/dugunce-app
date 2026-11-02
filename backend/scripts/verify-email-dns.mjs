@@ -13,16 +13,46 @@
  * DKIM bir CNAME'dir, TXT değil. `dig TXT mail._domainkey` boş döner —
  * bu bir hata değil, yanlış sorgudur. Bu betik CNAME zincirini çözer.
  */
-import { resolveTxt, resolveCname } from 'node:dns/promises'
+import { Resolver } from 'node:dns/promises'
 
 const DOMAIN = 'dugunce.com.tr'
 const checks = []
 
-async function txt(host) {
-  try { return (await resolveTxt(host)).map(r => r.join('')) } catch { return [] }
+/**
+ * Doğrudan genel resolver'lara sor.
+ *
+ * Neden sistem resolver'ı kullanılmıyor: yerel cache (systemd-resolved,
+ * 127.0.0.53) yeni eklenen kaydı TTL boyunca göstermez ve betik yanlış
+ * "kayıt yok" der. Gerçek durumu görmek için Cloudflare/Google'a sorulur.
+ */
+const RESOLVERS = ['1.1.1.1', '8.8.8.8']
+
+function makeResolver(server) {
+  const r = new Resolver({ timeout: 5000, tries: 2 })
+  r.setServers([server])
+  return r
 }
+
+async function txt(host) {
+  for (const server of RESOLVERS) {
+    try {
+      return (await makeResolver(server).resolveTxt(host)).map((r) => r.join(''))
+    } catch {
+      /* sıradaki resolver */
+    }
+  }
+  return []
+}
+
 async function cname(host) {
-  try { return await resolveCname(host) } catch { return [] }
+  for (const server of RESOLVERS) {
+    try {
+      return await makeResolver(server).resolveCname(host)
+    } catch {
+      /* sıradaki resolver */
+    }
+  }
+  return []
 }
 
 // 1. Brevo code

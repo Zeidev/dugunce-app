@@ -311,7 +311,7 @@ Presigned PUT için R2 bucket CORS ayarı:
 | DMARC (TXT `_dmarc`) | ⚠️ | `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` — **raporlar Brevo'ya gidiyor, bize gelmiyor** (aşağıya bak) |
 | DKIM 1 (CNAME `brevo1._domainkey`) | ✅ | → `b1.dugunce-com-tr.dkim.brevo.com` → `brevo17.dkim.brevo.com` (2048-bit, 2 parça) |
 | DKIM 2 (CNAME `brevo2._domainkey`) | ✅ | → `b2.dugunce-com-tr.dkim.brevo.com` → `brevo18.dkim.brevo.com` |
-| **SPF (TXT @ `v=spf1`)** | ❌ **EKSİK** | Aşağıya bak |
+| SPF (TXT @ `v=spf1`) | ✅ | `v=spf1 include:spf.brevo.com mx ~all` (2026-11-02 eklendi) |
 | A kaydı (root, www, api, admin) | ❌ | Henüz yok — serv00 ve Pages kurulmadı |
 
 **Not:** Brevo DKIM'i **CNAME** olarak veriyor (`brevo1`/`brevo2._domainkey`), TXT olarak değil. `dig TXT mail._domainkey...` boş döner — bu bir hata değil, yanlış sorgu. Doğru sorgu:
@@ -321,9 +321,9 @@ dig +short CNAME brevo1._domainkey.dugunce.com.tr
 dig +short TXT   brevo1._domainkey.dugunce.com.tr   # CNAME zincirini çözer
 ```
 
-### 6.0.1 SPF kaydı — önerilir, ama **zorunlu değil**
+### 6.0.1 SPF kaydı — ✅ eklendi (2026-11-02)
 
-`dugunce.com.tr` altında `v=spf1` ile başlayan TXT **yok**. Yalnızca `brevo-code` var.
+`v=spf1 include:spf.brevo.com mx ~all` — doğrulandı, tek SPF kaydı (permerror riski yok). `spf.brevo.com` zinciri çözülüyor, toplam DNS lookup 2 (limit 10).
 
 **Dürüst değerlendirme:** Bu bir *hata* değil. Brevo, paylaşımlı IP'de domain kimlik doğrulamasını **Brevo code + DKIM** ile yapar; SPF'yi dedicated IP kurulumunda verir ([Brevo dokümanı](https://help.brevo.com/hc/en-us/articles/12163873383186-Authenticate-your-domain-with-Brevo-Brevo-code-DKIM-DMARC), [bağımsız özet](https://inboxight.com/guides/spf-dkim-dmarc-brevo)). Yani **DKIM + DMARC + Brevo code üçlüsü tamamsa domain authenticate olur** ve mailler imzalı gider.
 
@@ -347,6 +347,8 @@ Doğrulama:
 dig TXT dugunce.com.tr @1.1.1.1 +short | grep spf1
 # Beklenen: "v=spf1 include:spf.brevo.com mx ~all"
 ```
+
+> ⚠️ **Yerel cache tuzağı:** `dig TXT dugunce.com.tr` (resolver belirtmeden) systemd-resolved'ın (`127.0.0.53`) önbelleğini okur ve yeni kaydı TTL boyunca göstermez. Kayıt eklendiği halde "yok" görünür. **Her zaman `@1.1.1.1` veya `@8.8.8.8` belirt.** `npm run verify:email` de bu yüzden doğrudan genel resolver'lara sorar.
 
 ### 6.0.2 ⚠️ DMARC rapor adresi Brevo'ya işaret ediyor
 
