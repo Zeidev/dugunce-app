@@ -23,7 +23,8 @@ object Links {
         if (urlOrPath.isNullOrBlank()) return null
         val trimmed = urlOrPath.trim()
         if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) return trimmed
-        return trimmed  // NEGATİF KONTROL: origin eklenmiyor
+        val path = if (trimmed.startsWith("/")) trimmed else "/$trimmed"
+        return PUBLIC_ORIGIN + path
     }
 
     /**
