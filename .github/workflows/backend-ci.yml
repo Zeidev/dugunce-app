@@ -58,7 +58,11 @@ jobs:
         working-directory: backend
         run: npm run typecheck
 
-      - name: Run migrations
+      - name: Verify migration SQL (PGlite — fast feedback)
+        working-directory: backend
+        run: npm run verify:migrations
+
+      - name: Run migrations (real PostgreSQL)
         working-directory: backend
         run: npm run db:migrate -- --force
 
