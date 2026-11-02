@@ -2,7 +2,10 @@ name: deploy-backend
 
 # Manuel tetiklenir — otomatik deploy yok.
 # Gerekçe: SECURITY §1.5 ve plan Aşama 1 — ilk deploy'lar kontrollü olmalı.
-# GitHub Environment "production" onay gerektirir (Settings > Environments).
+#
+# Gerekli repo secret'ları: SERV00_HOST, SERV00_USER, SERV00_DOMAIN, SERV00_SSH_KEY
+# Gerekli environment: production
+# Deploy betiği: scripts/deploy-serv00.sh (yollar canlıda doğrulandı)
 
 on:
   workflow_dispatch:
