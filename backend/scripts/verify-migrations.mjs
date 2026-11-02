@@ -379,15 +379,30 @@ try {
     ok('body CHECK 4001 karakteri reddediyor')
   }
 
+  // sender_kind yalnızca COUPLE | HELPER olabilir.
+  // NOT: "sender_helper_id dolu olmalı" kuralı KULLANILAMAZ — FK
+  // ON DELETE SET NULL ile çelişir (mesajı olan yardımcı silinemez).
   try {
     await db.query(
       `INSERT INTO messages (wedding_id, task_id, sender_kind, body)
-       VALUES ($1,$2,'COUPLE','sender yok')`,
+       VALUES ($1,$2,'ADMIN','gecersiz kind')`,
       [wid, tid],
     )
-    bad('sender tutarlılık CHECK çalışmadı')
+    bad('sender_kind CHECK çalışmadı — geçersiz değer kabul edildi')
   } catch {
-    ok('sender_kind tutarlılık CHECK çalışıyor')
+    ok('sender_kind CHECK geçersiz değeri reddediyor')
+  }
+
+  // NULL sender id KABUL edilmeli (yardımcı silinince geçmiş kalır)
+  try {
+    await db.query(
+      `INSERT INTO messages (wedding_id, task_id, sender_kind, body)
+       VALUES ($1,$2,'HELPER','yardımcı silinmiş')`,
+      [wid, tid],
+    )
+    ok('sender_helper_id NULL kabul ediliyor (geçmiş korunur)')
+  } catch {
+    bad('sender_helper_id NULL reddedildi — SET NULL FK ile çelişki')
   }
 
   // CASCADE: görev silinince mesajlar gider
