@@ -948,7 +948,7 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 | 17 | Offline taslak nereye yazılır? | ✅ **Room'da `pending_` önekli tablo** — ayrı kuyruk sistemi kurulmaz — *benim çağrım* |
 | 18 | Geliştirme sıralaması | ✅ **Aşama 1–8 güvenlik öncelikli sıralama** (`SECURITY.md` §7) |
 | 19 | ~~Yardımcı uygulama indirecek mi?~~ | ✅ **KAPANDI** — Hayır, sadece web link (PWA) |
-| 20 | Alan adı | ⚠️ **HENÜZ ALINMADI** — Brevo hesabı açıldı ama alan adı yok. Magic link gönderimi için gerekli |
+| 20 | Alan adı | ⚠️ **ALINMADI** — ama **magic link artık bloke değil** (bkz. §15.2: tek adres doğrulama yolu) |
 | 21 | ~~Yardımcı fotoğraf ekleme v1'de mi v1.1'de mi?~~ | ✅ **KAPANDI** — v1'de, R2 ile |
 | 22 | Web push (VAPID) anahtarları nerede saklanacak? | Karar bekliyor (GitHub Secrets) |
 | 23 | **R2 ücretsiz 10 GB — kaç düğün kaldırır?** | ⚠️ Gerçekçi ~800 düğün / teorik 200 ücretsiz · 20 premium → izlenmeli |
@@ -1145,6 +1145,49 @@ Tam sözleşme `docs/API.md`'de. Taban: `/api/v1`
 | Refresh iptali | Sunucuda, cihaz bazında | Çalınan cihazı tek tek çıkar |
 
 **Deep link kurulumu için gerekenler (Aşama 2 öncesi):** Apple Team ID, Android paket adı + SHA-256 imza parmak izi.
+
+### 15.2 Brevo — alan adı olmadan gönderim (2026-11-02 eklendi)
+
+**Durum:** Brevo hesabı açıldı, alan adı **henüz yok**.
+
+**Bulgu (Brevo dokümanı):** Alan adı zorunlu değil. İki doğrulama yolu var:
+
+| Yol | Ne yapılır | Sonuç |
+|---|---|---|
+| **A · Alan adı doğrula** | DNS'e Brevo code + DKIM + DMARC kayıtları | Güvenilir teslim, spam riski düşük |
+| **B · Tek adres doğrula** | E-posta adresine gelen 6 haneli kodu gir | Gönderim çalışır, **uyarı işareti kalır** |
+
+**Karar: Aşama 2, B ile başlar — A'ya sonra geçilir.**
+
+```
+Şimdi (alan adı yok):
+  → Brevo'da tek adres doğrula (ör. davetly.app@gmail.com veya mevcut bir adres)
+  → Magic link gönderimi çalışır
+  → Geliştirme ve test yapılabilir
+
+Alan adı alınınca:
+  → Brevo'da domain doğrula (DNS kayıtları)
+  → Sender'ı noreply@davetly.com yap
+  → Uyarı kalkar, teslim edilebilirlik artar
+```
+
+**B yolunun bedeli:**
+
+- Gmail/Yahoo/Microsoft 2024'ten beri gönderen doğrulaması istiyor — ücretsiz adres **spam'e düşme riski taşır**
+- Brevo arayüzünde "doğrulanmamış gönderen" uyarısı görünür
+- **Üretimde kabul edilemez** — kullanıcı magic link'i spam'de bulursa giriş yapamaz
+
+**Bu yüzden:**
+
+| Ortam | Yol | Kabul edilebilir mi |
+|---|---|---|
+| Geliştirme / test | B (tek adres) | ✅ Evet |
+| Staging | B (tek adres) | ✅ Evet |
+| **Üretim** | **A (domain)** | ❌ B kabul edilemez |
+
+**Sonuç:** Alan adı **Aşama 2'yi bloke etmiyor** (geliştirme B ile yapılır), ama **yayını bloke ediyor**. Alan adı alınmadan Play/App Store'a çıkılmaz.
+
+**Alternatif düşünüldü ve reddedildi:** Resend (3.000/ay) — Brevo'nun 300/gün'ü (~9.000/ay) daha yüksek ve hesap zaten açıldı.
 
 ---
 
@@ -1421,13 +1464,14 @@ v1'de kapsamlı üçüncü taraf analitik zorunlu değil — gizlilik ve maliyet
 **Kapanan kararlar (2026-11-02):** v1 kapsamı = üç özellik birden · 2. eş = davet kodu · platform = Android+iOS · senkron = server-first+offline-aware · yardımcı = PWA · fotoğraf = R2 · admin paneli = React + 2FA
 
 **Kalan engeller:**
-1. ⚠️ **Alan adı alınmadı** — Brevo magic link ve `admin.` / `api.` alt alan adları için gerekli. **Aşama 2'yi (auth) bloke eden tek somut eksik.**
+1. ⚠️ **Alan adı alınmadı** — **Aşama 2'yi bloke etmiyor** (Brevo tek adres doğrulama ile geliştirme yapılabilir), ama **üretim yayınını bloke ediyor** ve `admin.` / `api.` alt alan adları için şart
 2. ⏳ KVKK saklama süreleri — `SECURITY.md` §6.3'te öneri var, onay bekliyor
 3. ⏳ Admin hesap kurtarma prosedürü — `SECURITY.md` §4.9
 
-**Çözülen (2026-11-02):** Admin hosting → Cloudflare Pages · Yerel DB → Room · Offline taslak → Room `pending_` · Geliştirme sırası → 8 aşamalı güvenlik öncelikli
+**Çözülen (2026-11-02):** Admin hosting → Cloudflare Pages · Yerel DB → Room · Offline taslak → Room `pending_` · Geliştirme sırası → 8 aşamalı güvenlik öncelikli · **Brevo alan adısız çalışabilir (§15.2)**
 
 **Sonraki adımlar:**
-1. ⏳ Builder check (taze subagent ile gözden geçirme)
-2. ⏳ Kullanıcı onayı
-3. ⏳ `writing-plans` → uygulama planı
+1. ✅ Builder check tamamlandı (9 soru kapatıldı)
+2. ✅ Kullanıcı onayı alındı
+3. ✅ Aşama 1 planı yazıldı ve **uygulandı** (`docs/STAGE-1-COMPLETE.md`)
+4. ⏳ Aşama 2 planı (`stage-2-auth.md`) — alan adı beklemeden yazılabilir
