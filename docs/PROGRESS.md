@@ -108,7 +108,9 @@ kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
 | 5 | Rehberden davetli seçimi | İzin akışı gerekli, manuel yol çalışıyor |
 | 6 | Satın alma (Play Billing) | Aşama 2.5 |
 | 7 | Davetli **arama** parametresi backend'de | Sunucu tarafı taraf/RSVP filtresi var, metin arama yok — istemci yüklü sayfada süzüyor |
+| 9 | ~~Kategori uçları~~ | ✅ **KAPANDI (2026-11-02)** — `/weddings/:id/categories` + 12 sistem kategorisi seed, canlıda |
 | 8 | Sayfalama (cursor) | Spec §6b.7 istiyor; backend listeleri henüz sayfalamıyor. 30 davetli limiti altında sorun değil, premium'da gerekli |
+| 10 | Kart (card) ucu | `cards` tablosu var, uç yok — brief §5.3 "kart" filtresi bu yüzden bağlanamadı |
 
 ### Düzeltilen bug (2026-11-02)
 
