@@ -53,9 +53,9 @@ Environment: `production`. Yedekler sunucuda `/tmp/dist-backup-*.tgz` (son 5).
 
 | Ölçüm | Değer |
 |---|---|
-| Kotlin satırı | **8910** (önce 1695) |
-| Ekran | **24** composable (önce 4) |
-| Test | **76** (önce 0) |
+| Kotlin satırı | **9504** (önce 1695) |
+| Ekran | **26** enum değeri, hepsi bağlı (önce 4) |
+| Test | **~90** (önce 0) |
 | APK | 18 MB, `mobile-ci` ✅ |
 | CI | testler + APK her push'ta |
 
@@ -67,6 +67,12 @@ kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
 1. `Money.parseToKurus("12.000")` noktayı ondalık sanıyordu → binlik/ondalık ayrımı eklendi
 2. `encodeUrl` Türkçe harfleri kodlamıyordu (`isLetterOrDigit` ş/ğ/ı için true) → ASCII'ye kısıtlandı
 3. DTO testi üretimden farklı `Json` yapılandırması kullanıyordu → üretimle eşitlendi
+
+**Okumayla bulunan 2 işlev boşluğu (testler değil, kod denetimi):**
+1. Davet linkleri **göreli** geliyordu (`/h#token`), WhatsApp'a hostsuz link gidiyordu → `util/Links.kt`
+2. Düzenleme formları **boş açılıyordu** (`existing = null`), kaydetmek kaydı siliyordu → ekranlar kendi verisini yüklüyor
+
+**Negatif kontrol kanıtı:** `Links.absolute`'tan origin kaldırıldığında 4 test kırıldı (run `41494665772`), geri alınınca yeşil (`41495014458`).
 
 ### Eski durum (arşiv)
 
