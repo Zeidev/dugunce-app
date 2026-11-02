@@ -420,7 +420,7 @@ serv00, **24 saat istek gelmezse** Node uygulamasını kapatır ([resmî doküma
 
 **Kurallar:**
 - Toplu ekleme **transaction** içinde; biri hata verirse hiçbiri eklenmez
-- Limit kontrolü **toplu ekleme öncesi** (10 kişi sınırı)
+- Limit kontrolü **toplu ekleme öncesi** (30 kişi sınırı)
 - Telefon numarası normalize edilir (E.164), tekrar eden atlanır
 - Rehber erişimi **isteğe bağlı**, reddedilirse manuel yol çalışır
 
@@ -530,7 +530,7 @@ Değer sırası (§9) onboarding'e yansır — **davetlilerle başlamaz.**
 4. İLK HARCAMA          → "Düğün için ilk harcamanı ekle"
                           ← değer burada kanıtlanır
 5. Bütçe özeti          → taksit tablosu gösterilir, "işte bu"
-6. Davetli ekleme       → 10 kişi limiti BURADA açıkça söylenir
+6. Davetli ekleme       → 30 kişi limiti BURADA açıkça söylenir
 7. Bitir                → ana panel
 ```
 
@@ -771,7 +771,7 @@ Gerekçe: basitlik + gizlilik. Çift iki yardımcıya farklı işler verirse, bi
 | Çift auth | **Magic link (Brevo)** |
 | **Fotoğraf depolama** | **Cloudflare R2, özel bucket, presigned URL** |
 | **Fotoğraf kapsamı** | **Yalnızca görev fotoğrafı** — albüm/galeri yok |
-| Premium kapısı | Davetli (10 kişi) + yardımcı (1) + görev (1) + fotoğraf (50 MB) |
+| Premium kapısı | Davetli (30 kişi) + yardımcı (1) + görev (1) + fotoğraf (50 MB) |
 | Veritabanı | PostgreSQL (serv00'da doğrulandı) |
 | Backend dili | Node.js + Express + TypeScript |
 
@@ -788,7 +788,7 @@ Gerekçe: basitlik + gizlilik. Çift iki yardımcıya farklı işler verirse, bi
 ### Kullanıcı onaylı son kararlar (2026-11-01, geç oturum)
 | Konu | Karar |
 |---|---|
-| Ücretsiz davetli limiti | **10 kişi** |
+| Ücretsiz davetli limiti | ~~10 kişi~~ → **30 kişi** (2026-11-02'de güncellendi) |
 | Yardımcı ekleme | **1 ücretsiz (tadımlık), 5 premium** |
 | Görev | **1 ücretsiz, sınırsız premium** |
 
@@ -798,6 +798,7 @@ Gerekçe: basitlik + gizlilik. Çift iki yardımcıya farklı işler verirse, bi
 | Platform kapsamı | **Android + iOS** (brief ile uyumlu) |
 | Senkron modeli | **Server-first + offline-aware** |
 | **Yardımcı erişimi** | **Uygulama YOK, hesap YOK — sadece WhatsApp'tan gelen token'lı web link** |
+| **Ücretsiz davetli limiti** | **30 kişi** (2026-11-01'deki 10 kişi kararı **geçersiz**) — Aşama 4 başında kullanıcı talebi |
 | Yardımcı görünürlüğü | Yalnızca kendi görevleri (v1) |
 | **2. eş daveti** | **Davet kodu** (yardımcıyla aynı mekanizma, CO_OWNER rolü) |
 | **v1 kapsamı** | **Üç özellik birden** (harcama + davetli + görev/fotoğraf) **+ admin paneli** |
@@ -822,7 +823,7 @@ Gerekçe: basitlik + gizlilik. Çift iki yardımcıya farklı işler verirse, bi
 
 | | Ücretsiz | Premium |
 |---|---|---|
-| Davetli | **10 kişi** | Sınırsız |
+| Davetli | **30 kişi** | Sınırsız |
 | **Yardımcı (işbirlikçi)** | **1 (tadımlık)** | 5 |
 | **Görev** | **1 görev** (o yardımcıya) | Sınırsız |
 | Görev sohbeti | ✓ (1 görevde) | ✓ (tüm görevlerde) |
@@ -838,7 +839,7 @@ Gerekçe: basitlik + gizlilik. Çift iki yardımcıya farklı işler verirse, bi
 
 ### Satın alma akışı (builder check sonrası eklendi, 2026-11-02)
 
-`wedding.plan` alanı ve tüm kapılar (10 davetli / 1 yardımcı / 1 görev / 50 MB) satın almaya bağlı — ama akış tanımsızdı. **Karar: v1'de var.**
+`wedding.plan` alanı ve tüm kapılar (30 davetli / 1 yardımcı / 1 görev / 50 MB) satın almaya bağlı — ama akış tanımsızdı. **Karar: v1'de var.**
 
 ```
 1. Çift "Premium'a geç" → mağaza satın alma akışı (Play Billing / StoreKit 2)
@@ -871,7 +872,7 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 |---|---|---|
 | 1 | Harcamalar | Sınırsız ← değer burada kanıtlanır |
 | 2 | Görevler | 1 görev + 1 yardımcı ← tadımlık |
-| 3 | Davetliler | 10 kişi ← duvar burada |
+| 3 | Davetliler | 30 kişi ← duvar burada |
 | 4 | Yardımcı ekleme | 2. yardımcı ve 2. görev premium ← duvar burada |
 
 Çift önce harcamalarını girer, taksit tablosunu görür, "bu işimi görüyor" der. Sonra davetli eklemeye geçer, duvara çarpar. O anda **zaten ikna olmuş** durumda.
@@ -881,10 +882,12 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 **Onboarding bu sırayı takip eder** — davetlilerle değil, harcamalarla başlar.
 
 ### Şeffaflık şartı
-10 kişi limiti ve yardımcının premium olduğu **mağaza sayfasında ve onboarding'de açıkça** yazılır. Gizlenirse tuzak hissi olur; açık yazılırsa normal iş modeli olur.
+30 kişi limiti ve yardımcının premium olduğu **mağaza sayfasında ve onboarding'de açıkça** yazılır. Gizlenirse tuzak hissi olur; açık yazılırsa normal iş modeli olur.
 
 ### Büyüme telafisi
-10 davetli = 10 reklam (100 olsaydı 100 reklam). Telafi: davetiye sayfasının altına "Düğünce ile düğününü planla" bağlantısı. Asıl büyüme oradan gelir, davetli sayısından değil.
+30 davetli = 30 reklam (100 olsaydı 100 reklam). Telafi: davetiye sayfasının altına "Düğünce ile düğününü planla" bağlantısı. Asıl büyüme oradan gelir, davetli sayısından değil.
+
+**30'a çıkarmanın bedeli (dürüst not):** Bu argüman 10 üzerine kuruluydu ve 10'da daha güçlüydü — ücretsiz kullanıcı başına 10 davetiye sayfası reklam üretiyordu, 30'da 30 üretiyor (aslında daha fazla). Asıl zayıflama reklamda değil, **duvarın zamanında**: 30 davetli tipik bir Türk düğününün (150-400 kişi) ancak %10'u. Kullanıcı duvara daha geç çarpar, yani daha geç karar verir. Karşılığında: 10 limiti "uygulama bozuk mu" hissi yaratıyordu, 30 gerçek bir listeyi kısmen kurmaya yetiyor ve ürünün çalıştığını kanıtlıyor.
 
 ---
 
@@ -929,7 +932,7 @@ Duvarın **yeri** değil, **zamanı** önemli. Değer duvardan önce gelmeli:
 
 | # | Konu | Durum |
 |---|---|---|
-| 1 | ~~50 hane limiti~~ | ✅ **KAPANDI** — 10 kişi (kayıt başına) |
+| 1 | ~~50 hane limiti~~ | ✅ **KAPANDI** — 30 kişi (kayıt başına) |
 | 2 | Premium fiyat 149 TL doğru mu? | Öneri |
 | 3 | RSVP senkron sıklığı | Öneri: 5 dk |
 | 4 | Vergi mükellefiyeti (TR) | Doğrulanmalı |

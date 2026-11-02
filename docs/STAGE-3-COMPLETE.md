@@ -142,7 +142,7 @@ Bunu **negatif kontrol** ortaya çıkardı: `findInstallment`'tan üyelik join'i
 
 Davetli modeli, davetiye token'ları, public RSVP sayfası, idempotency.
 
-**Aşama 2.5 — Satın alma** ertelendi: limitler (10 davetli / 1 yardımcı / 1 görev) Aşama 4-5'te anlam kazanacak. Şimdi satın alma eklemek, kapısı olmayan bir kilit olurdu.
+**Aşama 2.5 — Satın alma** ertelendi: limitler (30 davetli / 1 yardımcı / 1 görev) Aşama 4-5'te anlam kazanacak. Şimdi satın alma eklemek, kapısı olmayan bir kilit olurdu.
 
 ---
 
