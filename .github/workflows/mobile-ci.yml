@@ -1,5 +1,13 @@
 name: mobile-ci
 
+# Yalnızca Android. iOS ayrı workflow'da (mobile-ios.yml) — gerekçe aşağıda.
+#
+# Neden ayrıldı: macOS runner'ları GitHub'da kapasite kısıtlı ve kuyrukta
+# 15 dakika bekleyip düşebiliyor ("not acquired by Runner of type hosted").
+# Bu, kodu hiç çalıştırmadan kırmızı bir job üretiyordu ve gerçek Android
+# hatasını gürültü içinde gizliyordu. Android 40 saniyede geri bildirim
+# veriyor; iOS ise yalnızca Kotlin/Native kod değiştiğinde anlamlı.
+
 on:
   push:
     paths:
@@ -11,11 +19,10 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: mobile-${{ github.ref }}
+  group: mobile-android-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Android derlemesi — Linux runner (ücretsiz)
   android:
     name: Android build
     runs-on: ubuntu-latest
@@ -25,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -48,46 +55,4 @@ jobs:
         with:
           name: dugunce-debug-apk
           path: mobile/composeApp/build/outputs/apk/debug/*.apk
-          retention-days: 14
-
-  # iOS derlemesi — macOS runner (ücretsiz 2000 dk/ay)
-  ios:
-    name: iOS framework build
-    runs-on: macos-latest
-    timeout-minutes: 40
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Xcode sürümü
-        run: xcodebuild -version
-
-      - name: Gradle cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            ~/.konan
-          key: gradle-ios-${{ hashFiles('mobile/**/*.gradle.kts', 'mobile/gradle/libs.versions.toml') }}
-          restore-keys: gradle-ios-
-
-      # iOS derlemesi: KMP framework'ü üret.
-      # NOT: İmzalama sertifikası olmadan .ipa üretilemez; bu adım
-      # yalnızca Kotlin/Native kodunun iOS için DERLENDİĞİNİ doğrular.
-      - name: Build iOS framework
-        working-directory: mobile
-        run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64 --no-daemon --stacktrace
-
-      - name: Framework artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dugunce-ios-framework
-          path: mobile/composeApp/build/bin/iosSimulatorArm64/debugFramework/
           retention-days: 14
