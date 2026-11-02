@@ -209,6 +209,32 @@ describe('mesajlaşma — yardımcı tarafı', () => {
     expect(res.body.messages.length).toBeGreaterThan(0)
   })
 
+  it('mesaj yanıtı wedding_id / task_id / sender_id SIZDIRMAZ', async () => {
+    const res = await request(app).get(`/api/v1/helper/${tokenA}/tasks/${taskA}/messages`)
+    const text = JSON.stringify(res.body)
+
+    expect(text).not.toContain(weddingId)
+    expect(text).not.toContain(taskA)
+    expect(text).not.toContain(userId)
+    expect(text).not.toContain(helperA)
+
+    // Beklenen alanlar var
+    const m = res.body.messages[0]
+    expect(Object.keys(m).sort()).toEqual(['body', 'createdAt', 'id', 'senderKind'])
+  })
+
+  it('gönderilen mesaj yanıtı da sızdırmaz', async () => {
+    const res = await request(app)
+      .post(`/api/v1/helper/${tokenA}/tasks/${taskA}/messages`)
+      .send({ body: 'sızıntı testi' })
+    const text = JSON.stringify(res.body)
+    expect(text).not.toContain(weddingId)
+    expect(text).not.toContain(taskA)
+    expect(Object.keys(res.body.message).sort()).toEqual([
+      'body', 'createdAt', 'id', 'senderKind',
+    ])
+  })
+
   it('başkasının görevinin mesajlarını GÖREMEZ', async () => {
     const res = await request(app).get(`/api/v1/helper/${tokenA}/tasks/${taskB}/messages`)
     expect(res.status).toBe(200)

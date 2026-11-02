@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { AppError } from '../lib/errors.js'
 import { resolveHelperToken } from '../helpers/token.js'
 import { toHelperTaskList } from '../tasks/helper-view.js'
+import { toHelperMessageList, toHelperMessageView } from '../messages/helper-view.js'
 import {
   sendMessage,
   listMessages,
@@ -168,7 +169,7 @@ export function createHelperAppRouter(deps?: {
           },
           msgStore,
         )
-        res.json({ messages })
+        res.json({ messages: toHelperMessageList(messages) })
       } catch (err) {
         next(toHttpError(err))
       }
@@ -200,7 +201,7 @@ export function createHelperAppRouter(deps?: {
           next(AppError.notFound('Görev bulunamadı'))
           return
         }
-        res.status(201).json({ message })
+        res.status(201).json({ message: toHelperMessageView(message) })
       } catch (err) {
         next(toHttpError(err))
       }
