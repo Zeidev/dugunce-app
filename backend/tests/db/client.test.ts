@@ -1,7 +1,7 @@
 import { describe, it, expect, afterAll } from 'vitest'
 import { getSql, pingDb, closeDb } from '../../src/db/client.js'
 
-const hasDb = Boolean(process.env['DATABASE_URL'])
+const hasDb = process.env['__DUGUNCE_TEST_DB_AVAILABLE__'] === 'true'
 
 describe.skipIf(!hasDb)('db client', () => {
   afterAll(async () => {

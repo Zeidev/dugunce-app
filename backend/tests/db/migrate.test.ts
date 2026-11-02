@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { runMigrations, assertSafeTarget } from '../../scripts/migrate.js'
 import { getSql, closeDb } from '../../src/db/client.js'
 
-const hasDb = Boolean(process.env['DATABASE_URL'])
+const hasDb = process.env['__DUGUNCE_TEST_DB_AVAILABLE__'] === 'true'
 
 describe('assertSafeTarget — ortam koruması', () => {
   it('test ortamında serbest', () => {

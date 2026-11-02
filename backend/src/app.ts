@@ -1,6 +1,13 @@
 import express, { type Express } from 'express'
 import { healthRouter } from './routes/health.js'
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js'
+import { createRequireAuth } from './middleware/require-auth.js'
+import { createRequireWeddingMember } from './middleware/require-member.js'
+import { createAuthRouter } from './routes/auth.js'
+import { createWeddingsRouter } from './routes/weddings.js'
+import { createInvitesRouter } from './routes/invites.js'
+import { drizzleAuthDeps, drizzleMembershipDeps } from './auth/auth-store.js'
+import { loadEnv } from './config/env.js'
 
 /**
  * Express uygulamasını oluşturur.
@@ -21,7 +28,19 @@ export function createApp(): Express {
   // Sağlık kontrolü — en üstte, hiçbir middleware'e takılmasın
   app.use(healthRouter)
 
-  // --- API route'ları buraya eklenecek (Aşama 2+) ---
+  // --- Auth middleware'leri ---
+  const env = loadEnv()
+  const requireAuth = createRequireAuth(drizzleAuthDeps(env.JWT_SECRET))
+  const requireMember = createRequireWeddingMember(drizzleMembershipDeps())
+
+  // --- API route'ları ---
+  app.use('/api/v1/auth', createAuthRouter({ requireAuth }))
+  app.use('/api/v1/weddings', createWeddingsRouter({ requireAuth, requireMember }))
+
+  // Davet kodları iki yerde: düğün altında üretim, kökte kabul
+  const invites = createInvitesRouter({ requireAuth, requireMember })
+  app.use('/api/v1/weddings/:weddingId/invites', invites.weddingInvites)
+  app.use('/api/v1/invites', invites.publicInvites)
 
   // 404 ve hata yönetimi en sonda
   app.use(notFoundHandler)
