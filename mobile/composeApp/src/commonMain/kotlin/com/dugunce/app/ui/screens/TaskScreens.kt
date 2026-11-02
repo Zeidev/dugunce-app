@@ -90,10 +90,11 @@ fun TaskListScreen(
     var filterStatus by remember { mutableStateOf<String?>(null) }
     var filterHelper by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(weddingId, reloadKey) {
+    // spec §6b.7: durum ve sorumlu filtresi SUNUCUDA uygulanır.
+    LaunchedEffect(weddingId, filterStatus, filterHelper, reloadKey) {
         loading = true
         error = null
-        val t = repository.listTasks(weddingId)
+        val t = repository.listTasks(weddingId, status = filterStatus, assigneeHelperId = filterHelper)
         val h = repository.listHelpers(weddingId)
         if (t.isFailure) {
             error = t.exceptionOrNull()?.message ?: "Görevler yüklenemedi"
@@ -105,10 +106,7 @@ fun TaskListScreen(
         loading = false
     }
 
-    val filtered = tasks.filter { t ->
-        (filterStatus == null || t.status == filterStatus) &&
-            (filterHelper == null || t.assigneeHelperId == filterHelper)
-    }
+    val filtered = tasks
     val helperName = { id: String? -> helpers.find { it.id == id }?.displayName }
 
     Box(Modifier.fillMaxSize().background(c.cream)) {

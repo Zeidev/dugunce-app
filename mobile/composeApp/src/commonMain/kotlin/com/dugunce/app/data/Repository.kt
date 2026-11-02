@@ -164,10 +164,7 @@ class Repository(
         side: String? = null,
         rsvp: String? = null,
     ): Result<List<GuestDto>> = safeCall {
-        val query = buildString {
-            if (side != null) append("?side=$side")
-            if (rsvp != null) append(if (side != null) "&rsvp=$rsvp" else "?rsvp=$rsvp")
-        }
+        val query = queryString("side" to side, "rsvp" to rsvp)
         val res = api.http.get("weddings/$weddingId/guests$query")
         ensureSuccess(res)
         res.body<GuestListResponse>().guests
@@ -249,13 +246,7 @@ class Repository(
         status: String? = null,
         assigneeHelperId: String? = null,
     ): Result<List<TaskDto>> = safeCall {
-        val query = buildString {
-            if (status != null) append("?status=$status")
-            if (assigneeHelperId != null) {
-                append(if (status != null) "&" else "?")
-                append("assigneeHelperId=$assigneeHelperId")
-            }
-        }
+        val query = queryString("status" to status, "assigneeHelperId" to assigneeHelperId)
         val res = api.http.get("weddings/$weddingId/tasks$query")
         ensureSuccess(res)
         res.body<TaskListResponse>().tasks
@@ -382,6 +373,36 @@ class Repository(
     // -----------------------------------------------------------------------
 
     /**
+     * Query string kurar — null değerler atlanır.
+     *
+     * `null` dönerse parametre yok. Değerler URL-encode edilir; `&`/`?`
+     * mantığını her çağrıda elle yazmak hata kaynağıydı.
+     */
+    internal fun queryString(vararg params: Pair<String, String?>): String {
+        val parts = params.mapNotNull { (k, v) ->
+            if (v == null) null else "$k=${urlEncode(v)}"
+        }
+        return if (parts.isEmpty()) "" else "?" + parts.joinToString("&")
+    }
+
+    /** Yalnızca ASCII güvenli karakterler bırakır. */
+    internal fun urlEncode(value: String): String {
+        val sb = StringBuilder()
+        for (ch in value) {
+            if ((ch in 'a'..'z') || (ch in 'A'..'Z') || (ch in '0'..'9') || ch in "-_.~") {
+                sb.append(ch)
+            } else {
+                for (b in ch.toString().encodeToByteArray()) {
+                    sb.append('%')
+                    sb.append(HEX_CHARS[(b.toInt() shr 4) and 0xF])
+                    sb.append(HEX_CHARS[b.toInt() and 0xF])
+                }
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
      * Başarısız yanıtı `ApiException`'a çevirir.
      *
      * 401 görülürse bir kez token yenilenir ve istek tekrarlanır; bu da
@@ -421,6 +442,10 @@ class Repository(
                 message = "Beklenmeyen bir hata oluştu ($status)",
             )
         }
+    }
+
+    private companion object {
+        const val HEX_CHARS = "0123456789ABCDEF"
     }
 
     private suspend fun <T> safeCall(block: suspend () -> T): Result<T> = try {

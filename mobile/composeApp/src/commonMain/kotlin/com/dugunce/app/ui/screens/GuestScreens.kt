@@ -85,10 +85,13 @@ fun GuestListScreen(
     var filterSide by remember { mutableStateOf<String?>(null) }
     var filterRsvp by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(weddingId, reloadKey) {
+    // spec §6b.7: taraf ve RSVP filtresi SUNUCUDA uygulanır — istemci tüm
+    // listeyi çekip elemez. (Arama metni için backend'de parametre yok;
+    // yüklü sayfa içinde istemcide süzülür.)
+    LaunchedEffect(weddingId, filterSide, filterRsvp, reloadKey) {
         loading = true
         error = null
-        val g = repository.listGuests(weddingId)
+        val g = repository.listGuests(weddingId, side = filterSide, rsvp = filterRsvp)
         val u = repository.guestUsage(weddingId)
         if (g.isFailure) {
             error = g.exceptionOrNull()?.message ?: "Davetliler yüklenemedi"
@@ -101,11 +104,8 @@ fun GuestListScreen(
     }
 
     val filtered = guests.filter { g ->
-        val matchQuery = query.isBlank() || g.name.contains(query, ignoreCase = true) ||
+        query.isBlank() || g.name.contains(query, ignoreCase = true) ||
             (g.phone?.contains(query) == true)
-        val matchSide = filterSide == null || g.side == filterSide
-        val matchRsvp = filterRsvp == null || g.rsvp == filterRsvp
-        matchQuery && matchSide && matchRsvp
     }
 
     Box(Modifier.fillMaxSize().background(c.cream)) {
