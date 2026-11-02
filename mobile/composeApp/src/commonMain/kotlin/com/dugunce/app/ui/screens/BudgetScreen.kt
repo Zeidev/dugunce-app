@@ -79,6 +79,8 @@ fun BudgetScreen(
     var expenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
     var reloadKey by remember { mutableStateOf(0) }
     var filterSide by remember { mutableStateOf<String?>(null) }
+    var filterCard by remember { mutableStateOf<String?>(null) }
+    var cards by remember { mutableStateOf<List<com.dugunce.app.data.CardDto>>(emptyList()) }
     var offline by remember { mutableStateOf(false) }
 
     LaunchedEffect(weddingId, reloadKey) {
@@ -105,9 +107,13 @@ fun BudgetScreen(
         expenses = e.getOrNull() ?: emptyList()
         offline = false
         loading = false
+        repository.listCards(weddingId).onSuccess { cards = it }
     }
 
-    val filtered = if (filterSide == null) expenses else expenses.filter { it.paidBySide == filterSide }
+    val filtered = expenses.filter { e ->
+        (filterSide == null || e.paidBySide == filterSide) &&
+            (filterCard == null || e.cardId == filterCard)
+    }
 
     Box(Modifier.fillMaxSize().background(c.cream)) {
         when {
@@ -171,6 +177,19 @@ fun BudgetScreen(
                         item { FilterPill("Gelin", filterSide == "BRIDE") { filterSide = "BRIDE" } }
                         item { FilterPill("Damat", filterSide == "GROOM") { filterSide = "GROOM" } }
                         item { FilterPill("Ortak", filterSide == "SHARED") { filterSide = "SHARED" } }
+                    }
+                }
+
+                // Kart filtresi (spec §6b.7) — yalnızca kart varsa
+                if (cards.isNotEmpty()) {
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            item { FilterPill("Tüm kartlar", filterCard == null) { filterCard = null } }
+                            items(cards.size) { idx ->
+                                val card = cards[idx]
+                                FilterPill(card.label, filterCard == card.id) { filterCard = card.id }
+                            }
+                        }
                     }
                 }
 

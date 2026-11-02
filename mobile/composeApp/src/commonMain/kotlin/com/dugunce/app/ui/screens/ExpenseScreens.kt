@@ -84,12 +84,19 @@ fun ExpenseFormScreen(
     var categoryId by remember { mutableStateOf<String?>(null) }
     var showNewCategory by remember { mutableStateOf(false) }
     var newCategoryName by remember { mutableStateOf("") }
+    var cards by remember { mutableStateOf<List<com.dugunce.app.data.CardDto>>(emptyList()) }
+    var cardId by remember { mutableStateOf<String?>(null) }
 
     val scope = rememberCoroutineScope()
 
     // Kategoriler (brief §5.3) — sistem + düğüne özel
     LaunchedEffect(weddingId) {
         repository.listCategories(weddingId).onSuccess { categories = it }
+    }
+
+    // Kartlar — yalnızca taksitli harcamada anlamlı
+    LaunchedEffect(weddingId) {
+        repository.listCards(weddingId).onSuccess { cards = it }
     }
 
     LaunchedEffect(expenseId) {
@@ -327,6 +334,24 @@ fun ExpenseFormScreen(
                 }
             }
 
+            if (cards.isNotEmpty() && installmentCount > 1) {
+                item {
+                    FieldLabel("Hangi karttan?")
+                    androidx.compose.foundation.lazy.LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        item {
+                            CategoryPill("Kart yok", cardId == null) { cardId = null }
+                        }
+                        items(cards.size) { idx ->
+                            val card = cards[idx]
+                            val suffix = card.lastFour?.let { " ****$it" } ?: ""
+                            CategoryPill(card.label + suffix, cardId == card.id) { cardId = card.id }
+                        }
+                    }
+                }
+            }
+
             item {
                 DugunceTextField(
                     value = description,
@@ -364,6 +389,7 @@ fun ExpenseFormScreen(
                                 purchaseDate = isoDate!!,
                                 description = description.trim().ifBlank { null },
                                 categoryId = categoryId,
+                                cardId = if (installmentCount > 1) cardId else null,
                                 paidBySide = side,
                                 paymentMethod = method,
                                 paymentStatus = status,
