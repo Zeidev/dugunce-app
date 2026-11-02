@@ -32,6 +32,7 @@ import com.dugunce.app.ui.nav.MainTabs
 import com.dugunce.app.ui.nav.Screen
 import com.dugunce.app.ui.nav.isTab
 import com.dugunce.app.ui.screens.BudgetScreen
+import com.dugunce.app.ui.screens.CardListScreen
 import com.dugunce.app.ui.screens.BudgetIntroScreen
 import com.dugunce.app.ui.screens.BulkGuestScreen
 import com.dugunce.app.ui.screens.AcceptInviteScreen
@@ -325,6 +326,7 @@ fun App(
                                 },
                                 onLoggedOut = { state.resetTo(Screen.WELCOME) },
                                 onInviteCoOwner = { state.go(Screen.CO_OWNER_INVITE) },
+                                onOpenCards = { state.go(Screen.CARD_LIST) },
                             )
                         } ?: Unit
 
@@ -449,6 +451,14 @@ fun App(
 
                         Screen.CO_OWNER_INVITE -> wedding?.let { w ->
                             CoOwnerInviteScreen(
+                                repository = repository,
+                                weddingId = w.id,
+                                onBack = { state.back() },
+                            )
+                        } ?: Unit
+
+                        Screen.CARD_LIST -> wedding?.let { w ->
+                            CardListScreen(
                                 repository = repository,
                                 weddingId = w.id,
                                 onBack = { state.back() },

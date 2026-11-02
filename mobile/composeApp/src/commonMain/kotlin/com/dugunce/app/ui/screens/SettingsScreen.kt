@@ -67,6 +67,7 @@ fun SettingsScreen(
     onThemeChange: (ThemeMode) -> Unit,
     onLoggedOut: () -> Unit,
     onInviteCoOwner: () -> Unit = {},
+    onOpenCards: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var editing by remember { mutableStateOf(false) }

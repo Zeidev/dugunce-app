@@ -207,6 +207,36 @@ data class CategoryResponse(val category: CategoryDto)
 @Serializable
 data class CategoryCreateRequest(val name: String, val icon: String? = null)
 
+// --- Kart (spec §6b.5) ---
+//
+// GÜVENLİK: Tam kart numarası, CVV, son kullanma tarihi GÖNDERİLMEZ.
+// Yalnızca etiket + son 4 hane. Backend bu alanları reddeder.
+
+@Serializable
+data class CardDto(
+    val id: String,
+    val weddingId: String? = null,
+    val label: String,
+    val bankName: String? = null,
+    val lastFour: String? = null,
+    val statementDay: Int? = null,
+    val isActive: Boolean = true,
+)
+
+@Serializable
+data class CardListResponse(val cards: List<CardDto>)
+
+@Serializable
+data class CardResponse(val card: CardDto)
+
+@Serializable
+data class CardCreateRequest(
+    val label: String,
+    val bankName: String? = null,
+    val lastFour: String? = null,
+    val statementDay: Int? = null,
+)
+
 @Serializable
 data class InstallmentResponse(val installment: InstallmentDto)
 

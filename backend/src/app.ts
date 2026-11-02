@@ -20,6 +20,7 @@ import { createHelperAppRouter } from './routes/helper-app.js'
 import { drizzleAuthDeps, drizzleMembershipDeps } from './auth/auth-store.js'
 import { loadEnv } from './config/env.js'
 import { createCategoriesRouter } from './routes/categories.js'
+import { createCardsRouter } from './routes/cards.js'
 
 /**
  * Express uygulamasını oluşturur.
@@ -49,6 +50,7 @@ export interface CreateAppOptions {
   /** Testlerde IP bazlı sınırları kapatmak için. */
   helperRateLimit?: boolean
   categoryStore?: ReturnType<typeof import('./expenses/categories.js').drizzleCategoryDeps>
+  cardStore?: ReturnType<typeof import('./expenses/cards.js').drizzleCardDeps>
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -88,6 +90,14 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use('/api/v1/weddings/:weddingId/expenses', createExpensesRouter({ requireAuth, requireMember }))
   app.use('/api/v1/weddings/:weddingId/budget-summary', createBudgetSummaryRouter({ requireAuth, requireMember }))
   app.use('/api/v1/weddings/:weddingId/installments', createInstallmentsRouter({ requireAuth, requireMember }))
+  app.use(
+    '/api/v1/weddings/:weddingId/cards',
+    createCardsRouter({
+      requireAuth,
+      requireMember,
+      ...(options.cardStore ? { store: options.cardStore } : {}),
+    }),
+  )
   app.use(
     '/api/v1/weddings/:weddingId/categories',
     createCategoriesRouter({

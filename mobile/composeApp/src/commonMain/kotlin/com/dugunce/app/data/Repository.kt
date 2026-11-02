@@ -153,6 +153,25 @@ class Repository(
         res.body<CategoryResponse>().category
     }
 
+    // --- Kart (spec §6b.5) ---
+
+    suspend fun listCards(weddingId: String): Result<List<CardDto>> = safeCall {
+        val res = api.http.get("weddings/$weddingId/cards")
+        ensureSuccess(res)
+        res.body<CardListResponse>().cards
+    }
+
+    suspend fun createCard(weddingId: String, body: CardCreateRequest): Result<CardDto> = safeCall {
+        val res = api.http.post("weddings/$weddingId/cards") { setBody(body) }
+        ensureSuccess(res)
+        res.body<CardResponse>().card
+    }
+
+    suspend fun deleteCard(weddingId: String, cardId: String): Result<Unit> = safeCall {
+        val res = api.http.delete("weddings/$weddingId/cards/$cardId")
+        ensureSuccess(res)
+    }
+
     suspend fun listExpenses(weddingId: String): Result<List<ExpenseDto>> = safeCall {
         val res = api.http.get("weddings/$weddingId/expenses")
         ensureSuccess(res)

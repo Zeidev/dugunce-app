@@ -53,6 +53,9 @@ enum class Screen {
     // Davet kodları (2. eş)
     CO_OWNER_INVITE,
     ACCEPT_INVITE,
+
+    // Kart yönetimi (spec §6b.5)
+    CARD_LIST,
 }
 
 /** Alt sekme tanımı. */
