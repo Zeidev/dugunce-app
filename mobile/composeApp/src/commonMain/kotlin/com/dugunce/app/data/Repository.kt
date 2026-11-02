@@ -204,7 +204,7 @@ class Repository(
 
     // --- Yardımcı ---
 
-    private fun ensureSuccess(res: HttpResponse) {
+    private suspend fun ensureSuccess(res: HttpResponse) {
         if (res.status.isSuccess()) return
         throw res.toApiException()
     }

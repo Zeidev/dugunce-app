@@ -12,7 +12,18 @@ import { resolve } from 'node:path'
  * değer mi olduğunu ayırt etmek için ayrı bir işaret kullanılır.
  */
 
-const PLACEHOLDER_DB = 'postgres://test:test@localhost:5432/dugunce_test'
+/**
+ * Yer tutucu bağlantı — GERÇEK bir DB'ye işaret ETMEZ.
+ *
+ * DİKKAT: Bu string CI'daki `DATABASE_URL` ile AYNI OLMAMALI.
+ * Önceden ikisi de `postgres://test:test@localhost:5432/dugunce_test`
+ * idi; sonuç: CI'da gerçek PostgreSQL varken bile "DB yok" sayılıyor,
+ * DB testleri sessizce atlanıyordu (ve bir test gerçek bağlantı
+ * denediğinde kırılıyordu).
+ *
+ * Artık ayırt edilebilir bir yer tutucu kullanılıyor.
+ */
+const PLACEHOLDER_DB = 'postgres://placeholder:placeholder@127.0.0.1:1/none'
 const FLAG = '__DUGUNCE_TEST_DB_AVAILABLE__'
 
 const envTestPath = resolve(process.cwd(), '.env.test')
