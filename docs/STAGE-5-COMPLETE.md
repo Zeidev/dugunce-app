@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-11-02
 **Plan:** `docs/superpowers/plans/2026-11-02-stage-5-tasks.md`
-**Durum:** ✅ Tamamlandı (10/10 uygulama görevi + kapanış) — canlı uçtan uca manuel akış hariç, aşağıda.
+**Durum:** ✅ Uygulama tamamlandı (10/10 görev + kapanış) — **ancak SECURITY §1.2'nin 2 kuralı karşılanmıyor** (aşağıda) ve canlı uçtan uca manuel akış yapılmadı.
 
 ---
 
@@ -141,10 +141,35 @@ Her biri "korumayı kaldır → test kırılmalı" ile doğrulandı.
 
 ---
 
+## ⚠️ SECURITY §1.2 — karşılanmayan 2 kural
+
+`docs/SECURITY.md` §1.2 (Yardımcı WhatsApp bağlantısı) bağlayıcı. Uygulama bunun 4/6 kuralını karşılıyor; ikisini **karşılamıyor** ve plan bunu bilinçli olarak ertelemedi — sessiz boşluk:
+
+| # | Kural | Durum |
+|---|---|---|
+| 1 | Yardımcıya ayrı, ≥128 bit token | ✅ 256 bit, base64url 43 karakter |
+| 2 | DB'de ham token değil hash | ✅ yalnız SHA-256 |
+| 3 | **Kabul, süre sonu, yenileme, iptal akışları tanımlı** | ⚠️ **KISMİ** — iptal (`token_revoked_at`) var; **süre sonu (TTL) ve yenileme yok**. `helpers` tablosunda `expires_at` kolonu yok |
+| 4 | **Token doğrulandıktan sonra kısa ömürlü, iptal edilebilir oturum** | ❌ **YOK** — oturum katmanı hiç yok. Token her istekte URL'de taşınıyor (`GET /api/v1/helper/:token/tasks`) |
+| 5 | Yalnızca atanmış görevler + o görevlerin mesajları | ✅ her sorguda `assignee_helper_id` |
+| 6 | Atama kaldırılınca erişim anında kesilsin | ✅ `assignee_helper_id` her istekte okunuyor, ayrı önbellek yok |
+
+**Neden önemli:** Token URL'de olduğu için paylaşılan ekran, tarayıcı geçmişi, proxy logu veya `Referer` ile sızabilir. Mevcut azaltımlar: `Referrer-Policy: no-referrer`, `Cache-Control: no-store`, `X-Robots-Tag: noindex`, CORS kısıtı, IP bazlı rate limit — ama bunlar oturumun yerini tutmaz.
+
+**Kural 4'ün uygulanması tasarım kararı ister:** `POST /api/v1/helper/:token/session` → kısa ömürlü (ör. 30 dk) `HttpOnly; Secure; SameSite=Strict` cookie, sunucu tarafında iptal edilebilir oturum kaydı, her istekte token yerine cookie. Yardımcı yüzeyi tarayıcı olduğu için CSRF koruması da gerekir (SameSite + double-submit). Bu, Aşama 5 kapsamında değildi ve eklenmedi.
+
+**Kural 3'ün uygulanması:** `helpers.expires_at` (ör. 90 gün) + yenileme ucu; süresi dolan token 404.
+
+Aşama 8 (yayın öncesi güvenlik denetimi) bu iki maddeyi **kapatmadan yayına çıkılmamalı** — SECURITY §8 testleri #3 ve #7 doğrudan bunlara bakıyor.
+
+---
+
 ## ⏳ Bekleyen (Aşama 5 dışı)
 
 | Konu | Neden bekliyor |
 |---|---|
+| **SECURITY §1.2 #4 — kısa ömürlü oturum** | Tasarım kararı + CSRF; Aşama 8'de kapatılmalı |
+| **SECURITY §1.2 #3 — token süresi/yenileme** | `helpers.expires_at` + yenileme ucu |
 | **Canlı uçtan uca yardımcı akışı** — gerçek yardımcı oluştur, `/h#token` aç, görev ata, mesajlaş, yeniden ata | Çift hesabı (magic-link e-posta) gerekiyor; otomatik oturum yok. Plan Task 11 Step 2 bu yüzden **açık** bırakıldı |
 | WhatsApp'tan görev linki gönderimi | Brevo/WhatsApp şablonları — Aşama 6 sonrası |
 | Mobil uygulamada görev ekranı | KMP iskeleti var (`mobile/`), gerçek API entegrasyonu Aşama 6.5 |
