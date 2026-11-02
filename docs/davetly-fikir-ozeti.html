@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Davetly — Uygulama Fikri Özeti</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f4f2ee;
+    color: #1c1a17;
+    line-height: 1.65;
+    padding: 2.5rem 1.25rem 5rem;
+  }
+  .page { max-width: 780px; margin: 0 auto; }
+
+  .cover {
+    background: linear-gradient(155deg, #2d3a2e 0%, #43543e 50%, #6d7d61 100%);
+    color: #fff;
+    border-radius: 20px;
+    padding: 3rem 2.5rem;
+    margin-bottom: 2.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 82% 12%, rgba(255,255,255,.16), transparent 55%);
+  }
+  .cover > * { position: relative; z-index: 1; }
+  .eyebrow {
+    font-size: .68rem; letter-spacing: .24em; text-transform: uppercase;
+    opacity: .75; margin-bottom: 1rem;
+  }
+  .cover h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 2.6rem; font-weight: 400; letter-spacing: .01em; line-height: 1.15;
+  }
+  .cover .tagline { color: #fff; font-size: 1.02rem; opacity: .94; margin-top: .9rem; max-width: 30rem; }
+  .cover .meta {
+    margin-top: 2rem; padding-top: 1.25rem;
+    border-top: 1px solid rgba(255,255,255,.22);
+    font-size: .78rem; opacity: .8;
+    display: flex; flex-wrap: wrap; gap: 1.5rem;
+  }
+
+  section { margin-bottom: 2.25rem; }
+  h2 {
+    font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+    color: #6d7d61; font-weight: 700; margin-bottom: 1rem;
+    padding-bottom: .55rem; border-bottom: 1px solid #ddd8cf;
+  }
+  h3 { font-size: 1.02rem; margin-bottom: .35rem; font-weight: 650; }
+  p { margin-bottom: .8rem; color: #33302b; }
+  p:last-child { margin-bottom: 0; }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 1.35rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(28,26,23,.06);
+    margin-bottom: .85rem;
+  }
+  .card:last-child { margin-bottom: 0; }
+  .card .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.55rem; height: 1.55rem; border-radius: 7px;
+    background: #eef1ea; color: #43543e;
+    font-size: .78rem; font-weight: 700; margin-right: .6rem;
+    vertical-align: .12em;
+  }
+  .card .why {
+    font-size: .85rem; color: #7a746a; margin-top: .5rem;
+    padding-top: .5rem; border-top: 1px dashed #e8e3da;
+  }
+
+  .quote {
+    border-left: 3px solid #a8925f;
+    padding: .1rem 0 .1rem 1.1rem;
+    font-family: Georgia, serif; font-style: italic;
+    color: #4a453d; font-size: .95rem; margin: .9rem 0;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: .87rem; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(28,26,23,.06); }
+  th, td { padding: .7rem .9rem; text-align: left; border-bottom: 1px solid #f0ece5; }
+  th { background: #faf8f4; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: #7a746a; font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+  td.c { text-align: center; }
+  .yes { color: #3f7a4a; font-weight: 700; }
+  .no  { color: #b8b2a6; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .85rem; }
+  .stat {
+    background: #fff; border-radius: 12px; padding: 1.1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(28,26,23,.06);
+  }
+  .stat .n { font-family: Georgia, serif; font-size: 1.5rem; color: #2d3a2e; line-height: 1.2; }
+  .stat .l { font-size: .76rem; color: #7a746a; margin-top: .2rem; }
+
+  ul { margin: .4rem 0 .8rem 1.1rem; }
+  li { margin-bottom: .35rem; color: #33302b; font-size: .92rem; }
+
+  .note {
+    background: #fdf8ec; border: 1px solid #ecdfc0;
+    border-radius: 12px; padding: 1.1rem 1.3rem; font-size: .88rem; color: #6b5c34;
+  }
+  .note strong { color: #4d411f; }
+
+  .ask {
+    background: #fff; border: 2px dashed #cdc5b6;
+    border-radius: 14px; padding: 1.5rem;
+  }
+  .ask h3 { color: #2d3a2e; }
+  .ask ol { margin: .7rem 0 0 1.2rem; }
+  .ask li { font-size: .92rem; margin-bottom: .55rem; }
+
+  footer {
+    margin-top: 3rem; padding-top: 1.25rem;
+    border-top: 1px solid #ddd8cf;
+    font-size: .76rem; color: #9a9389; text-align: center;
+  }
+
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .cover { border-radius: 0; page-break-after: avoid; }
+    .card, table, .stat { box-shadow: none; border: 1px solid #e8e3da; }
+    .card, table, .stat, .note, .ask, .grid { page-break-inside: avoid; }
+    h2 { page-break-after: avoid; }
+    h3 { page-break-after: avoid; }
+    p { orphans: 3; widows: 3; }
+  }
+  @media (max-width: 560px) {
+    .cover { padding: 2rem 1.4rem; }
+    .cover h1 { font-size: 1.9rem; }
+    body { padding: 1.25rem .9rem 3rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="cover">
+    <div class="eyebrow">Uygulama Fikri · Ön Değerlendirme</div>
+    <h1>Davetly</h1>
+    <p class="tagline">Düğün ve nişan hazırlığını tek yerde toplayan Android uygulaması: harcamalar, davetliler ve görevler.</p>
+    <div class="meta">
+      <span>Kasım 2026</span>
+      <span>Taslak — fikir geliştirme aşaması</span>
+      <span>Görüş ve eleştiri için</span>
+    </div>
+  </div>
+
+  <section>
+    <h2>Tek Cümlede</h2>
+    <p>Düğün hazırlığı yapan çiftler için, üç ayrı işi — <strong>harcama takibi, davetli yönetimi ve görev takibi</strong> — tek uygulamada toplayan bir Android uygulaması.</p>
+    <p>Fikir, internette karşılaşılan bir tanıtım videosundan çıktı: <em>"Eğer yakın zamanda bir düğününüz varsa ve bu uygulamayı bilmiyorsanız çok şey kaçırırsınız."</em></p>
+  </section>
+
+  <section>
+    <h2>Problem</h2>
+    <p>Düğün hazırlığı bugün üç ayrı yerde dağınık durumda:</p>
+    <ul>
+      <li><strong>Harcamalar</strong> — Excel'de, defterde, banka uygulamasında, kafada. Gelin tarafı ne ödedi, damat tarafı ne ödedi, hangi kartta hangi ay ne kadar taksit var: hiçbiri tek yerde değil.</li>
+      <li><strong>Davetliler</strong> — WhatsApp gruplarında, "kim gelecek acaba" belirsizliği içinde. Kimse net sayı bilmiyor, mekâna bildirilen sayı tahminden ibaret.</li>
+      <li><strong>Görevler</strong> — kardeşe, kuzenе, baldıza verilen işler WhatsApp'tan söyleniyor ve <strong>iki gün sonra unutuluyor</strong>. "Ne yapacaktım?" diye tekrar soruluyor.</li>
+    </ul>
+    <p>Üçü de aynı düğüne ait ama birbirinden kopuk. Sonuç: tekrar tekrar konuşulan, unutulan, hesabı tutmayan bir süreç.</p>
+  </section>
+
+  <section>
+    <h2>Üç Özellik</h2>
+
+    <div class="card">
+      <h3><span class="num">1</span>Harcama Takibi</h3>
+      <p>Tüm düğün harcamaları tek yerde. Her harcama için: tutar, kategori, <strong>kim ödedi</strong> (gelin tarafı / damat tarafı / kişi), tarih, ödeme yöntemi.</p>
+      <p>Kredi kartıyla yapılan harcamalarda <strong>taksit sayısı girilir ve uygulama taksitleri otomatik olarak aylara dağıtır</strong>. Her ayı elle girmek gerekmez.</p>
+      <p class="why"><strong>Neden değerli:</strong> "Bu ay hangi kartta ne kadar ödemem var?" sorusu tek ekranda cevaplanır. İki tarafın katkısı şeffaf olur.</p>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">2</span>Davetli Yönetimi + RSVP</h3>
+      <p>Davetliler listeye eklenir. Her birine <strong>WhatsApp üzerinden davetiye</strong> gönderilir — kullanıcının kendi WhatsApp'ından, tek dokunuşla.</p>
+      <p>Gönderilen davetiye bir <strong>web sayfası</strong>: düğün bilgileri (isimler, tarih, yer, harita bağlantısı, program, hediye notu) ve altında iki buton — <em>Geliyorum</em> / <em>Gelemeyeceğim</em>.</p>
+      <p>Misafir butona bastığında cevap <strong>kendiliğinden</strong> uygulamadaki listeye düşer. Kimse elle işaretlemez.</p>
+      <p class="why"><strong>Neden değerli:</strong> "Kim gelecek kim gelmeyecek" karmaşası biter. Misafir uygulama indirmez — sadece linke tıklar, tarayıcıda açar.</p>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">3</span>Görev + Görev İçi Sohbet</h3>
+      <p>Damat, baldız, kardeş gibi yakınlar uygulamaya davet edilir. Onlara <strong>görev</strong> verilir: "Çiçekçiyi ara", "Salon sözleşmesini imzala" gibi.</p>
+      <p>Her görevin <strong>kendi içinde bir sohbeti</strong> vardır. Konuşma o görevin bağlamında kalır — genel bir mesaj akışında kaybolmaz.</p>
+      <p class="why"><strong>Neden değerli:</strong> Fikrin asıl çıkış noktası bu. <em>"Normalde bunu WhatsApp'tan yapsaydım iki gün sonra unutacaktı. Ama burada ne yapacağını unutmuyor, sadece o görevin içindeki sohbette dolaşıyor."</em></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Neden Bu İş Var</h2>
+    <div class="grid">
+      <div class="stat"><div class="n">568.395</div><div class="l">Türkiye'de 2024'te evlenen çift sayısı (TÜİK)</div></div>
+      <div class="stat"><div class="n">500.000 TL+</div><div class="l">Ortalama düğün maliyeti — harcama kaosu gerçek bir problem</div></div>
+      <div class="stat"><div class="n">Tek seferlik</div><div class="l">İhtiyaç düğün bitince bitiyor — bu, iş modelini belirliyor</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Kim Kullanıyor</h2>
+    <table>
+      <thead><tr><th>Rol</th><th>Ne yapıyor</th><th>Uygulama</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Gelin / Damat</strong></td><td>Her şeyi yönetir: harcama, davetli, görev</td><td>Kurulu (Android)</td></tr>
+        <tr><td><strong>Yardımcı</strong> (damat, baldız, kardeş)</td><td>Kendine verilen görevi görür, o görevde sohbet eder</td><td>Kurulu (Android)</td></tr>
+        <tr><td><strong>Misafir</strong></td><td>Davetiyeyi görür, geliyorum / gelemeyeceğim der</td><td><strong>Kurulum yok</strong> — tarayıcıda link</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:.9rem; font-size:.88rem; color:#7a746a;">Yardımcı harcamaları ve davetli listesini görmez — sadece kendi görevini görür. Düğün bütçesini bilmesi gerekmez.</p>
+  </section>
+
+  <section>
+    <h2>Gelir Modeli</h2>
+    <p><strong>Tek seferlik "Düğün Paketi" — 149 TL.</strong> Abonelik değil, çünkü düğün bitince ürün de bitiyor; kimse düğünden sonra ödemeye devam etmez.</p>
+    <table>
+      <thead><tr><th>Özellik</th><th class="c">Ücretsiz</th><th class="c">Premium</th></tr></thead>
+      <tbody>
+        <tr><td>Harcama takibi</td><td class="c yes">Sınırsız</td><td class="c yes">Sınırsız</td></tr>
+        <tr><td>Davetli sayısı</td><td class="c">10 kişi</td><td class="c yes">Sınırsız</td></tr>
+        <tr><td>Yardımcı (işbirlikçi)</td><td class="c">1</td><td class="c yes">5</td></tr>
+        <tr><td>Görev</td><td class="c">1</td><td class="c yes">Sınırsız</td></tr>
+        <tr><td>Görev içi sohbet</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+        <tr><td>RSVP / davetiye sayfası</td><td class="c yes">Sınırsız</td><td class="c yes">Sınırsız</td></tr>
+        <tr><td>Excel/CSV dışa aktarma</td><td class="c no">—</td><td class="c yes">✓</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:.9rem; font-size:.88rem; color:#7a746a;">
+      <strong>Tasarım mantığı:</strong> harcama takibi ücretsiz ve sınırsız — kullanıcı önce değeri görsün. Duvar davetli sayısında ve görev sayısında. Ayrıca 1 yardımcı + 1 görev ücretsiz veriliyor ki kullanıcı özelliğin çalıştığını görsün, sonra satın alsın.
+    </p>
+    <p style="font-size:.88rem; color:#7a746a;">
+      <strong>Davetiye sayfası her zaman ücretsiz</strong> — çünkü her gönderilen davetiye, kendi düğününü planlayan birine ulaşan bir tanıtım.
+    </p>
+  </section>
+
+  <section>
+    <h2>Teknik Yaklaşım</h2>
+    <table>
+      <thead><tr><th>Katman</th><th>Seçim</th></tr></thead>
+      <tbody>
+        <tr><td>Uygulama</td><td>Kotlin + Jetpack Compose + Material 3 (Android)</td></tr>
+        <tr><td>Yerel veri</td><td>Room (SQLite) — çevrimdışı öncelikli</td></tr>
+        <tr><td>Davetiye sayfası</td><td>Statik web sayfası (davetiye verisi bağlantının içinde)</td></tr>
+        <tr><td>Sunucu</td><td>Mevcut ücretsiz hosting + Cloudflare (önbellek/SSL)</td></tr>
+        <tr><td>Bildirim</td><td>Firebase Cloud Messaging (ücretsiz)</td></tr>
+        <tr><td>iOS</td><td>Şimdilik yok — kod, ileride taşınabilecek şekilde yazılıyor</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:.9rem; font-size:.88rem; color:#7a746a;">
+      <strong>Kısıt:</strong> altyapı maliyeti sıfır olmak zorunda. Tüm seçimler ücretsiz katmanlara göre yapıldı; 10.000 kullanıcıya kadar ücretsiz kalacak şekilde tasarlandı.
+    </p>
+  </section>
+
+  <section>
+    <h2>Riskler ve Zorluklar</h2>
+    <div class="card">
+      <p><strong>WhatsApp otomatik gönderim yok.</strong> WhatsApp'ın resmi API'si ücretli. Bu yüzden uygulama mesajı hazırlar, kullanıcı kendi WhatsApp'ından tek dokunuşla gönderir. Ürün vaadi "otomatik toplu gönderim" değil, <em>"hazır mesaj + tek dokunuş"</em>.</p>
+    </div>
+    <div class="card">
+      <p><strong>Android-only.</strong> Başlangıçta sadece Android. Misafirler için sorun yok (web), ama iPhone kullanan yardımcılar uygulamayı kuramaz. Bu bilinçli bir kabul — iOS kapısı açık tutuluyor.</p>
+    </div>
+    <div class="card">
+      <p><strong>Tek seferlik ürün.</strong> Aynı kullanıcı bir daha düğün yapmaz. Büyüme tamamen yeni kullanıcı bulmaya bağlı — ağızdan ağıza yayılma ve davetiye sayfaları kritik.</p>
+    </div>
+    <div class="card">
+      <p><strong>Ücretsiz sürümün çekiciliği.</strong> 10 davetli sınırı, kullanıcıyı değeri tatmadan duvara çarptırma riski taşıyor. Bu yüzden uygulama harcamalarla başlıyor, davetlilerle değil.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Şu Anda Neredeyiz</h2>
+    <ul>
+      <li>Fikir netleşti, üç özellik ve iş modeli tanımlandı</li>
+      <li>Davetiye sayfası tasarımı seçildi (bilgi kartı düzeni)</li>
+      <li>Altyapı ve platform kararları verildi</li>
+      <li><strong>Kod yazılmadı</strong> — önce plan tamamlanacak</li>
+    </ul>
+    <p style="margin-top:.6rem; font-size:.88rem; color:#7a746a;">Sıradaki adım: tasarımın gözden geçirilmesi, açık soruların kapatılması, sonra uygulama planı.</p>
+  </section>
+
+  <section>
+    <h2>Görüşünü İstediğim Noktalar</h2>
+    <div class="ask">
+      <h3>Bunlar hakkında ne düşünüyorsun?</h3>
+      <ol>
+        <li><strong>Fikrin kendisi:</strong> Bu üç özellik bir arada anlamlı mı, yoksa tek bir özelliğe mi odaklanmalı?</li>
+        <li><strong>10 davetli sınırı:</strong> Çok mu az? Kullanıcıyı kaçırır mı, yoksa satın almaya yeterince teşvik eder mi?</li>
+        <li><strong>149 TL:</strong> Bu ürün için doğru fiyat mı? Daha yüksek mi olmalı, daha düşük mü?</li>
+        <li><strong>Görev özelliği:</strong> Gerçekten kullanılır mı, yoksa insanlar yine WhatsApp'a mı döner? Bunu engelleyen ne olabilir?</li>
+        <li><strong>Eksik gördüğün bir şey:</strong> Düğün hazırlığında bu uygulamada olmayan ama mutlaka olması gereken ne var?</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    Davetly · Uygulama fikri özeti · Kasım 2026<br>
+    Bu belge bir taslaktır; yorum ve eleştiri için hazırlanmıştır.
+  </footer>
+
+</div>
+</body>
+</html>
