@@ -153,20 +153,35 @@ export async function sendMessage(
     if (existing) return existing
   }
 
-  return deps.transaction(async (tx) =>
-    deps.insertMessage(
-      {
-        weddingId: params.weddingId,
-        taskId: params.taskId,
-        senderKind: params.sender.kind,
-        senderUserId: params.sender.kind === 'COUPLE' ? params.sender.userId : null,
-        senderHelperId: params.sender.kind === 'HELPER' ? params.sender.helperId : null,
-        body,
-        idempotencyKey: params.idempotencyKey ?? null,
-      },
-      tx,
-    ),
-  )
+  try {
+    return await deps.transaction(async (tx) =>
+      deps.insertMessage(
+        {
+          weddingId: params.weddingId,
+          taskId: params.taskId,
+          senderKind: params.sender.kind,
+          senderUserId: params.sender.kind === 'COUPLE' ? params.sender.userId : null,
+          senderHelperId: params.sender.kind === 'HELPER' ? params.sender.helperId : null,
+          body,
+          idempotencyKey: params.idempotencyKey ?? null,
+        },
+        tx,
+      ),
+    )
+  } catch (err) {
+    // Eşzamanlı çift gönderim: iki istek de yukarıdaki
+    // `findByIdempotencyKey` kontrolünü boş geçer, ikincisi
+    // `messages_task_idem_unique` kısıtına çarpar. Kısıt veriyi korur
+    // ama kullanıcıya 500 dönmek yanlış — mesaj zaten yazıldı.
+    if (params.idempotencyKey) {
+      const existing = await deps.findByIdempotencyKey(
+        params.taskId,
+        params.idempotencyKey,
+      )
+      if (existing) return existing
+    }
+    throw err
+  }
 }
 
 // ---------------------------------------------------------------------------

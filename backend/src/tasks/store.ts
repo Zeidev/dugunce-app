@@ -1,6 +1,6 @@
 import { eq, and, isNull, sql, desc } from 'drizzle-orm'
 import { getDb } from '../db/client.js'
-import { tasks, helpers, weddings, weddingMembers } from '../db/schema.js'
+import { tasks, helpers, weddings, weddingMembers, messages } from '../db/schema.js'
 import type { TaskDeps, TaskRecord, HelperSummary } from './service.js'
 
 /**
@@ -108,13 +108,24 @@ export function drizzleTaskDeps(dbOverride?: Db): TaskDeps {
       return row as TaskRecord
     },
 
+    /**
+     * Görevi siler: satır soft-delete, MESAJLAR fiziksel silinir.
+     *
+     * Mesajları yalnızca soft-delete'e güvenerek bırakmak SECURITY §10.3'ün
+     * "görev silinince mesajlar gider" kuralını boşta bırakıyordu: satır
+     * hiç fiziksel silinmediği için `ON DELETE CASCADE` hiç tetiklenmiyor,
+     * konuşma DB'de süresiz kalıyordu. İkisi tek transaction'da.
+     */
     async softDelete(taskId) {
-      const rows = await db
-        .update(tasks)
-        .set({ deletedAt: new Date(), updatedAt: new Date() })
-        .where(and(eq(tasks.id, taskId), isNull(tasks.deletedAt)))
-        .returning({ id: tasks.id })
-      return rows.length > 0
+      return db.transaction(async (tx) => {
+        await tx.delete(messages).where(eq(messages.taskId, taskId))
+        const rows = await tx
+          .update(tasks)
+          .set({ deletedAt: new Date(), updatedAt: new Date() })
+          .where(and(eq(tasks.id, taskId), isNull(tasks.deletedAt)))
+          .returning({ id: tasks.id })
+        return rows.length > 0
+      })
     },
 
     async countTasks(tx, weddingId, userId) {

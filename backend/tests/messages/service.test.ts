@@ -117,6 +117,49 @@ describe('sendMessage — idempotency (Review Focus #3)', () => {
     )
     expect(d.findByIdempotencyKey).toHaveBeenCalledWith('t1', 'k')
   })
+
+  it('EŞZAMANLI çift gönderim: UNIQUE çakışması 500 değil, mevcut mesaj', async () => {
+    // Senaryo: iki istek de findByIdempotencyKey kontrolünü boş geçti.
+    // İkinci INSERT `messages_task_idem_unique` kısıtına çarpar. Kısıt
+    // veriyi korur; servis kullanıcıya hata değil mevcut mesajı dönmeli.
+    const writes: unknown[] = []
+    const d = makeDeps({
+      insertMessage: vi.fn(async (values: unknown) => {
+        writes.push(values)
+        if (writes.length === 2) throw new Error('duplicate key value violates unique constraint')
+        return { id: 'm1', body: 'a' }
+      }),
+      // 1) ilk isteğin ön kontrolü: boş
+      // 2) ikinci isteğin ön kontrolü: hâlâ boş (yarış)
+      // 3) çakışmadan sonraki kontrol: mesaj orada
+      findByIdempotencyKey: vi
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'm1', body: 'a' }),
+    })
+    const params = {
+      weddingId: 'w1', taskId: 't1',
+      sender: { kind: 'COUPLE' as const, userId: 'u1' },
+      body: 'a', idempotencyKey: 'k1',
+    }
+    const first = await sendMessage(params, d)
+    const second = await sendMessage(params, d)
+    expect(first!.id).toBe('m1')
+    expect(second!.id).toBe('m1') // throw YOK
+  })
+
+  it('key yoksa çakışma hata olarak kalır (idempotency yok)', async () => {
+    const d = makeDeps({
+      insertMessage: vi.fn().mockRejectedValue(new Error('boom')),
+    })
+    await expect(
+      sendMessage(
+        { weddingId: 'w1', taskId: 't1', sender: { kind: 'COUPLE', userId: 'u1' }, body: 'a' },
+        d,
+      ),
+    ).rejects.toThrow('boom')
+  })
 })
 
 describe('sendMessage — doğrulama', () => {

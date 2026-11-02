@@ -17,7 +17,7 @@ import { drizzleHelperDeps } from '../../src/helpers/store.js'
 import { drizzleTaskDeps } from '../../src/tasks/store.js'
 import { drizzleMessageDeps } from '../../src/messages/store.js'
 import { createHelper, deleteHelper } from '../../src/helpers/service.js'
-import { createTask, assignTask } from '../../src/tasks/service.js'
+import { createTask, assignTask, deleteTask } from '../../src/tasks/service.js'
 import { sendMessage, listMessages } from '../../src/messages/service.js'
 import { resolveHelperToken } from '../../src/helpers/token.js'
 
@@ -427,5 +427,54 @@ describe('yardımcı silme — atomik', () => {
     expect(r.rows).toHaveLength(1)
     expect(r.rows[0]!.body).toBe('yardımcı mesajı')
     expect(r.rows[0]!.sender_helper_id).toBeNull()
+  })
+})
+
+describe('görev silme — mesajlar gerçekten gider (SECURITY §10.3)', () => {
+  it('deleteTask mesajları FİZİKSEL siler', async () => {
+    const fw = await freshWedding()
+    const h = await createHelper(
+      { weddingId: fw.weddingId, userId: fw.userId, input: { displayName: 'H' } },
+      helperStore,
+    )
+    const t = await createTask(
+      { weddingId: fw.weddingId, userId: fw.userId, input: { title: 'Sohbet' } },
+      taskStore,
+    )
+    await assignTask(
+      { weddingId: fw.weddingId, userId: fw.userId, taskId: t.id, helperId: h!.helper.id },
+      taskStore,
+    )
+    await sendMessage(
+      {
+        weddingId: fw.weddingId, taskId: t.id,
+        sender: { kind: 'HELPER', helperId: h!.helper.id }, body: 'gizli konuşma',
+      },
+      msgStore,
+    )
+
+    const before = await pg.query<{ n: number }>(
+      `SELECT COUNT(*)::int AS n FROM messages WHERE task_id=$1`,
+      [t.id],
+    )
+    expect(before.rows[0]!.n).toBe(1)
+
+    const ok = await deleteTask({ weddingId: fw.weddingId, userId: fw.userId, taskId: t.id }, taskStore)
+    expect(ok).toBe(true)
+
+    const after = await pg.query<{ n: number }>(
+      `SELECT COUNT(*)::int AS n FROM messages WHERE task_id=$1`,
+      [t.id],
+    )
+    // Soft-delete satırı bırakır ama konuşma KALMAZ: satır fiziksel
+    // silinmediği için ON DELETE CASCADE hiç tetiklenmiyordu; artık
+    // mesajlar aynı transaction içinde açıkça siliniyor.
+    expect(after.rows[0]!.n).toBe(0)
+
+    const taskRow = await pg.query<{ deleted_at: string | null }>(
+      `SELECT deleted_at FROM tasks WHERE id=$1`,
+      [t.id],
+    )
+    expect(taskRow.rows[0]!.deleted_at).not.toBeNull()
   })
 })
