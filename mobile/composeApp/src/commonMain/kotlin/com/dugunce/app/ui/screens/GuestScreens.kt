@@ -84,6 +84,7 @@ fun GuestListScreen(
     var query by remember { mutableStateOf("") }
     var filterSide by remember { mutableStateOf<String?>(null) }
     var filterRsvp by remember { mutableStateOf<String?>(null) }
+    var offline by remember { mutableStateOf(false) }
 
     // spec §6b.7: taraf ve RSVP filtresi SUNUCUDA uygulanır — istemci tüm
     // listeyi çekip elemez. (Arama metni için backend'de parametre yok;
@@ -94,12 +95,21 @@ fun GuestListScreen(
         val g = repository.listGuests(weddingId, side = filterSide, rsvp = filterRsvp)
         val u = repository.guestUsage(weddingId)
         if (g.isFailure) {
-            error = g.exceptionOrNull()?.message ?: "Davetliler yüklenemedi"
+            // spec §11: internet yokken son veri görünür
+            val cached = repository.cachedGuests(weddingId)
+            if (cached != null) {
+                guests = cached
+                offline = true
+                error = null
+            } else {
+                error = g.exceptionOrNull()?.message ?: "Davetliler yüklenemedi"
+            }
             loading = false
             return@LaunchedEffect
         }
         guests = g.getOrNull() ?: emptyList()
         usage = u.getOrNull()
+        offline = false
         loading = false
     }
 
@@ -121,6 +131,16 @@ fun GuestListScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
+                // Çevrimdışı bandı (spec §11)
+                if (offline) {
+                    item {
+                        com.dugunce.app.ui.components.InfoBanner(
+                            text = "Çevrimdışısın — son yüklenen liste gösteriliyor. " +
+                                "Değişiklik yapmak için internet gerekli.",
+                        )
+                    }
+                }
+
                 // Kota (spec §6b.6)
                 item {
                     QuotaBar(

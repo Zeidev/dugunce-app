@@ -30,6 +30,7 @@ class Repository(
     private val onSessionExpired: () -> Unit = {},
 ) {
     private val json = api.json
+    private val cache = OfflineCache(tokens, json)
 
     // --- Auth ---
 
@@ -86,8 +87,16 @@ class Repository(
     suspend fun listWeddings(): Result<List<WeddingDto>> = safeCall {
         val res = api.http.get("weddings")
         ensureSuccess(res)
-        res.body<WeddingListResponse>().weddings
+        val list = res.body<WeddingListResponse>().weddings
+        list.firstOrNull()?.let {
+            cache.putList(OfflineCache.WEDDINGS, "all", WeddingDto.serializer(), list)
+        }
+        list
     }
+
+    /** Önbellekteki düğünler — açılışta ağ yoksa (spec §11). */
+    fun cachedWeddings(): List<WeddingDto>? =
+        cache.getList(OfflineCache.WEDDINGS, "all", WeddingDto.serializer())
 
     suspend fun getWedding(weddingId: String): Result<WeddingDto> = safeCall {
         val res = api.http.get("weddings/$weddingId")
@@ -119,14 +128,26 @@ class Repository(
             }
             val res = api.http.get(path)
             ensureSuccess(res)
-            res.body<BudgetSummaryResponse>().summary
+            val s = res.body<BudgetSummaryResponse>().summary
+            cache.put(OfflineCache.SUMMARY, weddingId, BudgetSummaryDto.serializer(), s)
+            s
         }
+
+    /** Önbellekteki bütçe özeti — çevrimdışı görüntüleme. */
+    fun cachedSummary(weddingId: String): BudgetSummaryDto? =
+        cache.get(OfflineCache.SUMMARY, weddingId, BudgetSummaryDto.serializer())
 
     suspend fun listExpenses(weddingId: String): Result<List<ExpenseDto>> = safeCall {
         val res = api.http.get("weddings/$weddingId/expenses")
         ensureSuccess(res)
-        res.body<ExpenseListResponse>().expenses
+        val list = res.body<ExpenseListResponse>().expenses
+        cache.putList(OfflineCache.EXPENSES, weddingId, ExpenseDto.serializer(), list)
+        list
     }
+
+    /** Önbellekteki harcamalar — çevrimdışı görüntüleme. */
+    fun cachedExpenses(weddingId: String): List<ExpenseDto>? =
+        cache.getList(OfflineCache.EXPENSES, weddingId, ExpenseDto.serializer())
 
     suspend fun getExpense(weddingId: String, expenseId: String): Result<ExpenseDto> = safeCall {
         val res = api.http.get("weddings/$weddingId/expenses/$expenseId")
@@ -167,8 +188,17 @@ class Repository(
         val query = queryString("side" to side, "rsvp" to rsvp)
         val res = api.http.get("weddings/$weddingId/guests$query")
         ensureSuccess(res)
-        res.body<GuestListResponse>().guests
+        val list = res.body<GuestListResponse>().guests
+        // Filtresiz liste önbelleğe yazılır — filtreli sonuç tam listeyi temsil etmez
+        if (side == null && rsvp == null) {
+            cache.putList(OfflineCache.GUESTS, weddingId, GuestDto.serializer(), list)
+        }
+        list
     }
+
+    /** Önbellekteki davetliler — çevrimdışı görüntüleme (spec §11). */
+    fun cachedGuests(weddingId: String): List<GuestDto>? =
+        cache.getList(OfflineCache.GUESTS, weddingId, GuestDto.serializer())
 
     suspend fun guestUsage(weddingId: String): Result<GuestUsageDto> = safeCall {
         val res = api.http.get("weddings/$weddingId/guests/limit")
@@ -249,8 +279,16 @@ class Repository(
         val query = queryString("status" to status, "assigneeHelperId" to assigneeHelperId)
         val res = api.http.get("weddings/$weddingId/tasks$query")
         ensureSuccess(res)
-        res.body<TaskListResponse>().tasks
+        val list = res.body<TaskListResponse>().tasks
+        if (status == null && assigneeHelperId == null) {
+            cache.putList(OfflineCache.TASKS, weddingId, TaskDto.serializer(), list)
+        }
+        list
     }
+
+    /** Önbellekteki görevler — çevrimdışı görüntüleme. */
+    fun cachedTasks(weddingId: String): List<TaskDto>? =
+        cache.getList(OfflineCache.TASKS, weddingId, TaskDto.serializer())
 
     suspend fun createTask(weddingId: String, body: TaskCreateRequest): Result<TaskDto> = safeCall {
         val res = api.http.post("weddings/$weddingId/tasks") { setBody(body) }

@@ -89,6 +89,7 @@ fun TaskListScreen(
     var reloadKey by remember { mutableStateOf(0) }
     var filterStatus by remember { mutableStateOf<String?>(null) }
     var filterHelper by remember { mutableStateOf<String?>(null) }
+    var offline by remember { mutableStateOf(false) }
 
     // spec §6b.7: durum ve sorumlu filtresi SUNUCUDA uygulanır.
     LaunchedEffect(weddingId, filterStatus, filterHelper, reloadKey) {
@@ -97,12 +98,21 @@ fun TaskListScreen(
         val t = repository.listTasks(weddingId, status = filterStatus, assigneeHelperId = filterHelper)
         val h = repository.listHelpers(weddingId)
         if (t.isFailure) {
-            error = t.exceptionOrNull()?.message ?: "Görevler yüklenemedi"
+            // spec §11: internet yokken son veri görünür
+            val cached = repository.cachedTasks(weddingId)
+            if (cached != null) {
+                tasks = cached
+                offline = true
+                error = null
+            } else {
+                error = t.exceptionOrNull()?.message ?: "Görevler yüklenemedi"
+            }
             loading = false
             return@LaunchedEffect
         }
         tasks = t.getOrNull() ?: emptyList()
         helpers = h.getOrNull() ?: emptyList()
+        offline = false
         loading = false
     }
 
@@ -122,6 +132,13 @@ fun TaskListScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
+                if (offline) {
+                    item {
+                        com.dugunce.app.ui.components.InfoBanner(
+                            text = "Çevrimdışısın — son yüklenen görevler gösteriliyor.",
+                        )
+                    }
+                }
                 item {
                     Row(
                         Modifier.fillMaxWidth(),

@@ -79,6 +79,7 @@ fun BudgetScreen(
     var expenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
     var reloadKey by remember { mutableStateOf(0) }
     var filterSide by remember { mutableStateOf<String?>(null) }
+    var offline by remember { mutableStateOf(false) }
 
     LaunchedEffect(weddingId, reloadKey) {
         loading = true
@@ -86,12 +87,23 @@ fun BudgetScreen(
         val s = repository.budgetSummary(weddingId)
         val e = repository.listExpenses(weddingId)
         if (s.isFailure) {
-            error = s.exceptionOrNull()?.message ?: "Bütçe yüklenemedi"
+            // spec §11: internet yokken son veri görünür
+            val cachedSummary = repository.cachedSummary(weddingId)
+            val cachedExpenses = repository.cachedExpenses(weddingId)
+            if (cachedSummary != null || cachedExpenses != null) {
+                summary = cachedSummary
+                expenses = cachedExpenses ?: emptyList()
+                offline = true
+                error = null
+            } else {
+                error = s.exceptionOrNull()?.message ?: "Bütçe yüklenemedi"
+            }
             loading = false
             return@LaunchedEffect
         }
         summary = s.getOrNull()
         expenses = e.getOrNull() ?: emptyList()
+        offline = false
         loading = false
     }
 
@@ -125,6 +137,13 @@ fun BudgetScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
+                if (offline) {
+                    item {
+                        com.dugunce.app.ui.components.InfoBanner(
+                            text = "Çevrimdışısın — son yüklenen bütçe gösteriliyor.",
+                        )
+                    }
+                }
                 item { SummaryCards(summary = summary, onOpenCalendar = onOpenCalendar) }
 
                 val byCategory = summary?.byCategory ?: emptyList()
