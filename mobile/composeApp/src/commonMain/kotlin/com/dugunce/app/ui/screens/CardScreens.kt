@@ -268,12 +268,15 @@ fun CardListScreen(
                                         if (card.isActive) StatusTone.SUCCESS else StatusTone.NEUTRAL,
                                     )
                                 }
-                                TextAction("Sil") {
-                                    scope.launch {
-                                        repository.deleteCard(weddingId, card.id)
-                                        reloadKey++
-                                    }
-                                }
+                                TextAction(
+                                    "Sil",
+                                    onClick = {
+                                        scope.launch {
+                                            repository.deleteCard(weddingId, card.id)
+                                            reloadKey++
+                                        }
+                                    },
+                                )
                             }
                         }
                     }
