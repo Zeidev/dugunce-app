@@ -321,18 +321,41 @@ fun GuestFormScreen(
     repository: Repository,
     weddingId: String,
     guestId: String?,
-    existing: GuestDto?,
     onBack: () -> Unit,
     onSaved: () -> Unit,
 ) {
     val c = DugunceTheme.colors
-    var name by remember { mutableStateOf(existing?.name ?: "") }
-    var phone by remember { mutableStateOf(existing?.phone ?: "") }
-    var side by remember { mutableStateOf(existing?.side ?: "BRIDE") }
-    var note by remember { mutableStateOf(existing?.note ?: "") }
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var side by remember { mutableStateOf("BRIDE") }
+    var note by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var prefillLoading by remember { mutableStateOf(guestId != null) }
     val scope = rememberCoroutineScope()
+
+    // Düzenleme: mevcut kaydı yükle (aksi halde form boş açılır ve
+    // kaydetmek alanları siler)
+    LaunchedEffect(guestId) {
+        if (guestId == null) return@LaunchedEffect
+        repository.listGuests(weddingId).fold(
+            onSuccess = { list ->
+                list.find { it.id == guestId }?.let { g ->
+                    name = g.name
+                    phone = g.phone ?: ""
+                    side = g.side
+                    note = g.note ?: ""
+                }
+                prefillLoading = false
+            },
+            onFailure = { error = it.message; prefillLoading = false },
+        )
+    }
+
+    if (prefillLoading) {
+        LoadingState(Modifier.fillMaxSize(), "Davetli yükleniyor…")
+        return
+    }
 
     Column(Modifier.fillMaxSize().background(c.cream)) {
         com.dugunce.app.ui.components.TopBar(

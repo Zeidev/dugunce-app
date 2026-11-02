@@ -330,7 +330,6 @@ fun App(repository: Repository, tokens: TokenStore) {
                                 repository = repository,
                                 weddingId = w.id,
                                 guestId = state.editingGuestId,
-                                existing = null,
                                 onBack = { state.back() },
                                 onSaved = { state.back() },
                             )
@@ -364,8 +363,6 @@ fun App(repository: Repository, tokens: TokenStore) {
                                 repository = repository,
                                 weddingId = w.id,
                                 taskId = state.editingTaskId,
-                                existing = null,
-                                helpers = emptyList(),
                                 onBack = { state.back() },
                                 onSaved = { state.back() },
                             )

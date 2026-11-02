@@ -298,21 +298,52 @@ fun TaskFormScreen(
     repository: Repository,
     weddingId: String,
     taskId: String?,
-    existing: TaskDto?,
-    helpers: List<HelperDto>,
     onBack: () -> Unit,
     onSaved: () -> Unit,
 ) {
     val c = DugunceTheme.colors
-    var title by remember { mutableStateOf(existing?.title ?: "") }
-    var description by remember { mutableStateOf(existing?.description ?: "") }
-    var status by remember { mutableStateOf(existing?.status ?: "TODO") }
-    var priority by remember { mutableStateOf(existing?.priority ?: "NORMAL") }
-    var dueText by remember { mutableStateOf(Dates.formatShort(existing?.dueDate)) }
-    var helperId by remember { mutableStateOf(existing?.assigneeHelperId) }
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("TODO") }
+    var priority by remember { mutableStateOf("NORMAL") }
+    var dueText by remember { mutableStateOf("") }
+    var helperId by remember { mutableStateOf<String?>(null) }
+    var helpers by remember { mutableStateOf<List<HelperDto>>(emptyList()) }
+    var originalHelperId by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var prefillLoading by remember { mutableStateOf(taskId != null) }
     val scope = rememberCoroutineScope()
+
+    // Yardımcı listesi (atama seçici için)
+    LaunchedEffect(weddingId) {
+        repository.listHelpers(weddingId).onSuccess { helpers = it }
+    }
+
+    // Düzenleme: mevcut görevi yükle
+    LaunchedEffect(taskId) {
+        if (taskId == null) return@LaunchedEffect
+        repository.listTasks(weddingId).fold(
+            onSuccess = { list ->
+                list.find { it.id == taskId }?.let { t ->
+                    title = t.title
+                    description = t.description ?: ""
+                    status = t.status
+                    priority = t.priority
+                    dueText = Dates.formatShort(t.dueDate)
+                    helperId = t.assigneeHelperId
+                    originalHelperId = t.assigneeHelperId
+                }
+                prefillLoading = false
+            },
+            onFailure = { error = it.message; prefillLoading = false },
+        )
+    }
+
+    if (prefillLoading) {
+        LoadingState(Modifier.fillMaxSize(), "Görev yükleniyor…")
+        return
+    }
 
     val isoDue = if (dueText.isBlank()) null else parseTurkishDate(dueText)
 
@@ -422,7 +453,7 @@ fun TaskFormScreen(
                         result.fold(
                             onSuccess = { newId ->
                                 // Atama ayrı uçtan
-                                if (taskId == null || existing?.assigneeHelperId != helperId) {
+                                if (taskId == null || originalHelperId != helperId) {
                                     repository.assignTask(weddingId, newId, helperId)
                                 }
                                 saving = false
@@ -962,7 +993,8 @@ fun HelperInviteScreen(
                             repository.createHelper(weddingId, name.trim()).fold(
                                 onSuccess = { res ->
                                     saving = false
-                                    val url = res.url ?: res.token?.let { "https://dugunce.com.tr/h#$it" }
+                                    // Backend göreli yol döner ("/h#token")
+                                    val url = com.dugunce.app.util.Links.helperInvite(res.url, res.token)
                                     createdUrl = url
                                     if (url != null) onCreated(url)
                                 },

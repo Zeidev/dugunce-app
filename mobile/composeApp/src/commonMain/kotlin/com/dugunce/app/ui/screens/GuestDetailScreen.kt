@@ -206,11 +206,12 @@ fun GuestDetailScreen(
                                                 repository.createInvitation(weddingId, guestId).fold(
                                                     onSuccess = { res ->
                                                         generating = false
-                                                        inviteUrl = res.url
-                                                            ?: res.invitation?.url
-                                                            ?: res.invitation?.token?.let {
-                                                                "https://dugunce.com.tr/d#$it"
-                                                            }
+                                                        // Backend göreli yol döner ("/d#token") —
+                                                        // mutlak URL'ye çevrilmeden paylaşılamaz.
+                                                        inviteUrl = com.dugunce.app.util.Links.guestInvite(
+                                                            res.url ?: res.invitation?.url,
+                                                            res.invitation?.token,
+                                                        )
                                                     },
                                                     onFailure = {
                                                         generating = false
