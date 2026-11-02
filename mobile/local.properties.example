@@ -1,0 +1,4 @@
+# Android SDK yolu — yerelde derlemek için gerekli.
+# CI'da gerekmez (GitHub Actions kendi SDK'sını kurar).
+# Bu dosyayı `local.properties` olarak kopyalayın.
+sdk.dir=/path/to/Android/Sdk

@@ -8,3 +8,9 @@ local.properties
 backups/
 *.dump
 *.dump.gpg
+
+# Mobil (Gradle)
+mobile/.gradle/
+mobile/build/
+mobile/local.properties
+mobile/.kotlin/

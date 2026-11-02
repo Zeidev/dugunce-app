@@ -1,0 +1,93 @@
+name: mobile-ci
+
+on:
+  push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Android derlemesi — Linux runner (ücretsiz)
+  android:
+    name: Android build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('mobile/**/*.gradle.kts', 'mobile/gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Build debug APK
+        working-directory: mobile
+        run: ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dugunce-debug-apk
+          path: mobile/composeApp/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  # iOS derlemesi — macOS runner (ücretsiz 2000 dk/ay)
+  ios:
+    name: iOS framework build
+    runs-on: macos-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Xcode sürümü
+        run: xcodebuild -version
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: gradle-ios-${{ hashFiles('mobile/**/*.gradle.kts', 'mobile/gradle/libs.versions.toml') }}
+          restore-keys: gradle-ios-
+
+      # iOS derlemesi: KMP framework'ü üret.
+      # NOT: İmzalama sertifikası olmadan .ipa üretilemez; bu adım
+      # yalnızca Kotlin/Native kodunun iOS için DERLENDİĞİNİ doğrular.
+      - name: Build iOS framework
+        working-directory: mobile
+        run: ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64 --no-daemon --stacktrace
+
+      - name: Framework artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dugunce-ios-framework
+          path: mobile/composeApp/build/bin/iosSimulatorArm64/debugFramework/
+          retention-days: 14
