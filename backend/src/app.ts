@@ -14,6 +14,9 @@ import {
 } from './routes/expenses.js'
 import { createGuestsRouter } from './routes/guests.js'
 import { createInvitationsRouter } from './routes/invitations.js'
+import { createHelpersRouter } from './routes/helpers.js'
+import { createTasksRouter } from './routes/tasks.js'
+import { createHelperAppRouter } from './routes/helper-app.js'
 import { drizzleAuthDeps, drizzleMembershipDeps } from './auth/auth-store.js'
 import { loadEnv } from './config/env.js'
 
@@ -38,6 +41,9 @@ export interface CreateAppOptions {
    * testlerde enjekte edilir.
    */
   healthCheckDb?: () => Promise<boolean>
+  helperStore?: ReturnType<typeof import('./helpers/store.js').drizzleHelperDeps>
+  taskStore?: ReturnType<typeof import('./tasks/store.js').drizzleTaskDeps>
+  messageStore?: ReturnType<typeof import('./messages/store.js').drizzleMessageDeps>
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -94,6 +100,37 @@ export function createApp(options: CreateAppOptions = {}): Express {
     createInvitationsRouter(
       options.guestStore ? { store: options.guestStore } : {},
     ),
+  )
+
+  // Yardımcılar — çift tarafı (auth + üyelik)
+  app.use(
+    '/api/v1/weddings/:weddingId/helpers',
+    createHelpersRouter({
+      requireAuth,
+      requireMember,
+      ...(options.helperStore ? { store: options.helperStore } : {}),
+    }),
+  )
+
+  // Görevler ve görev sohbeti — çift tarafı
+  app.use(
+    '/api/v1/weddings/:weddingId/tasks',
+    createTasksRouter({
+      requireAuth,
+      requireMember,
+      ...(options.taskStore ? { taskStore: options.taskStore } : {}),
+      ...(options.messageStore ? { messageStore: options.messageStore } : {}),
+    }),
+  )
+
+  // Yardımcı uygulaması — token tek yetki, auth YOK
+  app.use(
+    '/api/v1/helper',
+    createHelperAppRouter({
+      ...(options.helperStore ? { helperStore: options.helperStore } : {}),
+      ...(options.taskStore ? { taskStore: options.taskStore } : {}),
+      ...(options.messageStore ? { messageStore: options.messageStore } : {}),
+    }),
   )
 
   // 404 ve hata yönetimi en sonda

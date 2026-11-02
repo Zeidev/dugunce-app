@@ -155,6 +155,55 @@ export function drizzleTaskDeps(dbOverride?: Db): TaskDeps {
       )
     },
 
+    /**
+     * Yardımcının görevlerini listeler.
+     *
+     * Ayrı metot: `listByWedding` ÜYELİK join'i yapar (çift tarafı).
+     * Yardımcının `userId`'si olmadığı için o sorgu boş döner.
+     * Burada kapsam `assignee_helper_id` ile sağlanır.
+     */
+    async listForHelper(weddingId, helperId) {
+      const rows = await db
+        .select(taskColumns())
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.weddingId, weddingId),
+            eq(tasks.assigneeHelperId, helperId),   // ← ZORUNLU
+            isNull(tasks.deletedAt),
+          ),
+        )
+        .orderBy(desc(tasks.createdAt))
+      return rows as TaskRecord[]
+    },
+
+    /**
+     * Yardımcının KENDİ görevinin durumunu günceller.
+     *
+     * Ayrı metot çünkü `updateTask` üyelik kontrolü yapar (çift tarafı).
+     * Burada kontrol `assignee_helper_id` üzerinden: yalnızca atanmış
+     * yardımcı güncelleyebilir (SECURITY §10.3, Review Focus #2).
+     *
+     * Yalnızca `status` yazılabilir — başlık/açıklama çift kararı.
+     */
+    async updateTaskStatusAsHelper(taskId, status, helperId, weddingId) {
+      const rows = await db
+        .update(tasks)
+        .set({ status, updatedAt: new Date() })
+        .where(
+          and(
+            eq(tasks.id, taskId),
+            eq(tasks.weddingId, weddingId),
+            eq(tasks.assigneeHelperId, helperId),   // ← ZORUNLU
+            isNull(tasks.deletedAt),
+          ),
+        )
+        .returning(taskColumns())
+      const row = rows[0]
+      // null → görev yok VEYA bu yardımcıya atanmamış (404)
+      return (row as TaskRecord | undefined) ?? null
+    },
+
     async findHelper(helperId, weddingId): Promise<HelperSummary | null> {
       const rows = await db
         .select({ id: helpers.id, tokenRevokedAt: helpers.tokenRevokedAt })

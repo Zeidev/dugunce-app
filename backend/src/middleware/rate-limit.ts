@@ -134,4 +134,16 @@ export const RATE_LIMITS = {
     max: 10,
     keyFn: (req: Request): string => String(req.params['token'] ?? req.ip ?? 'unknown'),
   },
+  /** Görev sohbeti — çift tarafı. */
+  messageSendByUser: {
+    windowMs: 60 * 1000,
+    max: 60,
+    keyFn: (req: Request): string => req.auth?.userId ?? req.ip ?? 'unknown',
+  },
+  /** Görev sohbeti — yardımcı tarafı (daha sıkı: token'lı link). */
+  messageSendByHelper: {
+    windowMs: 60 * 1000,
+    max: 30,
+    keyFn: (req: Request): string => String(req.params['token'] ?? req.ip ?? 'unknown'),
+  },
 } as const

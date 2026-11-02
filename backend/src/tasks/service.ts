@@ -151,6 +151,20 @@ export interface TaskDeps {
   assertMember(tx: unknown, weddingId: string, userId: string): Promise<boolean>
   lockWeddingForUpdate(tx: unknown, weddingId: string): Promise<void>
   findHelper(helperId: string, weddingId: string): Promise<HelperSummary | null>
+  /**
+   * Yardımcının kendi görevinin durumunu günceller.
+   *
+   * Üyelik değil `assignee_helper_id` kontrolü yapar — yardımcının
+   * hesabı olmadığı için `userId` yoktur.
+   */
+  updateTaskStatusAsHelper(
+    taskId: string,
+    status: string,
+    helperId: string,
+    weddingId: string,
+  ): Promise<TaskRecord | null>
+  /** Yardımcının kendi görevleri — üyelik değil atama ile kapsamlı. */
+  listForHelper(weddingId: string, helperId: string): Promise<TaskRecord[]>
 }
 
 // ---------------------------------------------------------------------------
