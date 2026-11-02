@@ -1148,9 +1148,11 @@ Tam sözleşme `docs/API.md`'de. Taban: `/api/v1`
 
 ### 15.2 Brevo — domain doğrulama (GÜNCEL: domain alındı)
 
-**Durum:** `dugunce.com.tr` **alındı.** Brevo hesabı açık.
+**Durum:** `dugunce.com.tr` **alındı**, DNS Cloudflare'de. Brevo hesabı açık.
 
 **Karar: Yol A — domain doğrulama.** Tek adres yolu (B) artık gereksiz.
+
+> 📘 **Adım adım kurulum:** [`docs/DNS-SETUP.md`](../../DNS-SETUP.md) §2 — Brevo domain doğrulama, Cloudflare DNS kayıtları, DMARC politikası. Aşağıdaki özet o belgenin kısaltmasıdır.
 
 **Yapılacaklar (tek seferlik, Aşama 2 öncesi):**
 
@@ -1459,11 +1461,12 @@ v1'de kapsamlı üçüncü taraf analitik zorunlu değil — gizlilik ve maliyet
 **Kapanan kararlar (2026-11-02):** v1 kapsamı = üç özellik birden · 2. eş = davet kodu · platform = Android+iOS · senkron = server-first+offline-aware · yardımcı = PWA · fotoğraf = R2 · admin paneli = React + 2FA
 
 **Kalan engeller:**
-1. ✅ ~~Alan adı~~ — **`dugunce.com.tr` alındı (2026-11-02)**. Sıradaki: Brevo domain doğrulama (§15.2) ve Cloudflare DNS kurulumu
-2. ⏳ KVKK saklama süreleri — `SECURITY.md` §6.3'te öneri var, onay bekliyor
-3. ⏳ Admin hesap kurtarma prosedürü — `SECURITY.md` §4.9
+1. ⏳ **Brevo domain doğrulaması** — DNS kayıtları girilmedi. Talimat: [`docs/DNS-SETUP.md`](../../DNS-SETUP.md) §2
+2. ⏳ **serv00 ortam doğrulaması** — `scripts/verify-serv00.sh` gerçek hesapta çalıştırılmadı
+3. ⏳ KVKK saklama süreleri — `SECURITY.md` §6.3'te öneri var, onay bekliyor
+4. ⏳ Admin hesap kurtarma prosedürü — `SECURITY.md` §4.9
 
-**Çözülen (2026-11-02):** Admin hosting → Cloudflare Pages · Yerel DB → Room · Offline taslak → Room `pending_` · Geliştirme sırası → 8 aşamalı güvenlik öncelikli · **Brevo alan adısız çalışabilir (§15.2)**
+**Çözülen (2026-11-02):** Admin hosting → Cloudflare Pages · Yerel DB → Room · Offline taslak → Room `pending_` · Geliştirme sırası → 8 aşamalı güvenlik öncelikli · Brevo domain doğrulama yolu (§15.2) · **Domain alındı, DNS planı hazır**
 
 **Sonraki adımlar:**
 1. ✅ Builder check tamamlandı (9 soru kapatıldı)
