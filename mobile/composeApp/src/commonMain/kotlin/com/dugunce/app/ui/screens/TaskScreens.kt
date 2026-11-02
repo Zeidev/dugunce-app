@@ -845,12 +845,15 @@ fun HelperListScreen(
                                 )
                             }
                             if (!revoked) {
-                                com.dugunce.app.ui.components.TextAction("İptal et") {
-                                    scope.launch {
-                                        repository.revokeHelper(weddingId, h.id)
-                                        reloadKey++
-                                    }
-                                }
+                                com.dugunce.app.ui.components.TextAction(
+                                    "İptal et",
+                                    onClick = {
+                                        scope.launch {
+                                            repository.revokeHelper(weddingId, h.id)
+                                            reloadKey++
+                                        }
+                                    },
+                                )
                             }
                         }
                     }

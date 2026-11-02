@@ -56,6 +56,7 @@ import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Radius
 import com.dugunce.app.ui.theme.Spacing
 import com.dugunce.app.util.Dates
+import kotlinx.coroutines.launch
 
 /**
  * Bütçe ekranı — brief §5.3.
@@ -378,6 +379,7 @@ fun InstallmentCalendarScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var expenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
     var reloadKey by remember { mutableStateOf(0) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     LaunchedEffect(weddingId, reloadKey) {
         loading = true
@@ -456,8 +458,10 @@ fun InstallmentCalendarScreen(
                                     installment = inst,
                                     title = title,
                                     onToggle = { paid ->
-                                        repository.setInstallmentPaid(weddingId, inst.id, paid)
-                                        reloadKey++
+                                        scope.launch {
+                                            repository.setInstallmentPaid(weddingId, inst.id, paid)
+                                            reloadKey++
+                                        }
                                     },
                                 )
                             }

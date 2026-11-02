@@ -504,7 +504,7 @@ fun OnboardingDoneScreen(onStart: () -> Unit) {
             .fillMaxSize()
             .background(c.cream)
             .padding(horizontal = Spacing.screenH),
-        horizontalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             "Hazırsın",
