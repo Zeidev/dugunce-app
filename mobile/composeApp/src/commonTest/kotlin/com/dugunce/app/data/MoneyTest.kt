@@ -70,7 +70,7 @@ class MoneyTest {
     }
 
     @Test
-    fun `kurus TL string'e cevrilir (backend sozlesmesi)`() {
+    fun `kurus TL stringe cevrilir - backend sozlesmesi`() {
         // Backend `amount` alanını TL bekliyor ve 100 ile çarpıyor.
         // Doğrudan kuruş göndermek 100 katı tutara yol açıyordu.
         assertEquals("12000.00", Money.kurusToTlString("1200000"))
@@ -88,7 +88,7 @@ class MoneyTest {
     }
 
     @Test
-    fun `Long sinirini asan deger sifir doner (cokme yok)`() {
+    fun `Long sinirini asan deger sifir doner - cokme yok`() {
         // 9999999999999999999 > Long.MAX_VALUE — toLongOrNull null döner
         assertEquals("0.00", Money.kurusToTlString("9999999999999999999"))
     }
