@@ -49,6 +49,14 @@ class MainActivity : ComponentActivity() {
             App(
                 repository = repository,
                 tokens = tokens,
+                // Web sitesiyle ayni tipografi: basliklar serif,
+                // govde sans. Ikisi de Turkce karakterleri kapsar.
+                displayFont = androidx.compose.ui.text.font.FontFamily(
+                    androidx.compose.ui.text.font.Font(com.dugunce.app.R.font.playfair_display),
+                ),
+                bodyFont = androidx.compose.ui.text.font.FontFamily(
+                    androidx.compose.ui.text.font.Font(com.dugunce.app.R.font.josefin_sans),
+                ),
                 initialAuthToken = deepLinkToken.value,
                 initialInviteCode = deepLinkInviteCode.value,
                 onDeepLinkConsumed = {

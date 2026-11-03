@@ -77,6 +77,13 @@ fun App(
     initialAuthToken: String? = null,
     initialInviteCode: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    /**
+     * Baslik serif fontu (Playfair Display). Platformdan gelir -
+     * `MainActivity` `R.font.playfair_display` gecer. `null` = sistem fontu.
+     */
+    displayFont: androidx.compose.ui.text.font.FontFamily? = null,
+    /** Govde sans fontu (Josefin Sans). */
+    bodyFont: androidx.compose.ui.text.font.FontFamily? = null,
 ) {
     var themeMode by remember {
         mutableStateOf(
@@ -88,7 +95,7 @@ fun App(
         )
     }
 
-    DugunceTheme(themeMode = themeMode) {
+    DugunceTheme(themeMode = themeMode, displayFont = displayFont, bodyFont = bodyFont) {
         val state = remember { AppState() }
         val scope = rememberCoroutineScope()
         var bootstrapping by remember { mutableStateOf(true) }

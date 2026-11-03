@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Elevation
 import com.dugunce.app.ui.theme.Radius
@@ -268,7 +269,13 @@ fun SectionHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, color = c.ink)
+        // Web'deki `.sec-t` ile ayni: serif baslik.
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            color = c.ink,
+            fontWeight = FontWeight.SemiBold,
+        )
         if (actionLabel != null && onAction != null) {
             TextAction(actionLabel, onAction)
         }
@@ -311,10 +318,12 @@ fun TextAction(
     ) {
         Box(Modifier.padding(horizontal = Spacing.sm), contentAlignment = Alignment.Center) {
             Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                color = c.sage,
-                fontWeight = FontWeight.Medium,
+                label.uppercase(),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    letterSpacing = 1.2.sp,
+                ),
+                color = c.gold,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
