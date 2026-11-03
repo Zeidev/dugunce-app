@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TEMPLATES, FONTS } from './templates.js'
 
 /**
  * Düğün iş mantığı.
@@ -27,6 +28,10 @@ export const weddingInputSchema = z.object({
     .string()
     .refine((v) => !Number.isNaN(Date.parse(v)), { message: 'Geçersiz tarih' })
     .optional(),
+  /** Davetiye şablonu — anahtar listesi `templates.ts`. */
+  template: z.enum(TEMPLATES).optional(),
+  /** Font — boş bırakılırsa şablonun önerilen fontu kullanılır. */
+  fontKey: z.enum(FONTS).optional(),
 })
 
 export type WeddingInput = z.input<typeof weddingInputSchema>

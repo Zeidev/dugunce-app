@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
+import { ZodError } from 'zod'
 import { AppError } from '../lib/errors.js'
 import { logger } from '../lib/logger.js'
 
@@ -36,6 +37,26 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   if (res.headersSent) {
+    return
+  }
+
+  if (err instanceof ZodError) {
+    // Doğrulama hatası: beklenen 4xx, sadece debug seviyesinde logla.
+    // `err.issues` ham Zod yapısıdır — istemciye yalnız alan yolu ve
+    // kullanıcıya gösterilebilir mesaj gider.
+    logger.debug({ path: safePath(req), method: req.method }, 'validation error')
+    res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Gönderilen veri geçersiz',
+        details: {
+          fields: err.issues.map((issue) => ({
+            path: issue.path.join('.'),
+            message: issue.message,
+          })),
+        },
+      },
+    })
     return
   }
 
