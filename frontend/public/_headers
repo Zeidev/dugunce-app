@@ -34,16 +34,16 @@
   Cache-Control: no-store
   Referrer-Policy: no-referrer
 
-# Android App Links doğrulaması.
-# Android bu dosyayı indirirken Content-Type'ın application/json olmasını
-# şart koşar; yanlış tip → doğrulama sessizce başarısız olur.
+# Android App Links / iOS Universal Links.
+#
+# DİKKAT: Content-Type EKLEMEYİN. Cloudflare Pages `.json` uzantısına
+# zaten `application/json` ekliyor; burada da yazmak başlığı
+# `application/json, application/json` yapıyor ve Android doğrulamayı
+# reddediyor (canlıda doğrulandı).
+#
+# Yalnızca cache süresi ayarlanır — doğrulama dosyası sık değişmez.
 /.well-known/assetlinks.json
-  Content-Type: application/json
   Cache-Control: public, max-age=300
 
-# iOS Universal Links.
-# Content-Type application/json OLMAMALI (Apple imzasız dosyayı kabul eder
-# ama tip json olursa bazı sürümler reddediyor).
 /.well-known/apple-app-site-association
-  Content-Type: application/json
   Cache-Control: public, max-age=300
