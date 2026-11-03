@@ -64,18 +64,39 @@ class MainActivity : ComponentActivity() {
     /**
      * Link'i çözer.
      *
-     * `/auth?token=X`   → magic link token
-     * `/invite?code=X`  → davet kodu
+     * **KRİTİK:** Backend linki `https://dugunce.com.tr/auth#<token>`
+     * biçiminde üretiyor (`magic-link.ts` → `MAGIC_LINK_BASE_URL#rawToken`).
+     * Token **fragment**'te, çünkü fragment sunucuya gitmez (design §7).
      *
-     * Bilinmeyen yol sessizce yok sayılır.
+     * `getQueryParameter` fragment'ı OKUMAZ — bu yüzden token hem
+     * `?token=` hem `#token` biçiminde aranır. Tek biçim varsaymak,
+     * e-postadaki bağlantının sessizce çalışmamasına yol açıyordu.
      */
     private fun handleIntent(intent: Intent?) {
         if (intent?.action != Intent.ACTION_VIEW) return
         val uri = intent.data ?: return
 
+        // Fragment içeriği: "#token" veya "#access_token=..." biçimleri
+        val fragment = uri.fragment?.removePrefix("#")
+        val fragmentParams = fragment
+            ?.split('&')
+            ?.mapNotNull { part ->
+                val idx = part.indexOf('=')
+                if (idx > 0) part.substring(0, idx) to part.substring(idx + 1) else null
+            }
+            ?.toMap()
+            .orEmpty()
+
+        fun value(name: String): String? =
+            uri.getQueryParameter(name) ?: fragmentParams[name]
+
         when (uri.path?.trimEnd('/')) {
-            "/auth" -> uri.getQueryParameter("token")?.let { deepLinkToken.value = it }
-            "/invite" -> uri.getQueryParameter("code")?.let { deepLinkInviteCode.value = it }
+            "/auth" -> {
+                // Tüm fragment token sayılır (backend sadece token koyuyor)
+                val token = value("token") ?: fragment?.takeIf { it.isNotBlank() && !it.contains('=') }
+                token?.let { deepLinkToken.value = it }
+            }
+            "/invite" -> value("code")?.let { deepLinkInviteCode.value = it }
             else -> Unit
         }
     }

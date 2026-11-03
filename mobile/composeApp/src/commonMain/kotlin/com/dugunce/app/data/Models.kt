@@ -36,7 +36,12 @@ data class VerifyRequest(
 data class AuthResponse(
     val accessToken: String,
     val refreshToken: String,
-    val expiresIn: Int,
+    /**
+     * Backend bu alanı GÖNDERMİYOR (`routes/auth.ts` yalnızca
+     * accessToken/refreshToken/user döner). Zorunlu tutmak, doğrulama
+     * başarılı olsa bile JSON çözümlemesini patlatıyordu.
+     */
+    val expiresIn: Int = 900,
     val user: UserDto,
 )
 

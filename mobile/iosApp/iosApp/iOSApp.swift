@@ -44,13 +44,36 @@ final class DeepLinkHandler: ObservableObject {
             : components.path
 
         let items = components.queryItems ?? []
-        func value(_ name: String) -> String? {
+        func queryValue(_ name: String) -> String? {
             items.first { $0.name == name }?.value
+        }
+
+        // Backend linki `https://dugunce.com.tr/auth#<token>` — token
+        // FRAGMENT'te (sunucuya gitmez, design §7). Android'deki
+        // MainActivity.handleIntent ile aynı mantık.
+        let fragment = components.fragment?.replacingOccurrences(of: "#", with: "")
+        let fragmentParams: [String: String] = {
+            guard let f = fragment, !f.isEmpty else { return [:] }
+            var out: [String: String] = [:]
+            for part in f.split(separator: "&") {
+                let kv = part.split(separator: "=", maxSplits: 1)
+                if kv.count == 2 { out[String(kv[0])] = String(kv[1]) }
+            }
+            return out
+        }()
+
+        func value(_ name: String) -> String? {
+            queryValue(name) ?? fragmentParams[name]
         }
 
         switch path {
         case "/auth":
-            authToken = value("token")
+            // Fragment'ta `=` yoksa tamamı token'dır
+            if let raw = fragment, !raw.isEmpty, !raw.contains("=") {
+                authToken = raw
+            } else {
+                authToken = value("token")
+            }
         case "/invite":
             inviteCode = value("code")
         default:

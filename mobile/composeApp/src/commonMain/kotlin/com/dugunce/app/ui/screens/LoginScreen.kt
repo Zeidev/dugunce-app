@@ -58,11 +58,19 @@ fun LoginScreen(
     onLinkSent: () -> Unit,
     onLoggedIn: () -> Unit,
     onHasInviteCode: () -> Unit = {},
+    /**
+     * Dışarıdan kod modunda aç.
+     *
+     * "Bağlantı gönderildi" ekranından gelindiğinde `true` olur —
+     * kullanıcıyı e-posta alanına geri göndermek yerine doğrudan
+     * kod girişini açar (bildirilen hata).
+     */
+    startWithCode: Boolean = false,
 ) {
     val c = DugunceTheme.colors
     var email by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
-    var showCode by remember { mutableStateOf(false) }
+    var showCode by remember { mutableStateOf(startWithCode) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf<String?>(null) }
@@ -94,11 +102,14 @@ fun LoginScreen(
     }
 
     fun verifyCode() {
+        // Kod yolu e-posta GEREKTİRMEZ: backend `{ code }` ile
+        // `shortCodeHash` üzerinden arar (magic-link.ts). E-posta
+        // zorunlu tutmak, kullanıcıyı gereksiz yere forma geri atıyordu.
         if (code.length != 6 || loading) return
         loading = true
         error = null
         scope.launch {
-            repository.verifyCode(email.trim(), code.trim()).fold(
+            repository.verifyCodeOnly(code.trim()).fold(
                 onSuccess = { loading = false; onLoggedIn() },
                 onFailure = { e ->
                     loading = false

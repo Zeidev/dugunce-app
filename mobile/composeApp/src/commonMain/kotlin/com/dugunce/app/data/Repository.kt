@@ -49,6 +49,21 @@ class Repository(
         res.body<AuthResponse>().also { storeTokens(it) }
     }
 
+    /**
+     * Yalnızca kod ile doğrula — e-posta GEREKMEZ.
+     *
+     * Backend `{ code }` gövdesini `shortCodeHash` üzerinden arar
+     * (`auth/magic-link.ts`). E-posta göndermek gereksizdi ve
+     * `VerifyRequest` şemasında olmadığı için zaten yok sayılıyordu.
+     */
+    suspend fun verifyCodeOnly(code: String): Result<AuthResponse> = safeCall {
+        val res = api.http.post("auth/verify") {
+            setBody(VerifyRequest(code = code))
+        }
+        ensureSuccess(res)
+        res.body<AuthResponse>().also { storeTokens(it) }
+    }
+
     suspend fun verifyCode(email: String, code: String): Result<AuthResponse> = safeCall {
         val res = api.http.post("auth/verify") {
             setBody(VerifyRequest(email = email, code = code))

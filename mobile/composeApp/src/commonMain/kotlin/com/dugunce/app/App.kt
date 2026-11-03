@@ -210,6 +210,7 @@ fun App(
 
                         Screen.LOGIN -> LoginScreen(
                             repository = repository,
+                            startWithCode = state.showCodeEntry,
                             onHasInviteCode = { state.go(Screen.ACCEPT_INVITE) },
                             onLinkSent = { state.go(Screen.LINK_SENT) },
                             onLoggedIn = {
@@ -230,7 +231,13 @@ fun App(
                         Screen.LINK_SENT -> LinkSentScreen(
                             email = tokens.userEmail,
                             onBack = { state.back() },
-                            onEnterCode = { state.resetTo(Screen.LOGIN) },
+                            // Bildirilen hata: burada `resetTo(LOGIN)` yapınca
+                            // kullanıcı e-posta alanına geri düşüyordu.
+                            // Artık kod modunda açılıyor.
+                            onEnterCode = {
+                                state.resetTo(Screen.LOGIN)
+                                state.showCodeEntry = true
+                            },
                         )
 
                         Screen.CREATE_WEDDING -> CreateWeddingScreen(

@@ -47,6 +47,9 @@ class AppState {
     /** Yeni oluşturulan yardımcının token'ı — davet ekranında gösterilir. */
     var createdHelperToken by mutableStateOf<String?>(null)
 
+    /** Giriş ekranı kod modunda açılsın mı (bağlantı ekranından gelindi). */
+    var showCodeEntry by mutableStateOf(false)
+
     /** Global hata bandı (ağ hatası, oturum süresi). */
     var banner by mutableStateOf<BannerMessage?>(null)
 
