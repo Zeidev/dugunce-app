@@ -143,4 +143,68 @@ class RepositoryAuthTest {
         assertTrue(repo.listWeddings().isSuccess)
         assertEquals(0, refreshCalls, "2xx yanıtta token yenilenmemeli")
     }
+
+    // -----------------------------------------------------------------------
+    // sendRetrying — 401 → yenile → TEKRAR DENE (tek nokta)
+    //
+    // Bu davranış `Repository`'nin 40+ çağrı yerinin tamamını kapsar.
+    // Bozulursa her istek 401'de başarısız olur ve ekranlar boş kalır.
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `sendRetrying 401 alinca yeniler ve istegi TEKRAR gonderir`() = runTest {
+        val tokens = tokenStore()
+        var protectedCalls = 0
+        var refreshCalls = 0
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/auth/refresh") -> {
+                    refreshCalls++
+                    respond(content = refreshJson, status = HttpStatusCode.OK, headers = jsonHeaders())
+                }
+                else -> {
+                    protectedCalls++
+                    if (protectedCalls == 1) respondError(HttpStatusCode.Unauthorized)
+                    else respond(content = weddingsJson, status = HttpStatusCode.OK, headers = jsonHeaders())
+                }
+            }
+        }
+        val repo = repository(engine, tokens)
+        repo.listWeddings()
+
+        // İstek iki kez gönderilmiş olmalı: ilk 401, ikincisi başarılı.
+        assertEquals(2, protectedCalls, "401 sonrası istek TEKRAR gönderilmeliydi")
+        assertEquals(1, refreshCalls, "Token bir kez yenilenmeli")
+    }
+
+    /**
+     * SONSUZ ÖZYİNELEME REGRESYONU.
+     *
+     * `refresh()` kendi içinde `ensureSuccess` çağırırsa ve yenileme
+     * ucu da 401 dönerse: 401 → refresh → 401 → refresh … sonsuz döngü
+     * = StackOverflowError = uygulama açılışta çöker.
+     *
+     * Bu testin SONLANMASI tek başına kanıttır.
+     */
+    @Test
+    fun `refresh 401 alinca sonsuz ozyinelemeye girmez`() = runTest {
+        val tokens = tokenStore()
+        var refreshCalls = 0
+        val engine = MockEngine { request ->
+            if (request.url.encodedPath.endsWith("/auth/refresh")) {
+                refreshCalls++
+                // Sonsuz döngü olsaydı bu sayaç binlere çıkardı.
+                if (refreshCalls > 5) error("Sonsuz özyineleme: refresh ${refreshCalls} kez çağrıldı")
+                respondError(HttpStatusCode.Unauthorized)
+            } else {
+                respondError(HttpStatusCode.Unauthorized)
+            }
+        }
+        val repo = repository(engine, tokens)
+
+        val result = repo.listWeddings()
+
+        assertTrue(result.isFailure, "Yenileme başarısızken istek başarılı sayılmamalı")
+        assertTrue(refreshCalls <= 2, "refresh en fazla birkaç kez çağrılmalı, $refreshCalls kez çağrıldı")
+    }
 }
