@@ -33,8 +33,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Pano/paylaşım için uygulama bağlamı (util/Platform.android.kt)
+        // Pano/paylaşım için bağlamlar (util/Platform.android.kt).
+        //
+        // `activity` AYRICA gerekli: `applicationContext` ile
+        // `startActivity` çağrılırsa Android Activity başlatmaz ve hata
+        // da vermez — paylaşım butonu sessizce çalışmıyordu.
         com.dugunce.app.util.AppContextHolder.context = applicationContext
+        com.dugunce.app.util.AppContextHolder.activity = this
 
         handleIntent(intent)
 

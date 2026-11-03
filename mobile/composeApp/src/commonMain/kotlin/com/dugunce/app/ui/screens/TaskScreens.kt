@@ -890,8 +890,12 @@ fun HelperListScreen(
                                     if (revoked) StatusTone.DANGER else StatusTone.SUCCESS,
                                 )
                             }
-                            if (!revoked) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            // "İptal et" YALNIZ aktif yardımcıda.
+                            // "Sil" HER ZAMAN görünür: iptal edilmiş bir
+                            // yardımcı listede kalırsa kullanıcı onu
+                            // kaldıramıyordu (bildirilen hata).
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                if (!revoked) {
                                     com.dugunce.app.ui.components.TextAction(
                                         "İptal et",
                                         onClick = {
@@ -901,17 +905,17 @@ fun HelperListScreen(
                                             }
                                         },
                                     )
-                                    com.dugunce.app.ui.components.TextAction(
-                                        "Sil",
-                                        onClick = {
-                                            scope.launch {
-                                                // Görevler CASCADE ile temizlenir, mesajlar kalır
-                                                repository.deleteHelper(weddingId, h.id)
-                                                reloadKey++
-                                            }
-                                        },
-                                    )
                                 }
+                                com.dugunce.app.ui.components.TextAction(
+                                    "Sil",
+                                    onClick = {
+                                        scope.launch {
+                                            // Görevler CASCADE ile temizlenir, mesajlar kalır
+                                            repository.deleteHelper(weddingId, h.id)
+                                            reloadKey++
+                                        }
+                                    },
+                                )
                             }
                         }
                     }
@@ -1010,10 +1014,23 @@ fun HelperInviteScreen(
                                 DugunceButton(
                                     label = "Paylaş",
                                     onClick = {
-                                        shareText(
+                                        // Başarısız olursa sessiz kalmasın:
+                                        // kullanıcı "bastım, bir şey olmadı"
+                                        // demesin (bildirilen hata).
+                                        val ok = shareText(
                                             createdUrl!!,
                                             "Düğünce — görev listesi daveti",
                                         )
+                                        if (!ok) {
+                                            // Paylaşım açılamadıysa en azından
+                                            // kopyalayıp elle gönderebilsin.
+                                            copied = copyToClipboard(createdUrl!!)
+                                            error = if (copied) {
+                                                "Paylaşım menüsü açılamadı — bağlantı kopyalandı, elle gönderebilirsiniz."
+                                            } else {
+                                                "Paylaşım menüsü açılamadı. Bağlantıyı seçip kopyalayın."
+                                            }
+                                        }
                                     },
                                     fullWidth = false,
                                     modifier = Modifier.weight(1f),

@@ -50,11 +50,21 @@ export const weddingInputSchema = z.object({
     })
     .optional(),
   /** Font — boş bırakılırsa şablonun önerilen fontu kullanılır. */
-  fontKey: z
-    .enum(FONTS, {
-      errorMap: () => ({ message: 'Geçersiz font' }),
-    })
-    .optional(),
+  fontKey: z.preprocess(
+    // Boş dize "şablonun önerilenini kullan" demektir; alanı hiç
+    // göndermemekle aynı şey. `enum` boş dizeyi reddettiği için
+    // doğrulamadan ÖNCE `undefined`'a çeviriyoruz.
+    //
+    // NEDEN: mobil `WeddingDto.fontKey` varsayılanı `""` ve istemci bunu
+    // olduğu gibi geri gönderebiliyor. Yalnız `enum` ile doğrulanınca
+    // 400 dönüyor, kullanıcı "beklenmeyen bir hata" görüyordu.
+    (v) => (v === '' ? undefined : v),
+    z
+      .enum(FONTS, {
+        errorMap: () => ({ message: 'Geçersiz font' }),
+      })
+      .optional(),
+  ),
 })
 
 export type WeddingInput = z.input<typeof weddingInputSchema>
