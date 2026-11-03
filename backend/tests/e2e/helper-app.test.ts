@@ -420,6 +420,46 @@ describe('oturum kapatma', () => {
   })
 })
 
+/**
+ * Kayan oturum — çerez tazeleme.
+ *
+ * Çerez ömrü 30 dk. Oturum veritabanında uzatılıyordu ama tarayıcıdaki
+ * çerez yenilenmiyordu: 30 dk sonra çerez siliniyor, kullanıcı oturum
+ * sunucuda capcanlı dururken "geçersiz bağlantı" görüyor ve sayfayı
+ * yenilemek zorunda kalıyordu.
+ */
+describe('kayan oturum — çerez tazeleme', () => {
+  /** Oturumun bitişini "eşik altı"na çeker (kayan pencere tetiklensin). */
+  async function expireSoon(): Promise<void> {
+    await pg.query(
+      `UPDATE helper_sessions SET expires_at = now() + interval '2 minutes'`,
+    )
+  }
+
+  it('oturum uzatılınca çerezler YENİDEN gönderilir', async () => {
+    const s = await login(tokenA)
+    await expireSoon()
+
+    const res = await request(app).get('/api/v1/helper/tasks').set('Cookie', s.cookie)
+    expect(res.status).toBe(200)
+
+    const raw = res.headers['set-cookie'] as unknown as string[] | undefined
+    expect(raw).toBeDefined()
+    // Hem oturum hem CSRF çerezi tazelenmeli
+    expect((raw ?? []).some((c) => c.startsWith('h_session='))).toBe(true)
+    expect((raw ?? []).some((c) => c.startsWith('h_csrf='))).toBe(true)
+    expect((raw ?? []).every((c) => c.includes('Max-Age='))).toBe(true)
+  })
+
+  it('uzatma gerekmiyorsa çerez GÖNDERİLMEZ', async () => {
+    const s = await login(tokenA)
+    const res = await request(app).get('/api/v1/helper/tasks').set('Cookie', s.cookie)
+    expect(res.status).toBe(200)
+    // Yeni açılan oturumun 30 dk ömrü var — tazelemeye gerek yok
+    expect(res.headers['set-cookie']).toBeUndefined()
+  })
+})
+
 describe('CORS — yardımcı uçları', () => {
   it('izinli origin kabul edilir ve credentials açık', async () => {
     const res = await request(app)

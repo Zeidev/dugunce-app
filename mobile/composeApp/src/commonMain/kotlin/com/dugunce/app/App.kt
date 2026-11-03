@@ -28,6 +28,8 @@ import com.dugunce.app.data.TokenStore
 import com.dugunce.app.ui.AppState
 import com.dugunce.app.ui.components.InfoBanner
 import com.dugunce.app.ui.components.LoadingState
+import com.dugunce.app.ui.nav.isOnboarding
+import com.dugunce.app.ui.PlatformBackHandler
 import com.dugunce.app.ui.nav.MainTabs
 import com.dugunce.app.ui.nav.Screen
 import com.dugunce.app.ui.nav.isTab
@@ -167,7 +169,17 @@ fun App(
 
         val wedding = state.wedding
         val screen = state.current
-        val showBottomBar = screen.isTab() && wedding != null
+        // Alt navigasyon onboarding ve giriş dışında HER ZAMAN görünür.
+        // Önce yalnız `isTab()` iken gösteriliyordu; alt ekrana girince
+        // (harcama formu, görev detayı, şablon seçimi…) bar kayboluyordu.
+        val showBottomBar = wedding != null && !screen.isOnboarding()
+
+        // Telefonun kendi geri tuşu: yığın varsa bir önceki ekran,
+        // yığın boşsa sistem davranışı (uygulamadan çık).
+        // `isOnboarding()` dışında hiçbir ekran geri tuşunu yutmasın.
+        PlatformBackHandler(enabled = state.stack.size > 1) {
+            state.back()
+        }
 
         Scaffold(
             containerColor = c.cream,

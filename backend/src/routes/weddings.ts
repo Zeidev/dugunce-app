@@ -17,9 +17,11 @@ import { drizzleWeddingDeps } from '../weddings/store.js'
 export function createWeddingsRouter(deps: {
   requireAuth: import('express').RequestHandler
   requireMember: (roles?: ('OWNER' | 'CO_OWNER')[]) => import('express').RequestHandler
+  /** Testlerde PGlite enjekte etmek için; verilmezse gerçek DB. */
+  store?: ReturnType<typeof drizzleWeddingDeps>
 }): Router {
   const router = Router()
-  const store = drizzleWeddingDeps()
+  const store = deps.store ?? drizzleWeddingDeps()
 
   router.use(deps.requireAuth)
 

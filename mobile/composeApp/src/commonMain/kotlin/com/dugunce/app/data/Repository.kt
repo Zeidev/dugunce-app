@@ -127,9 +127,10 @@ class Repository(
 
     suspend fun updateWedding(weddingId: String, body: WeddingCreateRequest): Result<WeddingDto> =
         safeCall {
-            val res = api.http.patch("weddings/$weddingId") { setBody(body) }
-            ensureSuccess(res)
-            res.body<WeddingResponse>().wedding
+            withAuthRetry(
+                block = { api.http.patch("weddings/$weddingId") { setBody(body) } },
+                parse = { it.body<WeddingResponse>().wedding },
+            )
         }
 
     /**
@@ -141,9 +142,10 @@ class Repository(
      */
     suspend fun patchWedding(weddingId: String, body: WeddingPatchRequest): Result<WeddingDto> =
         safeCall {
-            val res = api.http.patch("weddings/$weddingId") { setBody(body) }
-            ensureSuccess(res)
-            res.body<WeddingResponse>().wedding
+            withAuthRetry(
+                block = { api.http.patch("weddings/$weddingId") { setBody(body) } },
+                parse = { it.body<WeddingResponse>().wedding },
+            )
         }
 
     // --- Bütçe ---
@@ -514,10 +516,10 @@ class Repository(
     }
 
     /**
-     * Başarısız yanıtı `ApiException`'a çevirir.
+     * Başarısız yanıtı hataya çevirir.
      *
-     * 401 görülürse bir kez token yenilenir ve istek tekrarlanır; bu da
-     * başarısızsa oturum kapatılır (brief §15.1).
+     * NOT: 401'de token yenilenir ama istek BURADA tekrar denenmez —
+     * `withAuthRetry` sarmalayıcısı bunu yapar.
      */
     private suspend fun ensureSuccess(res: HttpResponse) {
         if (res.status.isSuccess()) return
@@ -529,6 +531,27 @@ class Repository(
             }
         }
         throw res.toApiException()
+    }
+
+    /**
+     * İsteği çalıştırır; 401 alırsa token'ı yenileyip BİR KEZ tekrar dener.
+     *
+     * NEDEN: `ensureSuccess` token'ı yeniliyordu ama isteği tekrar
+     * göndermiyordu. Kullanıcı "kaydet"e basınca access token süresi
+     * dolmuşsa 401 alıyor ve "beklenmeyen hata" görüyordu — oysa refresh
+     * token geçerliydi.
+     */
+    private suspend fun <T> withAuthRetry(block: suspend () -> HttpResponse, parse: suspend (HttpResponse) -> T): T {
+        var res = block()
+        if (res.status.value == 401) {
+            if (!refresh().isSuccess) {
+                onSessionExpired()
+                throw res.toApiException()
+            }
+            res = block()   // yenilenen token ile tekrar
+        }
+        ensureSuccess(res)
+        return parse(res)
     }
 
     private suspend fun HttpResponse.toApiException(): ApiException {

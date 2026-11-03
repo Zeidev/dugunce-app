@@ -66,7 +66,11 @@
   .chat{margin:16px 0 0;padding:14px 0 0;border-top:1px solid var(--line)}
   .chat h3{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
            margin:0 0 10px;font-weight:600}
-  .msgs{max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:0 0 12px}
+  /* Sohbet alanı — 320px çok küçüktü, mesajlar sığmıyordu.
+     Mobilde ekranın büyük kısmını kaplar; masaüstünde sınırlı. */
+  .msgs{max-height:min(60vh,520px);min-height:180px;overflow-y:auto;
+        display:flex;flex-direction:column;gap:8px;margin:0 0 12px;
+        -webkit-overflow-scrolling:touch;scroll-behavior:smooth}
   .msg{max-width:85%;padding:9px 13px;border-radius:12px;font-size:14px;word-break:break-word;white-space:pre-wrap}
   .msg.COUPLE{background:#eef2ec;color:var(--ink);align-self:flex-start;border-bottom-left-radius:4px}
   .msg.HELPER{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
@@ -420,7 +424,18 @@ async function openSession() {
   state.csrf = body.csrfToken
   state.helperName = body.helperName
   state.coupleNames = body.coupleNames
+  // CSRF'i sekmeye yaz: sayfa yenilenince bellek sıfırlanır, çerez
+  // durur ama CSRF kaybolur → her istek 401 → "geçersiz bağlantı".
+  try { sessionStorage.setItem('helper_csrf', state.csrf) } catch {}
   return true
+}
+
+/** Kayıtlı CSRF'i geri yükle (sayfa yenilenmesi sonrası). */
+function restoreCsrf() {
+  try {
+    const saved = sessionStorage.getItem('helper_csrf')
+    if (saved) state.csrf = saved
+  } catch {}
 }
 
 /** Ortak fetch — çerez + CSRF; oturum düştüyse bir kez yeniler. */
@@ -435,6 +450,10 @@ async function apiFetch(path, options = {}) {
       ...(options.headers ?? {}),
     },
   })
+  // CSRF yoksa (sayfa yenilendi) sessionStorage'dan geri yükle.
+  // Oturum çerezi kalıcı olduğu için bu yeterli.
+  if (!state.csrf) restoreCsrf()
+
   let res = await fetch(`${API}${path}`, build())
   if (res.status === 401 && state.token) {
     // Oturum süresi dolmuş olabilir; token hâlâ geçerliyse yeniden aç
@@ -443,9 +462,84 @@ async function apiFetch(path, options = {}) {
   return res
 }
 
+/**
+ * Canlı güncelleme — görev ve sohbet yenilemesi.
+ *
+ * ÖNCE: yardımcı sayfayı elle yenilemek zorundaydı; yenileyince token
+ * URL'de olmadığı için "geçersiz bağlantı" alıyordu. Artık sayfa açık
+ * kaldıkça kendini günceller.
+ *
+ * Görünür sekmede 15 sn'de bir tazeler. Sekme gizlenince tamamen durur
+ * (pil ve veri tasarrufu); sekmeye dönülünce yeniden başlar.
+ */
+let pollTimer = null
+let pollMs = 15000
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(async () => {
+    if (document.hidden) return
+    try {
+      const res = await apiFetch('/helper/tasks')
+      if (!res.ok) return
+      const body = await res.json()
+      const fresh = body.tasks ?? []
+      // Değişiklik var mı? (JSON karşılaştırma — küçük liste)
+      const changed = JSON.stringify(fresh) !== JSON.stringify(state.tasks)
+      if (changed) {
+        state.tasks = fresh
+        renderList()
+      }
+      // Açık sohbet varsa mesajları da tazele
+      if (state.openTaskId) await loadMessages(state.openTaskId)
+    } catch {
+      // Sessiz geç: ağ hatası polling'i durdurmasın
+    }
+  }, pollMs)
+}
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+}
+
+// Sekme gizlenince durdur, görününce yeniden başlat.
+// Koşul CSRF'e değil, listenin görünür olmasına bağlı: oturum açıldıysa
+// liste gösterilir ve polling her hâlükârda yeniden başlamalı.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopPolling()
+  } else if (!$('list').hidden) {
+    startPolling()
+  }
+})
+
 async function load() {
   state.token = getToken()
+
+  // Token yoksa (sayfa yenilendi / bağlantı yer iminden açıldı) oturum
+  // çerezi hâlâ geçerli olabilir.
+  //
+  // ÖNEMLİ: GET istekleri YALNIZCA oturum çerezi ister; CSRF başlığı
+  // sadece yazma isteklerinde (PATCH/POST/DELETE) doğrulanıyor
+  // (bkz. backend `requireCsrf`). Bu yüzden CSRF yoksa bile denemeliyiz —
+  // aksi halde sekme depolaması temizlenmiş kullanıcı, oturumu capcanlı
+  // dururken "geçersiz bağlantı" görür.
   if (!state.token) {
+    restoreCsrf()
+    const probe = await apiFetch('/helper/tasks')
+    if (probe.ok) {
+      // Oturum yaşıyor — doğrudan listeyi çiz
+      const body = await probe.json()
+      state.helperName = body.helperName ?? state.helperName
+      state.coupleNames = body.coupleNames ?? state.coupleNames
+      state.tasks = body.tasks ?? []
+      $('greeting').textContent = `Merhaba ${state.helperName}`
+      $('coupleLine').textContent = `${state.coupleNames} düğünü için görevleriniz`
+      show('list')
+      renderList()
+      startPolling()
+      return
+    }
     $('errorText').textContent = 'Bağlantı eksik. Lütfen çiftten gelen bağlantıyı kullanın.'
     show('error')
     return
@@ -483,6 +577,7 @@ async function load() {
 
     show('list')
     renderList()
+    startPolling()
   } catch (err) {
     $('errorText').textContent = 'Bağlantı kurulamadı. İnternet bağlantınızı kontrol edin.'
     show('error')

@@ -43,7 +43,7 @@ object AppIcons {
     val AccountBalanceWallet: ImageVector = icon("AccountBalanceWallet") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(200f, 760f)
             verticalLineToRelative(-560f)
@@ -108,7 +108,7 @@ object AppIcons {
     val Add: ImageVector = icon("Add") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(440f, 520f)
             horizontalLineTo(200f)
@@ -131,7 +131,7 @@ object AppIcons {
     val ArrowBack: ImageVector = icon("ArrowBack") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveToRelative(313f, -440f)
             lineToRelative(224f, 224f)
@@ -151,7 +151,7 @@ object AppIcons {
     val CalendarMonth: ImageVector = icon("CalendarMonth") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(200f, 880f)
             quadToRelative(-33f, 0f, -56.50f, -23.50f)
@@ -258,7 +258,7 @@ object AppIcons {
     val CheckCircle: ImageVector = icon("CheckCircle") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveToRelative(424f, -296f)
             lineToRelative(282f, -282f)
@@ -305,7 +305,7 @@ object AppIcons {
     val Checklist: ImageVector = icon("Checklist") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(222f, 760f)
             lineTo(80f, 618f)
@@ -342,7 +342,7 @@ object AppIcons {
     val CreditCard: ImageVector = icon("CreditCard") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(880f, 240f)
             verticalLineToRelative(480f)
@@ -381,7 +381,7 @@ object AppIcons {
     val DarkMode: ImageVector = icon("DarkMode") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(480f, 840f)
             quadToRelative(-150f, 0f, -255f, -105f)
@@ -424,7 +424,7 @@ object AppIcons {
     val EventBusy: ImageVector = icon("EventBusy") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveToRelative(388f, -212f)
             lineToRelative(-56f, -56f)
@@ -485,7 +485,7 @@ object AppIcons {
     val Favorite: ImageVector = icon("Favorite") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveToRelative(480f, -120f)
             lineToRelative(-58f, -52f)
@@ -535,7 +535,7 @@ object AppIcons {
     val Groups: ImageVector = icon("Groups") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(0f, 720f)
             verticalLineToRelative(-63f)
@@ -630,7 +630,7 @@ object AppIcons {
     val Home: ImageVector = icon("Home") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(240f, 760f)
             horizontalLineToRelative(120f)
@@ -663,7 +663,7 @@ object AppIcons {
     val HourglassEmpty: ImageVector = icon("HourglassEmpty") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(320f, 800f)
             horizontalLineToRelative(320f)
@@ -714,7 +714,7 @@ object AppIcons {
     val Link: ImageVector = icon("Link") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(440f, 680f)
             horizontalLineTo(280f)
@@ -761,7 +761,7 @@ object AppIcons {
     val MailOutline: ImageVector = icon("MailOutline") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(160f, 800f)
             quadToRelative(-33f, 0f, -56.50f, -23.50f)
@@ -801,7 +801,7 @@ object AppIcons {
     val MarkEmailRead: ImageVector = icon("MarkEmailRead") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(638f, 880f)
             lineTo(468f, 710f)
@@ -848,7 +848,7 @@ object AppIcons {
     val People: ImageVector = icon("People") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(40f, 800f)
             verticalLineToRelative(-112f)
@@ -932,7 +932,7 @@ object AppIcons {
     val Person: ImageVector = icon("Person") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(480f, 480f)
             quadToRelative(-66f, 0f, -113f, -47f)
@@ -991,7 +991,7 @@ object AppIcons {
     val Phone: ImageVector = icon("Phone") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(798f, 840f)
             quadToRelative(-125f, 0f, -247f, -54.50f)
@@ -1046,7 +1046,7 @@ object AppIcons {
     val RadioButtonUnchecked: ImageVector = icon("RadioButtonUnchecked") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(480f, 880f)
             quadToRelative(-83f, 0f, -156f, -31.50f)
@@ -1085,7 +1085,7 @@ object AppIcons {
     val Savings: ImageVector = icon("Savings") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(640f, 440f)
             quadToRelative(17f, 0f, 28.50f, -11.50f)
@@ -1158,7 +1158,7 @@ object AppIcons {
     val Schedule: ImageVector = icon("Schedule") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveToRelative(612f, -292f)
             lineToRelative(56f, -56f)
@@ -1205,7 +1205,7 @@ object AppIcons {
     val Search: ImageVector = icon("Search") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(784f, 840f)
             lineTo(532f, 588f)
@@ -1239,7 +1239,7 @@ object AppIcons {
     val Send: ImageVector = icon("Send") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(120f, 800f)
             verticalLineToRelative(-640f)
@@ -1265,7 +1265,7 @@ object AppIcons {
     val Settings: ImageVector = icon("Settings") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveToRelative(370f, -80f)
             lineToRelative(-16f, -128f)
@@ -1356,7 +1356,7 @@ object AppIcons {
     val TaskAlt: ImageVector = icon("TaskAlt") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(480f, 880f)
             quadToRelative(-83f, 0f, -156f, -31.50f)
@@ -1403,7 +1403,7 @@ object AppIcons {
     val Timelapse: ImageVector = icon("Timelapse") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(480f, 720f)
             quadToRelative(100f, 0f, 170f, -70f)
@@ -1452,7 +1452,7 @@ object AppIcons {
     val Whatsapp: ImageVector = icon("Whatsapp") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveTo(240f, 560f)
             horizontalLineToRelative(320f)
@@ -1503,7 +1503,7 @@ object AppIcons {
     val WorkspacePremium: ImageVector = icon("WorkspacePremium") {
         path(
             fill = SolidColor(Color.Black),
-            pathFillType = PathFillType.NonZero,
+            pathFillType = PathFillType.EvenOdd,
         ) {
             moveToRelative(387f, -412f)
             lineToRelative(35f, -114f)

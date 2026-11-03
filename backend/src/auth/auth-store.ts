@@ -4,6 +4,9 @@ import { users, weddingMembers } from '../db/schema.js'
 import type { RequireAuthDeps } from '../middleware/require-auth.js'
 import type { MembershipLookup } from '../middleware/require-member.js'
 
+/** Testlerin PGlite bağlantısı enjekte edebilmesi için. */
+type Db = ReturnType<typeof getDb>
+
 /**
  * Auth middleware'lerinin Drizzle implementasyonu.
  *
@@ -11,8 +14,8 @@ import type { MembershipLookup } from '../middleware/require-member.js'
  * onları gerçek DB'ye bağlar.
  */
 
-export function drizzleAuthDeps(secret: string): RequireAuthDeps {
-  const db = getDb()
+export function drizzleAuthDeps(secret: string, dbOverride?: Db): RequireAuthDeps {
+  const db = dbOverride ?? getDb()
 
   return {
     secret,
@@ -27,8 +30,8 @@ export function drizzleAuthDeps(secret: string): RequireAuthDeps {
   }
 }
 
-export function drizzleMembershipDeps(): MembershipLookup {
-  const db = getDb()
+export function drizzleMembershipDeps(dbOverride?: Db): MembershipLookup {
+  const db = dbOverride ?? getDb()
 
   return {
     async findMembership(weddingId: string, userId: string) {

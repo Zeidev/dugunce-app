@@ -47,6 +47,16 @@ export interface SessionContext {
   csrfHash: string
   createdAt: Date
   expiresAt: Date
+  /**
+   * `loadSession` oturumu uzattıysa `true`.
+   *
+   * Çerez ömrü 30 dk; kayan pencere veritabanında uzatılıyor ama
+   * tarayıcıdaki çerez de yenilenmezse 30 dk sonra siliniyor ve
+   * kullanıcı — oturum sunucuda capcanlı dururken — "geçersiz
+   * bağlantı" görüyor. Çağıran taraf bu bayrağı görünce çerezleri
+   * yeniden göndermeli.
+   */
+  renewed?: boolean
 }
 
 export interface SessionDeps {
@@ -118,6 +128,9 @@ export async function loadSession(
     const next = new Date(Math.min(now + SESSION_TTL_MS, hardDeadline))
     await deps.touch(ctx.sessionId, next, new Date(now))
     ctx.expiresAt = next
+    // Çağıran taraf çerezleri de yenilemeli — yoksa tarayıcı çerezi
+    // sunucudaki oturumdan önce düşer (bkz. `renewed` alanı).
+    ctx.renewed = true
   }
 
   return ctx
