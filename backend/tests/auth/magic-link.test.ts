@@ -99,7 +99,9 @@ describe('requestMagicLink', () => {
     const d = makeDeps()
     await requestMagicLink({ email: 'a@b.com', deps: d })
     const emailArg = d.sendEmail.mock.calls[0]![0] as { link: string }
-    expect(emailArg.link).toMatch(/^https:\/\/dugunce\.com\.tr\/auth#/)
+    // Sondaki eğik çizgi kasıtlı: /auth → /auth/ yönlendirmesinde
+    // fragment kaybolabilir (magic-link.ts gerekçesi).
+    expect(emailArg.link).toMatch(/^https:\/\/dugunce\.com\.tr\/auth\/#/)
     expect(emailArg.link.split('#')[1]!.length).toBeGreaterThan(20)
   })
 
