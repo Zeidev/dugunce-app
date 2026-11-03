@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,9 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -140,7 +138,7 @@ fun LoginScreen(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    if (showCode) Icons.Filled.MarkEmailRead else Icons.Filled.MailOutline,
+                    if (showCode) AppIcons.MarkEmailRead else AppIcons.MailOutline,
                     contentDescription = null,
                     tint = c.sage,
                     modifier = Modifier.size(40.dp),
@@ -284,7 +282,7 @@ fun LinkSentScreen(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    Icons.Filled.MarkEmailRead,
+                    AppIcons.MarkEmailRead,
                     contentDescription = null,
                     tint = c.success,
                     modifier = Modifier.size(44.dp),

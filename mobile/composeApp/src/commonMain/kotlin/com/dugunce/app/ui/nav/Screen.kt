@@ -1,11 +1,6 @@
 package com.dugunce.app.ui.nav
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Settings
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -74,11 +69,11 @@ data class TabSpec(
  * Brief §5.2: ana panel özet kartları. Bütçe/davetli/görev ana modüller.
  */
 val MainTabs: List<TabSpec> = listOf(
-    TabSpec(Screen.DASHBOARD, "Panel", Icons.Filled.Home),
-    TabSpec(Screen.BUDGET, "Bütçe", Icons.Filled.AccountBalanceWallet),
-    TabSpec(Screen.GUESTS, "Davetli", Icons.Filled.People),
-    TabSpec(Screen.TASKS, "Görev", Icons.Filled.Checklist),
-    TabSpec(Screen.SETTINGS, "Ayarlar", Icons.Filled.Settings),
+    TabSpec(Screen.DASHBOARD, "Panel", AppIcons.Home),
+    TabSpec(Screen.BUDGET, "Bütçe", AppIcons.AccountBalanceWallet),
+    TabSpec(Screen.GUESTS, "Davetli", AppIcons.People),
+    TabSpec(Screen.TASKS, "Görev", AppIcons.Checklist),
+    TabSpec(Screen.SETTINGS, "Ayarlar", AppIcons.Settings),
 )
 
 /** Sekme mi? (alt çubuk görünürlüğü için) */

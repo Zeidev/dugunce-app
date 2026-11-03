@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,10 +17,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -54,21 +51,21 @@ private data class WelcomePage(
 
 private val pages = listOf(
     WelcomePage(
-        Icons.Filled.Savings,
+        AppIcons.Savings,
         "Düğün bütçen tek yerde",
         "Harcamalarını, taksitlerini ve bu ay ne kadar ödeyeceğini " +
             "tek ekranda gör. Taksitli alışverişte toplam tutar ile " +
             "aylık ödeme birbirine karışmaz.",
     ),
     WelcomePage(
-        Icons.Filled.Groups,
+        AppIcons.Groups,
         "Davetlileri ve yanıtları yönet",
         "Davetli listeni tut, WhatsApp'tan davetiye linki gönder, " +
             "kim geliyor kim gelmiyor anında gör. Misafirin uygulama " +
             "kurmasına gerek yok.",
     ),
     WelcomePage(
-        Icons.Filled.Favorite,
+        AppIcons.Favorite,
         "Yardımcılara görev ver",
         "Hazırlık işlerini paylaş. Yardımcın da uygulama kurmadan, " +
             "sana özel linkle görevini görür ve durumunu günceller.",

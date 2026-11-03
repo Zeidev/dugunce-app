@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,14 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -131,7 +124,7 @@ fun DashboardScreen(
                 Spacer(Modifier.height(Spacing.xs))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Filled.CalendarMonth,
+                        AppIcons.CalendarMonth,
                         contentDescription = null,
                         tint = c.muted,
                         modifier = Modifier.size(16.dp),
@@ -180,21 +173,21 @@ fun DashboardScreen(
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         StatCard(
-                            Icons.Filled.CheckCircle,
+                            AppIcons.CheckCircle,
                             "Katılacak",
                             attending.toString(),
                             StatusTone.SUCCESS,
                             Modifier.weight(1f),
                         )
                         StatCard(
-                            Icons.Filled.EventBusy,
+                            AppIcons.EventBusy,
                             "Katılmayacak",
                             declined.toString(),
                             StatusTone.DANGER,
                             Modifier.weight(1f),
                         )
                         StatCard(
-                            Icons.Filled.HourglassEmpty,
+                            AppIcons.HourglassEmpty,
                             "Bekleyen",
                             pending.toString(),
                             StatusTone.WARNING,
@@ -208,7 +201,7 @@ fun DashboardScreen(
                         EmptyState(
                             title = "Henüz davetli yok",
                             description = "İlk davetlini ekle, sonra WhatsApp'tan davetiye gönder.",
-                            icon = Icons.Filled.People,
+                            icon = AppIcons.People,
                             actionLabel = "Davetli ekle",
                             onAction = onAddGuest,
                         )
@@ -232,7 +225,7 @@ fun DashboardScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    Icons.Filled.TaskAlt,
+                                    AppIcons.TaskAlt,
                                     contentDescription = null,
                                     tint = c.sage,
                                     modifier = Modifier.size(20.dp),
@@ -319,13 +312,13 @@ fun DashboardScreen(
                     Spacer(Modifier.height(Spacing.sm))
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         QuickAction(
-                            Icons.Filled.AccountBalanceWallet,
+                            AppIcons.AccountBalanceWallet,
                             "Harcama ekle",
                             onAddExpense,
                             Modifier.weight(1f),
                         )
                         QuickAction(
-                            Icons.Filled.People,
+                            AppIcons.People,
                             "Davetli ekle",
                             onAddGuest,
                             Modifier.weight(1f),

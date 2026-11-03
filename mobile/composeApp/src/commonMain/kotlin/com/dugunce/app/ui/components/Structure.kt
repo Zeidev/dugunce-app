@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.components
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -107,7 +106,7 @@ fun TopBar(
         if (onBack != null) {
             androidx.compose.material3.IconButton(onClick = onBack) {
                 androidx.compose.material3.Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
+                    AppIcons.ArrowBack,
                     contentDescription = "Geri",
                     tint = c.ink,
                 )

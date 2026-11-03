@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,8 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -224,7 +223,7 @@ fun CardListScreen(
                             title = "Henüz kart yok",
                             description = "Kart ekleyerek hangi taksitin hangi karttan " +
                                 "ödendiğini takip edebilirsin. Kart numarası istemiyoruz.",
-                            icon = Icons.Filled.CreditCard,
+                            icon = AppIcons.CreditCard,
                             actionLabel = "Kart ekle",
                             onAction = { showForm = true },
                         )
