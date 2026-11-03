@@ -390,11 +390,14 @@ fun TaskFormScreen(
                 )
             }
             item {
-                DateField(
-                    value = dueText,
-                    onClick = { },
+                // ÖNCEDEN: DateField(onClick = { }) — boş lambda, tarih
+                // seçilemiyordu. Artık gerçek takvim açılıyor.
+                com.dugunce.app.ui.components.DatePickerField(
+                    isoValue = isoDue,
+                    onIsoChange = { iso -> dueText = iso?.let { Dates.formatShort(it) } ?: "" },
                     label = "Son tarih (isteğe bağlı)",
-                    error = if (dueText.isNotBlank() && isoDue == null) "gg.aa.yyyy biçiminde gir" else null,
+                    optional = true,
+                    onClear = { dueText = "" },
                 )
             }
             item {

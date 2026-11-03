@@ -177,11 +177,11 @@ fun ExpenseFormScreen(
             }
 
             item {
-                DateField(
-                    value = dateText,
-                    onClick = { },
+                // ÖNCEDEN: DateField(onClick = { }) — tarih seçilemiyordu.
+                com.dugunce.app.ui.components.DatePickerField(
+                    isoValue = isoDate,
+                    onIsoChange = { iso -> dateText = iso?.let { Dates.formatShort(it) } ?: "" },
                     label = "Satın alma tarihi",
-                    error = if (dateText.isNotBlank() && isoDate == null) "gg.aa.yyyy biçiminde gir" else null,
                 )
             }
 

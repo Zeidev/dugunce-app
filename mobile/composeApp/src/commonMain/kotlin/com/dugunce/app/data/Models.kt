@@ -294,12 +294,22 @@ data class GuestPatchRequest(
 @Serializable
 data class GuestRsvpRequest(val rsvp: String, val partySize: Int? = null)
 
+/**
+ * Davetiye yanıtı.
+ *
+ * **Backend yalnızca `{ token, expiresAt, url }` döndürür**
+ * (`guests.ts` → `createInvitation` → `invitation.ts`). `id` ve
+ * `allowedPartySize` YOKTUR; zorunlu tutmak serileştirmeyi patlatıyordu:
+ *
+ *   Illegal input: Field 'id' is required for type with serial name
+ *   'com.dugunce.app.data.InvitationDto'
+ *
+ * Bu, kullanıcının davetiye linki oluştururken gördüğü hataydı.
+ */
 @Serializable
 data class InvitationDto(
-    val id: String,
     val token: String? = null,
     val url: String? = null,
-    val allowedPartySize: Int = 1,
     val expiresAt: String? = null,
 )
 

@@ -285,6 +285,24 @@ class DtoContractTest {
     }
 
     @Test
+    fun `davetiye yaniti id alani ISTEMEZ`() {
+        // Backend yalnızca { token, expiresAt, url } döndürür.
+        // `id` zorunlu tutulunca serileştirme patlıyordu — bildirilen hata:
+        //   Illegal input: Field 'id' is required for type with serial
+        //   name 'com.dugunce.app.data.InvitationDto'
+        val raw = """{"invitation":{"token":"abc","expiresAt":"2026-12-01T00:00:00.000Z","url":"/d#abc"}}"""
+        val r = json.decodeFromString<InvitationResponse>(raw)
+        assertEquals("abc", r.invitation?.token)
+        assertEquals("/d#abc", r.invitation?.url)
+    }
+
+    @Test
+    fun `davetiye yaniti bos govde ile de cozulur`() {
+        val r = json.decodeFromString<InvitationResponse>("""{"invitation":{}}""")
+        assertEquals(null, r.invitation?.token)
+    }
+
+    @Test
     fun `guest istek govdesi camelCase`() {
         val req = GuestCreateRequest(name = "Ayşe", phone = null, side = "BRIDE")
         val encoded = json.encodeToString(GuestCreateRequest.serializer(), req)
