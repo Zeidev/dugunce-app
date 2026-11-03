@@ -58,6 +58,18 @@ jobs:
         working-directory: mobile
         run: ./gradlew :composeApp:allTests --no-daemon --stacktrace
 
+      # Testlerin GERÇEKTEN koştuğunu kanıtla.
+      #
+      # `allTests` Android'de `testDebugUnitTest`'e delege ediyor ve
+      # Gradle varsayılan olarak tek tek test adı basmıyor. Rapor
+      # olmadan "testler geçti" demek kanıtsız kalıyor — sessizce
+      # atlanan bir test fark edilmez.
+      - name: Test sonuçlarını özetle
+        if: always()
+        working-directory: mobile
+        run: |
+          node scripts/summarize-test-results.mjs
+
       - name: Build debug APK
         working-directory: mobile
         run: ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace
