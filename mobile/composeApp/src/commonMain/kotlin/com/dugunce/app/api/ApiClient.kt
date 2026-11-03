@@ -65,9 +65,9 @@ class ApiClient(
      * 40'tan fazla çağrı yeri var. Her birinde retry yazmak yerine tek
      * noktada yapılır; biri unutulduğunda 401 gövdesi başarı sanılır ve
      * ekran boş kalır. Yenileme başarısızsa orijinal 401 yanıtı döner —
-     * `Repository.ensureSuccess` onu hataya çevirir.
+     * veri katmanı onu hataya çevirir.
      *
-     * `refreshBlock` çağıran taraftan gelir (Repository.refresh) —
+     * `refreshBlock` çağıran taraftan gelir (veri katmanı) —
      * ApiClient token saklamaz.
      */
     private var refreshBlock: (suspend () -> Boolean)? = null
