@@ -111,6 +111,33 @@ Aşağıdakiler **mobil kod eksikliği değil**, başka aşamalara veya platform
 | 5 | **Rehberden davetli seçimi** | Platform izin API'si gerekir; manuel + toplu ekleme çalışıyor |
 | 6 | **Offline yazma kuyruğu** | Spec §6b v1.1'e erteledi; okuma önbelleği çalışıyor |
 
+### Düzeltilen bug (2026-11-03) — taksit takvimi boş
+
+**Belirti:** Taksitli harcama eklendi, panel "yaklaşan ödemeler"de göründü
+(özet ayrı uçtan gelir), ama taksit takvimi "taksitli bir harcama
+eklediğinde aylık ödeme planı burada görünür" diyordu.
+
+**Kök neden:** `listByWedding` yalnızca harcama kolonlarını seçiyordu —
+`installments` alanı **hiç doldurulmuyordu**. İstemci
+`e.installments.map { … }` üzerinde boş dizi görüyordu. Özet ucu taksitleri
+doğrudan topladığı için panel çalışıyordu; iki uç farklı davranıyordu.
+
+**Düzeltme:** `listByWedding` tüm harcamaların taksitlerini **tek sorguda**
+(`inArray`) yükleyip bellekte gruplayarak ekliyor. Harcama başına ayrı sorgu
+N+1 olurdu (100 harcama → 101 sorgu). `expenseId` istemciye sızdırılmıyor.
+
+**Canlı doğrulama:**
+```
+harcama: Takvim Testi | taksit sayısı: 4
+   1 2026-01 300000 PENDING
+   2 2026-02 300000 PENDING
+   3 2026-03 300000 PENDING
+   4 2026-04 300000 PENDING
+```
+
+**Testler:** `installments-in-list.test.ts` (5). Negatif kontrol: blok
+kaldırılınca 5 test kırılıyor.
+
 ### Düzeltilen bug (2026-11-03) — cihaz testi
 
 Kullanıcı gerçek cihazda test etti, 3 hata bildirdi:
