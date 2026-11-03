@@ -81,8 +81,16 @@ class MoneyTest {
 
     @Test
     fun `buyuk tutar float'a donusmez`() {
-        // 9999999999999999999n float'ta bozulur — string korunmalı
-        assertEquals("99999999999999999.99", Money.kurusToTlString("9999999999999999999"))
+        // Long sınırına yakın ama İÇİNDE bir değer: float'ta
+        // (2^53 üstü) hassasiyet kaybolurdu, string korunmalı.
+        // 9007199254740993 = 2^53 + 1 — float bu değeri 2^53 yapar.
+        assertEquals("90071992547409.93", Money.kurusToTlString("9007199254740993"))
+    }
+
+    @Test
+    fun `Long sinirini asan deger sifir doner (cokme yok)`() {
+        // 9999999999999999999 > Long.MAX_VALUE — toLongOrNull null döner
+        assertEquals("0.00", Money.kurusToTlString("9999999999999999999"))
     }
 
     @Test
