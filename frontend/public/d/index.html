@@ -16,75 +16,225 @@
     GET YAN ETKİ YARATMAZ (RSVP sadece POST).
 -->
 <style>
+  /* ===================================================================
+     FONTLAR — yalnız latin + latin-ext alt kümeleri.
+     Türkçe karakterler (ş ğ İ ı ç ö ü) her iki blokta da kapsanır.
+     font-display:swap — metin hemen görünür, font sonra gelir.
+     =================================================================== */
+  @font-face{font-family:'Parisienne';src:url('/assets/fonts/parisienne-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Parisienne';src:url('/assets/fonts/parisienne-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Great Vibes';src:url('/assets/fonts/great-vibes-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Great Vibes';src:url('/assets/fonts/great-vibes-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Dancing Script';src:url('/assets/fonts/dancing-script-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Dancing Script';src:url('/assets/fonts/dancing-script-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Allura';src:url('/assets/fonts/allura-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Allura';src:url('/assets/fonts/allura-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Sacramento';src:url('/assets/fonts/sacramento-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Sacramento';src:url('/assets/fonts/sacramento-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Playfair Display';font-weight:700;src:url('/assets/fonts/playfair-display-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Playfair Display';font-weight:700;src:url('/assets/fonts/playfair-display-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Cormorant Garamond';font-weight:300 700;src:url('/assets/fonts/cormorant-garamond-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Cormorant Garamond';font-weight:300 700;src:url('/assets/fonts/cormorant-garamond-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'DM Serif Display';src:url('/assets/fonts/dm-serif-display-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'DM Serif Display';src:url('/assets/fonts/dm-serif-display-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Bodoni Moda';src:url('/assets/fonts/bodoni-moda-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Bodoni Moda';src:url('/assets/fonts/bodoni-moda-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+  @font-face{font-family:'Josefin Sans';font-weight:300 600;src:url('/assets/fonts/josefin-sans-latin.woff2') format('woff2');font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F;}
+  @font-face{font-family:'Josefin Sans';font-weight:300 600;src:url('/assets/fonts/josefin-sans-latin-ext.woff2') format('woff2');font-display:swap;unicode-range:U+0100-02BA,U+1E00-1E9F,U+20A0-20AB,U+A720-A7FF;}
+
+  /* ===================================================================
+     ŞABLON TOKENLARI — her şablon yalnız bu değişkenleri ezer.
+     =================================================================== */
   :root{
-    --bg:#f4f2ee; --card:#fff; --ink:#2d3a2e; --muted:#7a746a;
-    --line:#e6e1d8; --accent:#4a5f45; --accent-ink:#fff;
-    --ok:#4a5f45; --no:#a35b4a;
-    --radius:16px;
+    --t-bg:#efece5; --t-card:#fdfcfa; --t-ink:#2d3a2e; --t-muted:#7a746a;
+    --t-accent:#a8925f; --t-accent-ink:#fff; --t-line:#f0ece5;
+    --t-radius:2px; --t-rule:3px; --t-align:center;
+    --t-font-display:'Parisienne',cursive;
+    --t-font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --t-salutation-style:italic;
+    --t-header-band:transparent;
   }
+  body[data-template="ZARIF"]{
+    --t-bg:#efece5; --t-card:#fdfcfa; --t-ink:#2d3a2e; --t-muted:#7a746a;
+    --t-accent:#a8925f; --t-line:#f0ece5; --t-radius:2px; --t-rule:3px;
+    --t-font-display:'Parisienne',cursive; --t-align:center; --t-salutation-style:italic;
+  }
+  body[data-template="BOTANIK"]{
+    --t-bg:#e9ece7; --t-card:#fbfdf9; --t-ink:#2d3a2e; --t-muted:#6b7563;
+    --t-accent:#7d9070; --t-line:#dde4d6; --t-radius:16px; --t-rule:0px;
+    --t-font-display:'Great Vibes',cursive; --t-align:center; --t-salutation-style:normal;
+  }
+  body[data-template="ROMANTIK"]{
+    --t-bg:#f0e8e4; --t-card:#fffdfb; --t-ink:#4a2333; --t-muted:#7a5c64;
+    --t-accent:#8c3f52; --t-line:#f2e4e6; --t-radius:2px; --t-rule:3px;
+    --t-font-display:'Dancing Script',cursive; --t-align:center; --t-salutation-style:normal;
+  }
+  body[data-template="MINIMAL"]{
+    --t-bg:#eceae6; --t-card:#fff; --t-ink:#2d3a2e; --t-muted:#7a746a;
+    --t-accent:#a8a29a; --t-line:#f0ece5; --t-radius:0px; --t-rule:0px;
+    --t-font-display:'Sacramento',cursive; --t-align:left; --t-salutation-style:normal;
+    --t-font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  body[data-template="GECE"]{
+    --t-bg:#cfd3cd; --t-card:#1c1f1a; --t-ink:#e8e6e1; --t-muted:#9a948a;
+    --t-accent:#a8925f; --t-line:#2e332b; --t-radius:2px; --t-rule:3px;
+    --t-font-display:'Great Vibes',cursive; --t-align:center; --t-salutation-style:italic;
+  }
+  body[data-template="ZEYTIN"]{
+    --t-bg:#e8ebe4; --t-card:#f7f9f3; --t-ink:#3b4c37; --t-muted:#6b7563;
+    --t-accent:#a8925f; --t-line:#dde4d6; --t-radius:0px; --t-rule:0px;
+    --t-font-display:'Allura',cursive; --t-align:center; --t-salutation-style:normal;
+  }
+  body[data-template="EDITORYAL"]{
+    --t-bg:#ece8e1; --t-card:#fffdf8; --t-ink:#2d3a2e; --t-muted:#7a746a;
+    --t-accent:#a8925f; --t-line:#e8e3d8; --t-radius:0px; --t-rule:4px;
+    --t-font-display:'Playfair Display',serif; --t-align:left; --t-salutation-style:normal;
+    --t-font-body:'Josefin Sans',sans-serif;
+  }
+  body[data-template="MONOGRAM"]{
+    --t-bg:#e9ece7; --t-card:#fbfdf9; --t-ink:#2d3a2e; --t-muted:#6b7563;
+    --t-accent:#a8925f; --t-line:#dde4d6; --t-radius:14px; --t-rule:0px;
+    --t-font-display:'Cormorant Garamond',serif; --t-align:center; --t-salutation-style:italic;
+    --t-font-body:'Josefin Sans',sans-serif;
+  }
+  body[data-template="LUKS"]{
+    --t-bg:#dcd8d1; --t-card:#141613; --t-ink:#f2efe8; --t-muted:#8f8c84;
+    --t-accent:#a8925f; --t-line:#2e2e2a; --t-radius:0px; --t-rule:1px;
+    --t-font-display:'Bodoni Moda',serif; --t-align:center; --t-salutation-style:normal;
+    --t-font-body:'Josefin Sans',sans-serif;
+  }
+  body[data-template="FOTOGRAFLI"]{
+    --t-bg:#eae6e0; --t-card:#fffdf8; --t-ink:#2d3a2e; --t-muted:#7a746a;
+    --t-accent:#a8925f; --t-line:#f0ece4; --t-radius:0px; --t-rule:0px;
+    --t-font-display:'DM Serif Display',serif; --t-align:left; --t-salutation-style:normal;
+    --t-font-body:'Josefin Sans',sans-serif;
+  }
+  body[data-template="TIPOGRAFI"]{
+    --t-bg:#efece6; --t-card:#faf8f3; --t-ink:#2d3a2e; --t-muted:#6d6a62;
+    --t-accent:#a8925f; --t-line:#ddd8cf; --t-radius:0px; --t-rule:0px;
+    --t-font-display:'Cormorant Garamond',serif; --t-align:center; --t-salutation-style:italic;
+  }
+
+  /* Font seçimi — şablonun önerilen fontunu ezer. */
+  body[data-font="PARISIENNE"]{--t-font-display:'Parisienne',cursive;}
+  body[data-font="GREAT_VIBES"]{--t-font-display:'Great Vibes',cursive;}
+  body[data-font="DANCING_SCRIPT"]{--t-font-display:'Dancing Script',cursive;}
+  body[data-font="ALLURA"]{--t-font-display:'Allura',cursive;}
+  body[data-font="SACRAMENTO"]{--t-font-display:'Sacramento',cursive;}
+  body[data-font="PLAYFAIR"]{--t-font-display:'Playfair Display',serif;}
+  body[data-font="CORMORANT"]{--t-font-display:'Cormorant Garamond',serif;}
+  body[data-font="DM_SERIF"]{--t-font-display:'DM Serif Display',serif;}
+  body[data-font="BODONI"]{--t-font-display:'Bodoni Moda',serif;}
+  body[data-font="JOSEFIN"]{--t-font-display:'Josefin Sans',sans-serif;}
+
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
-    background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
-    line-height:1.55;
-    padding:24px 16px 48px;
+    background:var(--t-bg); color:var(--t-ink);
+    font-family:var(--t-font-body);
+    line-height:1.55; padding:24px 16px 48px;
     -webkit-font-smoothing:antialiased;
+    transition:background .2s ease;
   }
   .wrap{max-width:520px;margin:0 auto}
+
   .card{
-    background:var(--card); border-radius:var(--radius);
-    padding:28px 24px; box-shadow:0 1px 2px rgba(45,58,46,.06),0 8px 24px rgba(45,58,46,.06);
+    background:var(--t-card); border-radius:var(--t-radius);
+    padding:0 0 26px; overflow:hidden;
+    box-shadow:0 1px 2px rgba(45,58,46,.06),0 8px 24px rgba(45,58,46,.06);
+    position:relative;
   }
-  .brand{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 18px}
-  h1{font-size:26px;line-height:1.25;margin:0 0 6px;font-weight:600;letter-spacing:-.01em}
-  .hello{color:var(--muted);font-size:15px;margin:0 0 24px}
-  .hello strong{color:var(--ink);font-weight:600}
+  .rule{height:var(--t-rule);background:var(--t-accent);}
+  .card-in{padding:30px 26px 0;}
 
-  dl{margin:0;display:grid;gap:16px}
+  .brand{
+    font-size:10px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--t-accent);margin:0 0 18px;text-align:var(--t-align);
+  }
+  h1{
+    font-family:var(--t-font-display);
+    font-size:40px;line-height:1.1;margin:0 0 8px;font-weight:400;
+    letter-spacing:-.01em;text-align:var(--t-align);
+    color:var(--t-ink);word-break:break-word;
+  }
+  .hello{
+    color:var(--t-muted);font-size:15px;margin:0 0 26px;
+    text-align:var(--t-align);line-height:1.7;
+    font-style:var(--t-salutation-style);
+  }
+  .hello strong{color:var(--t-ink);font-weight:600;font-style:normal;}
+
+  .divider{width:34px;height:1px;background:var(--t-line);margin:0 auto 22px;}
+  body[data-template="MINIMAL"] .divider,
+  body[data-template="EDITORYAL"] .divider,
+  body[data-template="FOTOGRAFLI"] .divider{margin-left:0;}
+
+  dl{margin:0;display:grid;gap:16px;text-align:left}
   .row{display:grid;grid-template-columns:22px 1fr;gap:12px;align-items:start}
-  .ico{width:22px;height:22px;flex:none;margin-top:2px;color:var(--accent)}
-  dt{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 2px}
+  .ico{width:20px;height:20px;flex:none;margin-top:2px;color:var(--t-accent)}
+  dt{
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--t-muted);margin:0 0 2px;
+  }
   dd{margin:0;font-size:16px}
-  dd .sub{display:block;color:var(--muted);font-size:14px;margin-top:2px}
-  a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(74,95,69,.3)}
-  a:active{opacity:.7}
+  dd .sub{display:block;color:var(--t-muted);font-size:13.5px;margin-top:2px}
+  a{color:var(--t-accent);text-decoration:none;border-bottom:1px solid currentColor;opacity:.85}
+  a:active{opacity:.6}
 
-  .prog{margin:24px 0 0;padding:0;list-style:none;border-top:1px solid var(--line);padding-top:20px}
-  .prog li{display:grid;grid-template-columns:56px 1fr;gap:12px;padding:8px 0;font-size:15px}
-  .prog time{color:var(--muted);font-variant-numeric:tabular-nums}
+  .prog{
+    margin:24px 0 0;padding:20px 0 0;list-style:none;
+    border-top:1px solid var(--t-line);
+  }
+  .prog li{display:grid;grid-template-columns:54px 1fr;gap:12px;padding:7px 0;font-size:14.5px}
+  .prog time{color:var(--t-muted);font-variant-numeric:tabular-nums;font-size:13.5px}
+  .prog .sub{display:block;color:var(--t-muted);font-size:12.5px;margin-top:1px}
 
   .note{
-    margin:20px 0 0;padding:14px 16px;background:#faf8f4;border-radius:12px;
-    font-size:14px;color:var(--muted);border:1px solid var(--line);
+    margin:20px 0 0;padding:14px 16px;
+    background:rgba(0,0,0,.035);border-radius:calc(var(--t-radius) + 4px);
+    font-size:13.5px;color:var(--t-muted);border:1px solid var(--t-line);
+    line-height:1.65;
   }
-  .note strong{color:var(--ink)}
+  body[data-template="GECE"] .note,
+  body[data-template="LUKS"] .note{background:rgba(255,255,255,.05);}
+  .note strong{color:var(--t-ink)}
 
   /* RSVP */
-  .rsvp{margin:28px 0 0;border-top:1px solid var(--line);padding-top:24px}
-  .rsvp h2{font-size:17px;margin:0 0 4px;font-weight:600}
-  .rsvp .hint{font-size:14px;color:var(--muted);margin:0 0 18px}
+  .rsvp{
+    margin:26px 0 0;border-top:1px solid var(--t-line);padding-top:24px;
+  }
+  .rsvp h2{
+    font-size:16px;margin:0 0 4px;font-weight:600;
+    font-family:var(--t-font-body);letter-spacing:.01em;
+  }
+  .rsvp .hint{font-size:13.5px;color:var(--t-muted);margin:0 0 18px;line-height:1.6}
 
   .btns{display:grid;gap:10px;grid-template-columns:1fr 1fr}
   button{
     font:inherit;font-size:15px;font-weight:600;cursor:pointer;
-    border-radius:12px;padding:14px 16px;border:1.5px solid transparent;
+    border-radius:calc(var(--t-radius) + 8px);padding:14px 16px;
+    border:1.5px solid transparent;min-height:48px;
     transition:transform .06s ease,opacity .15s ease;
-    min-height:48px;
   }
   button:active{transform:scale(.985)}
   button:disabled{opacity:.55;cursor:not-allowed}
-  .yes{background:var(--accent);color:var(--accent-ink)}
-  .no{background:#fff;color:var(--no);border-color:#e0cfc9}
-  .yes[aria-pressed="true"]{box-shadow:0 0 0 3px rgba(74,95,69,.18)}
-  .no[aria-pressed="true"]{border-color:var(--no);background:#fbf3f1}
+  .yes{background:var(--t-accent);color:var(--t-accent-ink)}
+  .no{
+    background:transparent;color:var(--t-ink);
+    border-color:var(--t-line);
+  }
+  .yes[aria-pressed="true"]{box-shadow:0 0 0 3px color-mix(in srgb, var(--t-accent) 22%, transparent)}
+  .no[aria-pressed="true"]{border-color:var(--t-accent)}
 
   .size{margin:18px 0 0;display:none}
   .size.show{display:block}
-  .size label{display:block;font-size:14px;color:var(--muted);margin:0 0 8px}
-  .stepper{display:flex;align-items:center;gap:0;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;width:max-content}
+  .size label{display:block;font-size:13.5px;color:var(--t-muted);margin:0 0 8px}
+  .stepper{
+    display:flex;align-items:center;border:1.5px solid var(--t-line);
+    border-radius:calc(var(--t-radius) + 8px);overflow:hidden;width:max-content;
+  }
   .stepper button{
-    background:#fff;color:var(--ink);border:0;border-radius:0;
+    background:transparent;color:var(--t-ink);border:0;border-radius:0;
     width:52px;height:48px;font-size:20px;font-weight:400;padding:0;
   }
   .stepper button:disabled{opacity:.3}
@@ -93,33 +243,35 @@
     font-variant-numeric:tabular-nums;padding:0 4px;
   }
 
-  .status{margin:16px 0 0;font-size:14px;min-height:20px}
-  .status.ok{color:var(--ok)}
-  .status.err{color:var(--no)}
+  .status{margin:16px 0 0;font-size:13.5px;min-height:20px;line-height:1.6}
+  .status.ok{color:#4a7c59}
+  .status.err{color:#a35b4a}
+  body[data-template="GECE"] .status.ok,
+  body[data-template="LUKS"] .status.ok{color:#8fc79f;}
 
-  .confirmed{
-    margin:0 0 4px;font-size:15px;
-  }
+  .confirmed{margin:0 0 14px;font-size:14px;color:var(--t-muted)}
   .confirmed .pill{
-    display:inline-block;padding:4px 10px;border-radius:999px;
-    background:#eef2ec;color:var(--accent);font-weight:600;font-size:13px;
+    display:inline-block;padding:4px 12px;border-radius:999px;
+    background:color-mix(in srgb, var(--t-accent) 14%, transparent);
+    color:var(--t-accent);font-weight:600;font-size:12.5px;
   }
 
   .closed{
-    margin:20px 0 0;padding:14px 16px;border-radius:12px;
-    background:#fbf3f1;border:1px solid #e0cfc9;color:var(--no);font-size:14px;
+    margin:20px 0 0;padding:14px 16px;border-radius:calc(var(--t-radius) + 8px);
+    background:#fbf3f1;border:1px solid #e0cfc9;color:#a35b4a;font-size:13.5px;
+    line-height:1.6;
   }
 
-  .grow{margin:32px 0 0;text-align:center}
-  .grow a{font-size:14px;color:var(--muted);border:0}
+  .grow{margin:30px 0 0;text-align:center}
+  .grow a{font-size:13px;color:var(--t-muted);border:0;opacity:1}
 
-  /* Durumlar */
+  /* Durum ekranları */
   .center{text-align:center;padding:56px 8px}
-  .center h2{font-size:19px;margin:0 0 8px;font-weight:600}
-  .center p{color:var(--muted);font-size:15px;margin:0}
+  .center h2{font-size:18px;margin:0 0 8px;font-weight:600}
+  .center p{color:var(--t-muted);font-size:14.5px;margin:0;line-height:1.7}
   .spinner{
     width:28px;height:28px;margin:0 auto 20px;border-radius:50%;
-    border:2.5px solid var(--line);border-top-color:var(--accent);
+    border:2.5px solid var(--t-line);border-top-color:var(--t-accent);
     animation:spin .8s linear infinite;
   }
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -130,10 +282,11 @@
   }
 </style>
 </head>
-<body>
+<body data-template="ZARIF" data-font="PARISIENNE">
 <div class="wrap" id="app">
 
   <div class="card" id="loading">
+    <div class="rule"></div>
     <div class="center">
       <div class="spinner" aria-hidden="true"></div>
       <p>Davetiye yükleniyor…</p>
@@ -141,6 +294,7 @@
   </div>
 
   <div class="card" id="error" hidden>
+    <div class="rule"></div>
     <div class="center">
       <h2>Davetiye bulunamadı</h2>
       <p id="errorText">Bu bağlantı geçersiz veya süresi dolmuş olabilir.<br>Lütfen çift ile iletişime geçin.</p>
@@ -148,62 +302,66 @@
   </div>
 
   <div class="card" id="invite" hidden>
-    <p class="brand">Düğünce · Davetiye</p>
-    <h1 id="coupleNames"></h1>
-    <p class="hello">Sayın <strong id="guestName"></strong>, sizi düğünümüzde görmek isteriz.</p>
+    <div class="rule"></div>
+    <div class="card-in">
+      <p class="brand">Düğünce · Davetiye</p>
+      <h1 id="coupleNames"></h1>
+      <div class="divider"></div>
+      <p class="hello">Sayın <strong id="guestName"></strong>, sizi düğünümüzde görmek isteriz.</p>
 
-    <dl>
-      <div class="row">
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>
-        </svg>
-        <div>
-          <dt>Tarih</dt>
-          <dd id="dateText"></dd>
+      <dl>
+        <div class="row">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>
+          </svg>
+          <div>
+            <dt>Tarih</dt>
+            <dd id="dateText"></dd>
+          </div>
         </div>
-      </div>
 
-      <div class="row" id="venueRow">
-        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>
-        </svg>
-        <div>
-          <dt>Yer</dt>
-          <dd id="venueText"></dd>
+        <div class="row" id="venueRow">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/>
+          </svg>
+          <div>
+            <dt>Yer</dt>
+            <dd id="venueText"></dd>
+          </div>
         </div>
-      </div>
-    </dl>
+      </dl>
 
-    <ul class="prog" id="program" hidden></ul>
+      <ul class="prog" id="program" hidden></ul>
 
-    <p class="note" id="giftNote" hidden></p>
+      <p class="note" id="giftNote" hidden></p>
 
-    <div class="rsvp" id="rsvpBox" hidden>
-      <h2>Katılım bildirimi</h2>
-      <p class="hint" id="rsvpHint"></p>
+      <div class="rsvp" id="rsvpBox" hidden>
+        <h2>Katılım bildirimi</h2>
+        <p class="hint" id="rsvpHint"></p>
 
-      <p class="confirmed" id="confirmedLine" hidden>
-        Bildiriminiz: <span class="pill" id="confirmedPill"></span>
-      </p>
+        <p class="confirmed" id="confirmedLine" hidden>
+          Bildiriminiz: <span class="pill" id="confirmedPill"></span>
+        </p>
 
-      <div class="btns">
-        <button class="yes" id="btnYes" type="button" aria-pressed="false">Geliyorum</button>
-        <button class="no" id="btnNo" type="button" aria-pressed="false">Gelemeyeceğim</button>
-      </div>
-
-      <div class="size" id="sizeBox">
-        <label id="sizeLabel" for="btnMinus">Kaç kişi geleceksiniz?</label>
-        <div class="stepper">
-          <button id="btnMinus" type="button" aria-label="Azalt">−</button>
-          <output id="sizeValue" aria-live="polite">1</output>
-          <button id="btnPlus" type="button" aria-label="Arttır">+</button>
+        <div class="btns">
+          <button class="yes" id="btnYes" type="button" aria-pressed="false">Geliyorum</button>
+          <button class="no" id="btnNo" type="button" aria-pressed="false">Gelemeyeceğim</button>
         </div>
+
+        <div class="size" id="sizeBox">
+          <label id="sizeLabel" for="btnMinus">Kaç kişi geleceksiniz?</label>
+          <div class="stepper">
+            <button id="btnMinus" type="button" aria-label="Azalt">−</button>
+            <output id="sizeValue" aria-live="polite">1</output>
+            <button id="btnPlus" type="button" aria-label="Arttır">+</button>
+          </div>
+        </div>
+
+        <p class="status" id="status" role="status" aria-live="polite"></p>
       </div>
 
-      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <p class="closed" id="closedBox" hidden></p>
     </div>
-
-    <p class="closed" id="closedBox" hidden></p>
   </div>
 
   <p class="grow"><a href="https://dugunce.com.tr" id="growLink">Düğünce ile düğününü planla</a></p>
@@ -223,6 +381,29 @@
  */
 const API = 'https://api.dugunce.com.tr/api/v1'
 const $ = (id) => document.getElementById(id)
+
+/**
+ * Şablon ve font anahtarları — backend `weddings/templates.ts` ile
+ * BİREBİR aynı olmalı. Bu sayfa statiktir, backend modülü import edemez;
+ * bu yüzden liste burada tekrar tanımlıdır.
+ *
+ * Sunucu zaten normalleştirilmiş değer gönderir; buradaki kontrol
+ * savunmacıdır (bozuk yanıt / eski sunucu sürümü).
+ */
+const TEMPLATES = ['ZARIF','BOTANIK','ROMANTIK','MINIMAL','GECE','ZEYTIN',
+                   'EDITORYAL','MONOGRAM','LUKS','FOTOGRAFLI','TIPOGRAFI']
+const FONTS = ['PARISIENNE','GREAT_VIBES','DANCING_SCRIPT','ALLURA','SACRAMENTO',
+               'PLAYFAIR','CORMORANT','DM_SERIF','BODONI','JOSEFIN']
+const RECOMMENDED_FONT = {
+  ZARIF:'PARISIENNE', BOTANIK:'GREAT_VIBES', ROMANTIK:'DANCING_SCRIPT',
+  MINIMAL:'SACRAMENTO', GECE:'GREAT_VIBES', ZEYTIN:'ALLURA',
+  EDITORYAL:'PLAYFAIR', MONOGRAM:'CORMORANT', LUKS:'BODONI',
+  FOTOGRAFLI:'DM_SERIF', TIPOGRAFI:'CORMORANT',
+}
+function normalizeTemplate(t) { return TEMPLATES.includes(t) ? t : 'ZARIF' }
+function normalizeFont(t, f) {
+  return FONTS.includes(f) ? f : RECOMMENDED_FONT[normalizeTemplate(t)]
+}
 
 const state = {
   token: '',
@@ -265,6 +446,10 @@ function formatDate(iso, tz) {
 
 function render(data) {
   state.data = data
+
+  // Şablon ve font — CSS değişkenlerini ezer
+  document.body.dataset.template = normalizeTemplate(data.template)
+  document.body.dataset.font = normalizeFont(data.template, data.fontKey)
 
   $('coupleNames').textContent = data.coupleNames
   $('guestName').textContent = data.guestName
@@ -310,9 +495,6 @@ function render(data) {
       if (item.note) {
         const n = document.createElement('span')
         n.className = 'sub'
-        n.style.color = 'var(--muted)'
-        n.style.fontSize = '14px'
-        n.style.display = 'block'
         n.textContent = item.note
         span.append(n)
       }
@@ -334,18 +516,20 @@ function render(data) {
   // RSVP
   if (data.isOpen) {
     $('rsvpBox').hidden = false
-    const max = Math.max(1, data.allowedPartySize || 1)
     $('rsvpHint').textContent =
-      max > 1 ? `En fazla ${max} kişi bildirebilirsiniz.` : ''
+      data.rsvpDeadline
+        ? `Lütfen ${formatDate(data.rsvpDeadline, data.timezone)} tarihine kadar bildirin.`
+        : 'Katılımınızı bildirirseniz çok seviniriz.'
 
-    // Mevcut yanıtı göster
     if (data.rsvp === 'ATTENDING' || data.rsvp === 'DECLINED') {
       state.choice = data.rsvp
       state.size = data.confirmedPartySize && data.confirmedPartySize > 0
-        ? Math.min(data.confirmedPartySize, max) : 1
+        ? data.confirmedPartySize : 1
       paintChoice()
+      showConfirmed()
     }
 
+    const max = Math.max(1, data.allowedPartySize || 1)
     $('sizeLabel').textContent = 'Kaç kişi geleceksiniz?'
     updateStepper(max)
   } else {
@@ -393,22 +577,22 @@ async function load() {
     const res = await fetch(`${API}/invitations/${encodeURIComponent(state.token)}`, {
       headers: { Accept: 'application/json' },
     })
-
     if (res.status === 404) {
       $('errorText').textContent =
-        'Bu bağlantı geçersiz, iptal edilmiş veya süresi dolmuş olabilir. Lütfen çift ile iletişime geçin.'
+        'Bu bağlantı geçersiz veya süresi dolmuş olabilir. Lütfen çift ile iletişime geçin.'
       show('error')
       return
     }
-    if (!res.ok) throw new Error('HTTP ' + res.status)
-
+    if (!res.ok) {
+      $('errorText').textContent = 'Davetiye yüklenemedi. Lütfen daha sonra tekrar deneyin.'
+      show('error')
+      return
+    }
     const body = await res.json()
     render(body.invitation)
-  } catch (err) {
-    $('errorText').textContent =
-      'Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.'
+  } catch {
+    $('errorText').textContent = 'Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.'
     show('error')
-    console.error(err)
   }
 }
 
