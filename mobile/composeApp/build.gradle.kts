@@ -45,7 +45,11 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
-            implementation(compose.materialIconsExtended)
+            // materialIconsExtended Compose 1.7.3'te dondu (1.11.0'da yok).
+            // Uyumsuzluk çıkarsa Material Symbols'a geçilmeli; şimdilik
+            // kullanılan ikonlar (Search, People, Checklist, Send…) bu
+            // sürümde mevcut.
+            implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation(compose.ui)
 
             implementation(libs.kotlinx.coroutines.core)
@@ -78,12 +82,12 @@ kotlin {
 
 android {
     namespace = "com.dugunce.app"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.dugunce.app"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
     }
