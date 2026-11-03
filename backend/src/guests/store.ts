@@ -346,6 +346,8 @@ export function drizzleGuestDeps(
             program: weddings.program,
             giftNote: weddings.giftNote,
             rsvpDeadline: weddings.rsvpDeadline,
+            template: weddings.template,
+            fontKey: weddings.fontKey,
           },
         })
         .from(guestInvitations)

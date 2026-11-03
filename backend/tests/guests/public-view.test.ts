@@ -31,6 +31,8 @@ function makeRow(overrides: Record<string, unknown> = {}) {
       program: [{ time: '19:00', title: 'Karşılama' }],
       giftNote: 'Hediye yerine bağış',
       rsvpDeadline: new Date('2026-09-01T00:00:00Z'),
+      template: 'GECE',
+      fontKey: 'BODONI',
     },
     ...overrides,
   }
@@ -143,5 +145,41 @@ describe('RSVP kapanışı', () => {
     const row = makeRow()
     row.wedding.rsvpDeadline = null as never
     expect(toPublicInvitation(row as never)!.isOpen).toBe(true)
+  })
+})
+
+describe('toPublicInvitation — şablon ve font', () => {
+  it('template ve fontKey döner', () => {
+    const v = toPublicInvitation(makeRow() as never)!
+    expect(v.template).toBe('GECE')
+    expect(v.fontKey).toBe('BODONI')
+  })
+
+  it('bilinmeyen şablon ZARIF döner', () => {
+    const row = makeRow()
+    ;(row.wedding as Record<string, unknown>)['template'] = 'BOZUK_SABLON'
+    const v = toPublicInvitation(row as never)!
+    expect(v.template).toBe('ZARIF')
+  })
+
+  it('boş font şablonun önerilen fontunu verir', () => {
+    const row = makeRow()
+    ;(row.wedding as Record<string, unknown>)['template'] = 'LUKS'
+    ;(row.wedding as Record<string, unknown>)['fontKey'] = ''
+    const v = toPublicInvitation(row as never)!
+    expect(v.fontKey).toBe('BODONI')
+  })
+
+  it('geçersiz font önerilen fonta düşer', () => {
+    const row = makeRow()
+    ;(row.wedding as Record<string, unknown>)['template'] = 'MINIMAL'
+    ;(row.wedding as Record<string, unknown>)['fontKey'] = 'YOK_FONT'
+    const v = toPublicInvitation(row as never)!
+    expect(v.fontKey).toBe('SACRAMENTO')
+  })
+
+  it('şablon alanları beyaz listede', () => {
+    expect(PUBLIC_FIELDS).toContain('template')
+    expect(PUBLIC_FIELDS).toContain('fontKey')
   })
 })

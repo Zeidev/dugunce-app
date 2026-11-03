@@ -1,4 +1,5 @@
 import type { InvitationRow } from './invitation.js'
+import { normalizeTemplate, normalizeFont } from '../weddings/templates.js'
 
 /**
  * Davetliye gösterilen görünüm — BEYAZ LİSTE.
@@ -29,6 +30,8 @@ export const PUBLIC_FIELDS = [
   'rsvp',
   'rsvpDeadline',
   'isOpen',
+  'template',
+  'fontKey',
 ] as const
 
 export interface PublicProgramItem {
@@ -56,6 +59,10 @@ export interface PublicInvitation {
   rsvpDeadline: string | null
   /** RSVP hâlâ açık mı — deadline geçtiyse false (davetli 410 alır). */
   isOpen: boolean
+  /** Davetiye şablonu — bilinmeyen değer `ZARIF`'e normalleştirilir. */
+  template: string
+  /** Seçilen font — boş/geçersizse şablonun önerilen fontu. */
+  fontKey: string
 }
 
 function parseProgram(raw: unknown): PublicProgramItem[] | null {
@@ -103,5 +110,7 @@ export function toPublicInvitation(row: InvitationRow | null): PublicInvitation 
     rsvp: row.guest.rsvp,
     rsvpDeadline: deadline ? deadline.toISOString() : null,
     isOpen: deadline === null || deadline.getTime() > Date.now(),
+    template: normalizeTemplate(w.template),
+    fontKey: normalizeFont(w.template, w.fontKey),
   }
 }
