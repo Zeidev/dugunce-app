@@ -1,0 +1,18 @@
+Bu klasördeki tüm fontlar SIL Open Font License 1.1 altındadır.
+https://openfontlicense.org
+
+Fontlar ve kaynakları (Google Fonts):
+  Parisienne             — https://fonts.google.com/specimen/Parisienne
+  Great Vibes            — https://fonts.google.com/specimen/Great+Vibes
+  Dancing Script         — https://fonts.google.com/specimen/Dancing+Script
+  Allura                 — https://fonts.google.com/specimen/Allura
+  Sacramento             — https://fonts.google.com/specimen/Sacramento
+
+Tümü latin + latin-ext alt kümelerini içerir; Türkçe karakterlerin
+(ş ğ İ ı ç ö ü Ş Ğ Ç Ö Ü) tamamı kapsanır ve doğrulanmıştır.
+
+  Cormorant Garamond     — https://fonts.google.com/specimen/Cormorant+Garamond
+  Playfair Display       — https://fonts.google.com/specimen/Playfair+Display
+  Josefin Sans           — https://fonts.google.com/specimen/Josefin+Sans
+  DM Serif Display       — https://fonts.google.com/specimen/DM+Serif+Display
+  Bodoni Moda            — https://fonts.google.com/specimen/Bodoni+Moda

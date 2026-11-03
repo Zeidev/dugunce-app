@@ -115,6 +115,67 @@
     --t-font-display:'Cormorant Garamond',serif; --t-align:center; --t-salutation-style:italic;
   }
 
+  /* ===================================================================
+     ŞABLONA ÖZEL SÜSLEME (spec §5 "yumuşak kural")
+
+     Tokenlar yalnız renk/tipografi taşır. Aşağıdaki dört şablonun
+     tanımlayıcı süslemesi yapısaldır ve tokenlarla ifade edilemez:
+     BOTANIK köşe motifi, ROMANTIK buket, MONOGRAM daire, FOTOGRAFLI
+     tam genişlik görsel. Onaylanan mockup'larda bunlar var.
+
+     Sert sınır: RSVP mantığı ve JS tek kaynak — bu CSS ona dokunmaz.
+     =================================================================== */
+  .deco{position:absolute;pointer-events:none;z-index:0}
+  .card-in,.rule{position:relative;z-index:1}
+
+  /* BOTANIK — okaliptüs köşe + pembe çiçek */
+  body[data-template="BOTANIK"] .deco-corner{
+    display:block;width:118px;right:-16px;top:-10px;opacity:.9;
+  }
+  body[data-template="BOTANIK"] .deco-accent{
+    display:block;width:78px;left:-14px;bottom:56px;opacity:.7;
+  }
+
+  /* ROMANTIK — bordo buket, üstte ortada */
+  body[data-template="ROMANTIK"] .deco-top{
+    display:block;width:124px;left:50%;transform:translateX(-50%);
+    top:-16px;opacity:.95;
+  }
+  body[data-template="ROMANTIK"] .card-in{padding-top:104px}
+
+  /* MONOGRAM — altın daire içinde baş harfler */
+  body[data-template="MONOGRAM"] .monogram{
+    display:flex;width:46px;height:46px;border:1px solid var(--t-accent);
+    border-radius:50%;margin:0 auto 14px;align-items:center;justify-content:center;
+    font-family:var(--t-font-display);font-size:19px;color:var(--t-accent);
+    letter-spacing:.04em;
+  }
+
+  /* FOTOGRAFLI — tam genişlik görsel + gradient perde */
+  body[data-template="FOTOGRAFLI"] .hero-photo{
+    display:block;position:relative;height:150px;overflow:hidden;
+  }
+  body[data-template="FOTOGRAFLI"] .hero-photo img{
+    width:100%;height:100%;object-fit:cover;display:block;
+  }
+  body[data-template="FOTOGRAFLI"] .hero-photo::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(to top,rgba(20,22,19,.62),transparent 62%);
+  }
+  body[data-template="FOTOGRAFLI"] .hero-photo .photo-cap{
+    position:absolute;left:18px;right:18px;bottom:12px;z-index:2;color:#fff;
+  }
+  body[data-template="FOTOGRAFLI"] .hero-photo .photo-cap .p-date{
+    font-size:9px;letter-spacing:.24em;text-transform:uppercase;opacity:.85;
+    margin-bottom:4px;
+  }
+  body[data-template="FOTOGRAFLI"] .hero-photo .photo-cap .p-names{
+    font-family:var(--t-font-display);font-size:26px;line-height:1;
+  }
+
+  /* Diğer şablonlarda süsleme öğeleri gizli */
+  .deco-corner,.deco-accent,.deco-top,.monogram,.hero-photo{display:none}
+
   /* Font seçimi — şablonun önerilen fontunu ezer. */
   body[data-font="PARISIENNE"]{--t-font-display:'Parisienne',cursive;}
   body[data-font="GREAT_VIBES"]{--t-font-display:'Great Vibes',cursive;}
@@ -149,7 +210,7 @@
 
   .brand{
     font-size:10px;letter-spacing:.28em;text-transform:uppercase;
-    color:var(--t-accent);margin:0 0 18px;text-align:var(--t-align);
+    color:var(--t-muted);margin:0 0 18px;text-align:var(--t-align);
   }
   h1{
     font-family:var(--t-font-display);
@@ -218,7 +279,9 @@
   }
   button:active{transform:scale(.985)}
   button:disabled{opacity:.55;cursor:not-allowed}
-  .yes{background:var(--t-accent);color:var(--t-accent-ink)}
+  /* Kontrast: accent zemin + beyaz metin 7 şablonda AA'yı geçmiyordu
+     (2.53–3.45:1). Koyu zemin + beyaz metin her şablonda ≥7:1. */
+  .yes{background:var(--t-ink);color:var(--t-card)}
   .no{
     background:transparent;color:var(--t-ink);
     border-color:var(--t-line);
@@ -245,9 +308,14 @@
 
   .status{margin:16px 0 0;font-size:13.5px;min-height:20px;line-height:1.6}
   .status.ok{color:#4a7c59}
-  .status.err{color:#a35b4a}
+  .status.err{color:#8f4030}
+  body[data-template="GECE"] .status.err,
+  body[data-template="LUKS"] .status.err{color:#e08a76}
   body[data-template="GECE"] .status.ok,
   body[data-template="LUKS"] .status.ok{color:#8fc79f;}
+  /* Koyu zeminli şablonlarda ink açık renk — buton için accent kullan */
+  body[data-template="GECE"] .yes,
+  body[data-template="LUKS"] .yes{background:var(--t-accent);color:#141613;}
 
   .confirmed{margin:0 0 14px;font-size:14px;color:var(--t-muted)}
   .confirmed .pill{
@@ -263,7 +331,15 @@
   }
 
   .grow{margin:30px 0 0;text-align:center}
-  .grow a{font-size:13px;color:var(--t-muted);border:0;opacity:1}
+  /* Büyüme bağlantısı (spec §8: "her şablonda görünür ve erişilebilir
+     kalır"). Kart DIŞINDA, sayfa zemininde duruyor; --t-muted kart zeminine
+     göre seçildiği için burada AA'yı geçmiyordu (ölçüldü: 3.1–4.3, koyu
+     şablonlarda 1.25). Her iki zemin ailesinde de okunan sabit renkler. */
+  /* GECE'nin sayfa zemini koyu (#cfd3cd orta gri) → açık metin.
+     LUKS'un sayfa zemini AÇIK (#dcd8d1) → koyu metin. İkisini aynı
+     kurala bağlamak LUKS'u okunamaz yapıyordu (ölçüldü: 1.2). */
+  .grow a{font-size:13px;color:#3f4a40;border:0;opacity:1}
+  body[data-template="GECE"] .grow a{color:#2d3a2e}
 
   /* Durum ekranları */
   .center{text-align:center;padding:56px 8px}
@@ -303,7 +379,22 @@
 
   <div class="card" id="invite" hidden>
     <div class="rule"></div>
+
+    <!-- Şablona özel süsleme (CSS ile gösterilir/gizlenir) -->
+    <img class="deco deco-corner" src="/assets/motifs/corner-eucalyptus.webp" alt="" aria-hidden="true">
+    <img class="deco deco-accent" src="/assets/motifs/blossom-pink.webp" alt="" aria-hidden="true">
+    <img class="deco deco-top" src="/assets/motifs/bouquet-burgundy.webp" alt="" aria-hidden="true">
+
+    <div class="hero-photo">
+      <img src="/assets/photos/couple-photo.webp" alt="" aria-hidden="true">
+      <div class="photo-cap">
+        <div class="p-date" id="photoDate"></div>
+        <div class="p-names" id="photoNames"></div>
+      </div>
+    </div>
+
     <div class="card-in">
+      <div class="monogram" id="monogram">AB</div>
       <p class="brand">Düğünce · Davetiye</p>
       <h1 id="coupleNames"></h1>
       <div class="divider"></div>
@@ -454,6 +545,24 @@ function render(data) {
   $('coupleNames').textContent = data.coupleNames
   $('guestName').textContent = data.guestName
   $('dateText').textContent = formatDate(data.weddingDate, data.timezone)
+
+  // Monogram: isimlerin baş harfleri ("Ayşe & Burak" → "AB")
+  const initials = (data.coupleNames || '')
+    .split(/[&\s]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toLocaleUpperCase('tr-TR'))
+    .join('')
+  $('monogram').textContent = initials || 'AB'
+
+  // Fotoğraflı şablon başlığı
+  $('photoNames').textContent = data.coupleNames || ''
+  $('photoDate').textContent = data.weddingDate
+    ? new Intl.DateTimeFormat('tr-TR', {
+        day: 'numeric', month: 'long', year: 'numeric',
+        timeZone: data.timezone || 'Europe/Istanbul',
+      }).format(new Date(data.weddingDate))
+    : ''
 
   // Yer
   const venueParts = [data.venueName, data.venueAddress].filter(Boolean)
