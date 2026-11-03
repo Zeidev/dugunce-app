@@ -88,7 +88,33 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    /**
+     * SABİT debug keystore — App Links doğrulaması için.
+     *
+     * Android Studio'nun varsayılan debug keystore'u her makinede ve her
+     * CI koşusunda farklı üretilir; `assetlinks.json`'daki SHA-256
+     * parmak izi bu yüzden hiç eşleşmez ve https linkleri tarayıcıda
+     * kalır.
+     *
+     * `mobile/debug.keystore` repoda sabit duruyor (şifre `android`,
+     * standart debug şifresi — gizli bilgi değil, yalnızca test içindir).
+     * Üretimi: `scripts/gen-debug-keystore.sh`.
+     *
+     * ÜRETİMDE KULLANILMAZ: release build kendi keystore'unu kullanacak.
+     */
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         getByName("release") {
             isMinifyEnabled = false
         }

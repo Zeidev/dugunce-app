@@ -9,6 +9,11 @@ local.properties
 *.aab
 *.keystore
 *.jks
+# İSTİSNA: sabit debug keystore repoda durur.
+# Gerekçe: App Links doğrulaması için SHA-256 parmak izinin DEĞİŞMEMESİ
+# şart. CI her koşuda yeni keystore üretirse assetlinks.json asla
+# eşleşmez. Şifre `android` — standart debug şifresi, gizli değil.
+!/debug.keystore
 captures/
 
 # iOS / Xcode
