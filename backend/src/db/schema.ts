@@ -110,6 +110,16 @@ export const weddings = pgTable(
     rsvpDeadline: timestamp('rsvp_deadline', { withTimezone: true }),
     program: jsonb('program'),
     plan: text('plan').notNull().default('FREE'),
+    /**
+     * Davetiye şablonu — anahtar listesi `weddings/templates.ts`.
+     * Bilinmeyen değer okuma sırasında `ZARIF`'e normalleştirilir.
+     */
+    template: text('template').notNull().default('ZARIF'),
+    /**
+     * Seçilen font — anahtar listesi `weddings/templates.ts`.
+     * Boş dize "şablonun önerilen fontunu kullan" demektir.
+     */
+    fontKey: text('font_key').notNull().default(''),
     purchasedAt: timestamp('purchased_at', { withTimezone: true }),
     purchaseToken: text('purchase_token'),
     purchasePlatform: text('purchase_platform'),

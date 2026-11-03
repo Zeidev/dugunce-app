@@ -50,6 +50,13 @@
       "when": 1793640000000,
       "tag": "0006_seed_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793704678589,
+      "tag": "0007_petite_steel_serpent",
+      "breakpoints": true
     }
   ]
 }
