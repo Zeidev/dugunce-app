@@ -19,6 +19,7 @@ import { createTasksRouter } from './routes/tasks.js'
 import { createHelperAppRouter } from './routes/helper-app.js'
 import { drizzleAuthDeps, drizzleMembershipDeps } from './auth/auth-store.js'
 import { loadEnv } from './config/env.js'
+import { corsForInvitations } from './middleware/cors.js'
 import { createCategoriesRouter } from './routes/categories.js'
 import { createCardsRouter } from './routes/cards.js'
 
@@ -58,6 +59,23 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   // Proxy arkasında (Cloudflare) doğru IP ve protokol
   app.set('trust proxy', 1)
+
+  /**
+   * BigInt → JSON.
+   *
+   * `Kurus = bigint` (money.ts) ve Drizzle `numeric`/`bigint` kolonlarını
+   * BigInt olarak döndürüyor. Express'in varsayılan `res.json()`
+   * `JSON.stringify` kullanır ve **BigInt'te patlar**:
+   *
+   *   TypeError: Do not know how to serialize a BigInt
+   *
+   * Sonuç: harcama ekleme/ listeleme 500 dönerdi — üretimde de.
+   * Kuruş zaten **string** olarak taşınmalı (istemci `String` bekliyor,
+   * float yuvarlaması olmasın diye). Bu yüzden BigInt'i string'e çeviriyoruz.
+   */
+  app.set('json replacer', (_key: string, value: unknown) =>
+    typeof value === 'bigint' ? value.toString() : value,
+  )
   app.disable('x-powered-by')
 
   app.use(express.json({ limit: '1mb' }))
@@ -78,7 +96,21 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const requireMember = createRequireWeddingMember(drizzleMembershipDeps())
 
   // --- API route'ları ---
-  app.use('/api/v1/auth', createAuthRouter({ requireAuth }))
+  /**
+   * Auth uçları CORS'a AÇIK.
+   *
+   * `/auth/` onay sayfası `dugunce.com.tr` üzerinde (Cloudflare Pages),
+   * API ise `api.dugunce.com.tr` — farklı origin. CORS başlığı olmadan
+   * tarayıcı yanıtı okumaz, `fetch` "Failed to fetch" atar ve kullanıcı
+   * "sunucuya ulaşılamadı" görür (bildirilen hata).
+   *
+   * Yalnızca beyaz listedeki origin'ler yansıtılır — wildcard YOK.
+   */
+  app.use(
+    '/api/v1/auth',
+    corsForInvitations({ allowedMethods: ['GET', 'POST', 'OPTIONS'] }),
+    createAuthRouter({ requireAuth }),
+  )
   app.use('/api/v1/weddings', createWeddingsRouter({ requireAuth, requireMember }))
 
   // Davet kodları iki yerde: düğün altında üretim, kökte kabul
