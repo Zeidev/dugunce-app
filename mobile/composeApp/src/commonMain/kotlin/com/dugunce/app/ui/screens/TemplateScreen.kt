@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.Repository
-import com.dugunce.app.data.WeddingCreateRequest
+import com.dugunce.app.data.WeddingPatchRequest
 import com.dugunce.app.data.WeddingDto
 import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.SectionHeader
@@ -146,6 +146,7 @@ fun TemplateScreen(
     wedding: WeddingDto,
     repository: Repository,
     onBack: () -> Unit,
+    onSaved: (WeddingDto) -> Unit = {},
 ) {
     val theme = DugunceTheme.colors
     val scope = rememberCoroutineScope()
@@ -160,14 +161,6 @@ fun TemplateScreen(
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // Şablon değişince font da önerilene döner — kullanıcı ayrıca seçmediyse
-    LaunchedEffect(selectedTemplate) {
-        if (!FONT_KEYS.contains(selectedFont) ||
-            selectedFont == recommendedFont(selectedTemplate).takeIf { it != selectedFont }
-        ) {
-            selectedFont = recommendedFont(selectedTemplate)
-        }
-    }
 
     Column(Modifier.fillMaxSize().background(theme.cream)) {
         TopBar("Davetiye görünümü", onBack = onBack)
@@ -282,24 +275,19 @@ fun TemplateScreen(
                             message = null
                             error = null
                             scope.launch {
-                                val result = repository.updateWedding(
+                                val result = repository.patchWedding(
                                     wedding.id,
-                                    WeddingCreateRequest(
-                                        coupleNames = wedding.coupleNames,
-                                        weddingDate = wedding.weddingDate ?: "",
-                                        timezone = wedding.timezone,
-                                        venueName = wedding.venueName,
-                                        venueAddress = wedding.venueAddress,
-                                        mapUrl = wedding.mapUrl,
-                                        giftNote = wedding.giftNote,
-                                        rsvpDeadline = wedding.rsvpDeadline,
+                                    WeddingPatchRequest(
                                         template = selectedTemplate,
                                         fontKey = selectedFont,
                                     ),
                                 )
                                 saving = false
                                 result.fold(
-                                    onSuccess = { message = "Davetiyeniz güncellendi" },
+                                    onSuccess = { saved ->
+                                        message = "Davetiyeniz güncellendi"
+                                        onSaved(saved)
+                                    },
                                     onFailure = { error = it.message ?: "Kaydedilemedi" },
                                 )
                             }

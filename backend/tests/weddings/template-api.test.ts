@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import request from 'supertest'
-import { createApp } from '../../src/app.js'
 import { weddingPatchSchema, weddingInputSchema } from '../../src/weddings/service.js'
 import { errorHandler } from '../../src/middleware/error-handler.js'
 import { AppError } from '../../src/lib/errors.js'

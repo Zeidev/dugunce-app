@@ -49,9 +49,11 @@ class DtoContractTest {
           "plan": "PREMIUM",
           "status": "ACTIVE",
           "createdAt": "2026-11-02T10:00:00.000Z",
-          "role": "OWNER"
+          "role": "OWNER",
+          "template": "GECE",
+          "fontKey": "BODONI"
         }
-    """.trimIndent()
+        """.trimIndent()
 
     /** Probe çıktısı: `["id","weddingId","name","phone","side","inviteStatus","rsvp","note","deletedAt"]` */
     private val guestJson = """
@@ -164,6 +166,16 @@ class DtoContractTest {
         assertEquals("Kır Bahçesi", w.venueName)
         assertEquals("PREMIUM", w.plan)
         assertEquals("OWNER", w.role)
+    }
+
+    @Test
+    fun `wedding sablon ve font alanlari cozer`() {
+        // DTO drift koruması: backend `template`/`fontKey` döndürmeyi
+        // bırakırsa bu test kırmızı olur. Aksi hâlde WeddingDto varsayılanı
+        // ("ZARIF") sessizce devreye girer ve seçim ekranı yalan söyler.
+        val w = json.decodeFromString<WeddingDto>(weddingJson)
+        assertEquals("GECE", w.template)
+        assertEquals("BODONI", w.fontKey)
     }
 
     @Test

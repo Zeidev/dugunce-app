@@ -132,6 +132,20 @@ class Repository(
             res.body<WeddingResponse>().wedding
         }
 
+    /**
+     * Kısmi güncelleme — yalnız gönderilen alanlar değişir.
+     *
+     * Şablon/font seçimi bunu kullanır: `WeddingCreateRequest` zorunlu
+     * alanlar taşıdığı için `PATCH`'te null tarih göndermek doğrulama
+     * hatasına yol açıyordu.
+     */
+    suspend fun patchWedding(weddingId: String, body: WeddingPatchRequest): Result<WeddingDto> =
+        safeCall {
+            val res = api.http.patch("weddings/$weddingId") { setBody(body) }
+            ensureSuccess(res)
+            res.body<WeddingResponse>().wedding
+        }
+
     // --- Bütçe ---
 
     suspend fun budgetSummary(weddingId: String, month: String? = null): Result<BudgetSummaryDto> =

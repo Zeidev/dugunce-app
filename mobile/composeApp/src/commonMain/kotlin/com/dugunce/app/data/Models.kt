@@ -112,6 +112,27 @@ data class WeddingCreateRequest(
     val fontKey: String? = null,
 )
 
+/**
+ * Kısmi düğün güncellemesi.
+ *
+ * `WeddingCreateRequest`'ten farkı: TÜM alanlar opsiyonel. `PATCH` yalnız
+ * gönderilen alanları değiştirir; gönderilmeyenler sunucuda korunur.
+ * Oluşturma için `WeddingCreateRequest` kullanılmaya devam eder.
+ */
+@Serializable
+data class WeddingPatchRequest(
+    val coupleNames: String? = null,
+    val weddingDate: String? = null,
+    val timezone: String? = null,
+    val venueName: String? = null,
+    val venueAddress: String? = null,
+    val mapUrl: String? = null,
+    val giftNote: String? = null,
+    val rsvpDeadline: String? = null,
+    val template: String? = null,
+    val fontKey: String? = null,
+)
+
 // --- Bütçe ---
 
 @Serializable

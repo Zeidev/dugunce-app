@@ -336,6 +336,7 @@ fun App(
                                 onLoggedOut = { state.resetTo(Screen.WELCOME) },
                                 onInviteCoOwner = { state.go(Screen.CO_OWNER_INVITE) },
                                 onOpenCards = { state.go(Screen.CARD_LIST) },
+                                onOpenTemplates = { state.go(Screen.TEMPLATE) },
                             )
                         } ?: Unit
 
@@ -479,6 +480,7 @@ fun App(
                                 wedding = w,
                                 repository = repository,
                                 onBack = { state.back() },
+                                onSaved = { updated -> state.wedding = updated },
                             )
                         } ?: Unit
 
