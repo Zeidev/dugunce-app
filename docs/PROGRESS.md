@@ -111,6 +111,29 @@ Aşağıdakiler **mobil kod eksikliği değil**, başka aşamalara veya platform
 | 5 | **Rehberden davetli seçimi** | Platform izin API'si gerekir; manuel + toplu ekleme çalışıyor |
 | 6 | **Offline yazma kuyruğu** | Spec §6b v1.1'e erteledi; okuma önbelleği çalışıyor |
 
+### Düzeltilen bug (2026-11-03) — cihaz testi
+
+Kullanıcı gerçek cihazda test etti, 3 hata bildirdi:
+
+| # | Belirti | Kök neden | Düzeltme |
+|---|---|---|---|
+| 1 | Linke tıklayınca "sunucuya ulaşılamadı", internet varken | `/auth` sayfası `dugunce.com.tr`'de, API `api.dugunce.com.tr`'de — **auth uçlarında CORS yoktu**. Tarayıcı yanıtı okuyamıyor, `fetch` "Failed to fetch" atıyor | Auth route'larına `corsForInvitations` eklendi (beyaz liste, wildcard yok) |
+| 2 | İlk harcama eklerken "beklenmeyen bir hata oluştu" | `Kurus = bigint`; Express `res.json()` BigInt'te **patlıyor**: `TypeError: Do not know how to serialize a BigInt`. Harcama uçlarının **hepsi** 500 dönüyordu | `app.set('json replacer')` — BigInt → string (zaten doğru tel formatı) |
+| 3 | (canlı testte bulundu) Tutar 100 katı | Mobil `parseToKurus` **kuruş** döndürüyor, backend `amount` alanını **TL** bekleyip 100 ile çarpıyor | `Money.kurusToTlString()` — `"1200000"` → `"12000.00"` |
+
+**Canlı doğrulama:**
+```
+CORS        : access-control-allow-origin: https://dugunce.com.tr  ✅
+harcama ekle: 200, amountKurus "1200000" (12.000 TL)               ✅
+```
+
+**Testler:** `bigint-json.test.ts` (7) — BigInt serileştirme, hassasiyet,
+iç içe nesne, CORS (izinli/izinsiz origin, preflight). Negatif kontrol:
+replacer kaldırılınca 3 test kırılıyor.
+
+**Yeni CI kontrolü:** `check-kotlin-imports.mjs` — eksik import sınıfı
+hata 3 kez CI döngüsü kaybettirdi, artık derlemeden önce yakalanıyor.
+
 ### Düzeltilen bug (2026-11-03) — giriş akışı
 
 Kullanıcı bildirimi: "mail giriyorum, doğrulama maili geliyor ama bağlantıya
