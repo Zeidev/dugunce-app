@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.dugunce.app.ui.theme.templateFontFamily
 import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.Repository
 import com.dugunce.app.data.WeddingPatchRequest
@@ -340,10 +339,7 @@ private fun TemplateCard(
                 Text(
                     "Aa",
                     color = preview.ink,
-                    style = MaterialTheme.typography.titleMedium.let { base ->
-                        val family = templateFontFamily(recommendedFont(key))
-                        if (family != null) base.copy(fontFamily = family, fontSize = 24.sp) else base
-                    },
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 24.sp),
                     fontWeight = FontWeight.Normal,
                 )
                 Spacer(Modifier.height(4.dp))
@@ -400,10 +396,7 @@ private fun FontRow(
         // Font adı KENDİ stiliyle yazılır — kullanıcı farkı okumadan görsün.
         Text(
             fontLabel(key),
-            style = MaterialTheme.typography.titleMedium.let { base ->
-                val family = templateFontFamily(key)
-                if (family != null) base.copy(fontFamily = family, fontSize = 22.sp) else base
-            },
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
             fontWeight = FontWeight.Normal,
             color = theme.ink,
             modifier = Modifier.weight(1f),

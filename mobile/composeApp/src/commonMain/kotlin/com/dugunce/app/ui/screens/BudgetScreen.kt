@@ -428,11 +428,15 @@ fun InstallmentCalendarScreen(
         )
     }
 
+    // `toSortedMap()` JVM'e özgüdür, KMP common'da yok. Aylar "YYYY-MM"
+    // biçiminde olduğu için sözlük sırası = kronolojik sıra.
     val byMonth = remember(expenses) {
         expenses
             .flatMap { e -> e.installments.map { inst -> inst to e.title } }
             .groupBy { it.first.dueMonth }
-            .toSortedMap()
+            .toList()
+            .sortedBy { it.first }
+            .toMap()
     }
 
     Column(Modifier.fillMaxSize().background(c.cream)) {
