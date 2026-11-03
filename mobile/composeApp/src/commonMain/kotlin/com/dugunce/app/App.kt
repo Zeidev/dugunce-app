@@ -214,6 +214,8 @@ fun App(
                             onHasInviteCode = { state.go(Screen.ACCEPT_INVITE) },
                             onLinkSent = { state.go(Screen.LINK_SENT) },
                             onLoggedIn = {
+                                // Kod modu bir sonraki açılışta takılı kalmasın
+                                state.showCodeEntry = false
                                 scope.launch {
                                     val result = repository.listWeddings()
                                     val existing = result.getOrNull()?.firstOrNull()

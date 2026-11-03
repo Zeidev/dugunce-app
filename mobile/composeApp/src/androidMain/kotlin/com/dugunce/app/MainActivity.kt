@@ -90,13 +90,28 @@ class MainActivity : ComponentActivity() {
         fun value(name: String): String? =
             uri.getQueryParameter(name) ?: fragmentParams[name]
 
-        when (uri.path?.trimEnd('/')) {
-            "/auth" -> {
-                // Tüm fragment token sayılır (backend sadece token koyuyor)
-                val token = value("token") ?: fragment?.takeIf { it.isNotBlank() && !it.contains('=') }
+        /**
+         * İki biçim geliyor:
+         *
+         * 1. `https://dugunce.com.tr/auth/#<token>`  — e-postadaki link
+         *    (App Links doğrulanmışsa doğrudan uygulamaya düşer)
+         * 2. `dugunce://auth?token=<token>`          — /auth sayfasının
+         *    "Uygulamada aç" butonu (App Links çalışmadığında)
+         *
+         * İkincisinde `host` = "auth", `path` = "" olur; bu yüzden
+         * hem path hem host kontrol edilir.
+         */
+        val hostOrPath = uri.host?.takeIf { uri.scheme == "dugunce" }
+            ?: uri.path?.trimEnd('/')
+
+        when (hostOrPath) {
+            "/auth", "auth" -> {
+                // Fragment'ta `=` yoksa tamamı token'dır (backend biçimi)
+                val token = value("token")
+                    ?: fragment?.takeIf { it.isNotBlank() && !it.contains('=') }
                 token?.let { deepLinkToken.value = it }
             }
-            "/invite" -> value("code")?.let { deepLinkInviteCode.value = it }
+            "/invite", "invite" -> value("code")?.let { deepLinkInviteCode.value = it }
             else -> Unit
         }
     }

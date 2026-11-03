@@ -26,6 +26,20 @@
               autoVerify: assetlinks.json yayınlandığında tarayıcı atlanır;
               dosya yoksa link tarayıcıda açılmaya devam eder (zararsız).
             -->
+            <!--
+              Özel şema: https linki uygulamada AÇILAMAZSA (App Links
+              doğrulanmamış / tarayıcıda kalmış) /auth sayfası
+              `dugunce://auth?token=…` ile uygulamayı çağırır.
+              Bu şema olmadan buton hiçbir şey yapmaz.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dugunce" android:host="auth" />
+                <data android:scheme="dugunce" android:host="invite" />
+            </intent-filter>
+
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

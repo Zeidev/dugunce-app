@@ -40,7 +40,7 @@
   <div id="errorBox" class="err hidden"></div>
 
   <div id="actions" class="hidden">
-    <a class="btn" id="openApp" href="#">Uygulamada aç</a>
+    <a class="btn" id="openApp" href="#">Uygulamayı aç</a>
     <button class="btn ghost" id="copyCode">Kodu kopyala</button>
   </div>
 </div>
@@ -97,44 +97,35 @@
   var scheme = 'dugunce://auth?token=' + encodeURIComponent(token);
   openApp.href = scheme;
 
-  fetch(API + '/auth/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ token: token })
-  })
-    .then(function (res) {
-      return res.json().then(function (body) { return { ok: res.ok, body: body }; });
-    })
-    .then(function (r) {
-      if (!r.ok) {
-        var msg = (r.body && r.body.error && r.body.error.message) || 'Bağlantı geçersiz veya süresi dolmuş.';
-        fail(msg);
-        return;
-      }
+  /**
+   * KRİTİK: Bu sayfa token'ı TÜKETMEZ.
+   *
+   * Token tek kullanımlık (backend `markMagicLinkUsed`). Sayfa onu
+   * tüketirse uygulamaya devredilecek geçerli token kalmaz ve kullanıcı
+   * "giriş onaylandı" görse bile uygulamada giriş yapmamış olur —
+   * bildirilen hata tam olarak buydu.
+   *
+   * Doğru akış: sayfa token'ı yalnızca UYGULAMAYA iletir, tüketimi
+   * uygulama `POST /auth/verify` ile yapar.
+   */
 
-      icon.textContent = '✅';
-      title.textContent = 'Giriş onaylandı';
-      subtitle.textContent = 'Uygulamaya dön — oturumun açıldı.';
+  // Uygulama kuruluysa otomatik aç (özel şema)
+  if (isAndroid || isIOS) {
+    // Kullanıcı tıklamadan önce dene — çoğu tarayıcı izin verir
+    setTimeout(function () { location.href = scheme; }, 150)
+  }
 
-      // Token'ı temizle: adres çubuğunda ve geçmişte kalmasın
-      try { history.replaceState(null, '', '/auth'); } catch (e) {}
+  icon.textContent = '📱';
+  title.textContent = 'Uygulamada devam et';
+  subtitle.textContent = isAndroid || isIOS
+    ? 'Aşağıdaki butona dokun — giriş uygulamada tamamlanacak.'
+    : 'Bu bağlantı Düğünce uygulamasında açılmalı. Telefonunda uygulama kurulu mu?';
 
-      // Uygulama kuruluysa otomatik aç
-      if (isAndroid || isIOS) {
-        setTimeout(function () { location.href = scheme; }, 300);
-      }
+  actions.classList.remove('hidden');
+  copyBtn.classList.add('hidden');
 
-      // Kod yedek yolu: token tüketildiği için kod artık çalışmaz,
-      // ama kullanıcı uygulamaya dönemezse ne yapacağını bilsin.
-      subtitle.textContent = isAndroid || isIOS
-        ? 'Uygulama açılmadıysa aşağıdaki butona dokun.'
-        : 'Uygulamaya dön — oturumun açıldı.';
-      actions.classList.remove('hidden');
-      copyBtn.classList.add('hidden');
-    })
-    .catch(function () {
-      fail('Sunucuya ulaşılamadı. İnternet bağlantını kontrol edip sayfayı yenile.');
-    });
+  // Token'ı adres çubuğundan temizle (geçmişte kalmasın) ama DEĞİŞKENDE tut
+  try { history.replaceState(null, '', '/auth/'); } catch (e) {}
 
   copyBtn.addEventListener('click', function () {
     if (!codeValue.textContent) return;
