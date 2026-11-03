@@ -123,7 +123,7 @@ fun GuestDetailScreen(
                                 if (!g.phone.isNullOrBlank()) {
                                     Spacer(Modifier.height(Spacing.sm))
                                     Text(
-                                        g.phone!!,
+                                        g.phone,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = c.muted,
                                     )
@@ -131,7 +131,7 @@ fun GuestDetailScreen(
                                 if (!g.note.isNullOrBlank()) {
                                     Spacer(Modifier.height(Spacing.sm))
                                     Text(
-                                        g.note!!,
+                                        g.note,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = c.muted,
                                     )

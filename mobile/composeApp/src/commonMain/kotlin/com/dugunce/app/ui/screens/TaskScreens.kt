@@ -25,7 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material3.Icon
@@ -571,7 +571,7 @@ fun TaskDetailScreen(
                                 if (!t.description.isNullOrBlank()) {
                                     Spacer(Modifier.height(Spacing.md))
                                     Text(
-                                        t.description!!,
+                                        t.description,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = c.inkSoft,
                                     )
@@ -730,7 +730,7 @@ fun TaskChatScreen(
                 messages.isEmpty() -> EmptyState(
                     title = "Sohbet boş",
                     description = "Bu görev hakkında not bırak. Yardımcın da aynı sohbeti görür.",
-                    icon = Icons.Filled.Send,
+                    icon = Icons.AutoMirrored.Filled.Send,
                     modifier = Modifier.fillMaxSize(),
                 )
                 else -> LazyColumn(
@@ -789,7 +789,7 @@ fun TaskChatScreen(
                     },
                 ) {
                     Icon(
-                        Icons.Filled.Send,
+                        Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Gönder",
                         tint = if (input.isNotBlank() && !sending) c.sage else c.muted,
                     )

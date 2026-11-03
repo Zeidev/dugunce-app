@@ -398,8 +398,8 @@ fun ExpenseFormScreen(
                             weddingId,
                             ExpenseCreateRequest(
                                 title = title.trim(),
-                                amount = Money.kurusToTlString(parsedAmount!!),
-                                purchaseDate = isoDate!!,
+                                amount = Money.kurusToTlString(parsedAmount),
+                                purchaseDate = isoDate,
                                 description = description.trim().ifBlank { null },
                                 categoryId = categoryId,
                                 cardId = if (installmentCount > 1) cardId else null,
@@ -548,7 +548,7 @@ fun ExpenseDetailScreen(
                                     DetailRow("Taksit", "${e.installmentCount} taksit")
                                 }
                                 if (!e.description.isNullOrBlank()) {
-                                    DetailRow("Not", e.description!!)
+                                    DetailRow("Not", e.description)
                                 }
                             }
                         }

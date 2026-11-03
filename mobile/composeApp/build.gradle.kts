@@ -18,9 +18,14 @@ kotlin {
         }
     }
 
-    // iOS hedefleri — derleme CI'da macOS runner'da yapılır
+    // iOS hedefleri — derleme CI'da macOS runner'da yapılır.
+    //
+    // `iosX64` (Intel Mac simulatoru) KALDIRILDI: Compose Multiplatform
+    // 1.11.0 Apple x86_64 hedeflerini desteklemiyor (Kotlin KT-81596).
+    // Gerçek iPhone (`iosArm64`) ve Apple Silicon simulator
+    // (`iosSimulatorArm64`) desteklenmeye devam ediyor — uygulama iOS'ta
+    // çalışır, yalnız Intel Mac'te simulator açılmaz.
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
