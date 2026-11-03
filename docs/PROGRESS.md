@@ -140,6 +140,20 @@ tek kullanımlık olması, süre ve deneme limiti.
 
 **Güvenlik başlıkları:** `/auth` için `no-store`, `noindex`, `no-referrer`.
 
+**5. hata (canlı testte bulundu):** Cloudflare Pages `/auth` isteğini `/auth/`
+adresine **308** ile yönlendiriyordu. Tarayıcılar fragment'ı genelde taşır ama
+**garanti değil** — token'ın tamamı fragment'te olduğu için bu, zincirin en
+kırılgan halkasıydı. Backend artık doğrudan `/auth/` üretiyor; `_redirects`
+eski linkler için güvenlik ağı.
+
+**Canlı uçtan uca doğrulama (gerçek link, gerçek token):**
+```
+link  : https://dugunce.com.tr/auth/#qaRoxh…
+sayfa : 200 (5990 bayt, doğru başlık)
+verify: 200 + accessToken + refreshToken  ✅
+```
+Test verisi silindi.
+
 ### Düzeltilen bug (2026-11-02)
 
 `deleteGuest` yanlış uç kullanıyordu:
