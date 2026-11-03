@@ -41,7 +41,17 @@
 
   <div id="actions" class="hidden">
     <a class="btn" id="openApp" href="#">Uygulamayı aç</a>
-    <button class="btn ghost" id="copyCode">Kodu kopyala</button>
+  </div>
+
+  <!-- Yedek yol: uygulama açılmazsa kodla gir -->
+  <div id="fallback" class="hidden" style="margin-top:24px;padding-top:20px;border-top:1px solid #e6e1d8">
+    <p style="font-size:14px;color:#7a746a;margin:0 0 8px">
+      Uygulama açılmadı mı?
+    </p>
+    <p style="font-size:14px;color:#2d3a2e;margin:0">
+      E-postandaki <strong>6 haneli kodu</strong> uygulamada
+      <strong>“Kodum var”</strong> ekranına gir.
+    </p>
   </div>
 </div>
 
@@ -56,7 +66,6 @@
   var errorBox = document.getElementById('errorBox');
   var actions = document.getElementById('actions');
   var openApp = document.getElementById('openApp');
-  var copyBtn = document.getElementById('copyCode');
 
   /**
    * Token NEREDE?
@@ -109,10 +118,28 @@
    * uygulama `POST /auth/verify` ile yapar.
    */
 
-  // Uygulama kuruluysa otomatik aç (özel şema)
+  /**
+   * Uygulamayı açmayı dene.
+   *
+   * App Links (https) doğrulanmamış olabilir — debug APK'nın imza
+   * parmak izi her derlemede değişiyor, assetlinks.json eşleşmiyor.
+   * Bu yüzden ÖZEL ŞEMA tek güvenilir yol.
+   *
+   * Strateji:
+   * 1. Sayfa açılır açılmaz `location.href` ile dene
+   * 2. Kısa süre sonra hâlâ buradaysek kullanıcıya buton göster
+   * 3. Buton aynı şemayı çağırır
+   *
+   * Not: tarayıcı "uygulama açılsın mı?" sorarsa kullanıcı onaylar.
+   */
+  function tryOpenApp() {
+    location.href = scheme;
+  }
+
   if (isAndroid || isIOS) {
-    // Kullanıcı tıklamadan önce dene — çoğu tarayıcı izin verir
-    setTimeout(function () { location.href = scheme; }, 150)
+    tryOpenApp();
+    // Uygulama açıldıysa bu sayfa arka planda kalır; açılmadıysa
+    // kullanıcı hâlâ görüyor demektir — butonu vurgula.
   }
 
   icon.textContent = '📱';
@@ -122,16 +149,13 @@
     : 'Bu bağlantı Düğünce uygulamasında açılmalı. Telefonunda uygulama kurulu mu?';
 
   actions.classList.remove('hidden');
-  copyBtn.classList.add('hidden');
+  // Uygulama açılmazsa kod yedeği her zaman görünsün
+  document.getElementById('fallback').classList.remove('hidden');
 
   // Token'ı adres çubuğundan temizle (geçmişte kalmasın) ama DEĞİŞKENDE tut
   try { history.replaceState(null, '', '/auth/'); } catch (e) {}
 
-  copyBtn.addEventListener('click', function () {
-    if (!codeValue.textContent) return;
-    navigator.clipboard && navigator.clipboard.writeText(codeValue.textContent.trim());
-    copyBtn.textContent = 'Kopyalandı';
-  });
+
 })();
 </script>
 </body>
