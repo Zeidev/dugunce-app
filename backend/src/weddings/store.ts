@@ -46,6 +46,8 @@ export function drizzleWeddingDeps(): WeddingDeps {
           program: weddings.program,
           plan: weddings.plan,
           status: weddings.status,
+          template: weddings.template,
+          fontKey: weddings.fontKey,
           createdAt: weddings.createdAt,
           role: weddingMembers.role,
         })
@@ -78,6 +80,8 @@ export function drizzleWeddingDeps(): WeddingDeps {
           program: weddings.program,
           plan: weddings.plan,
           status: weddings.status,
+          template: weddings.template,
+          fontKey: weddings.fontKey,
           createdAt: weddings.createdAt,
           updatedAt: weddings.updatedAt,
           role: weddingMembers.role,

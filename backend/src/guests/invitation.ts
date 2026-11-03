@@ -65,6 +65,10 @@ export interface InvitationRow {
     program?: unknown
     giftNote?: string | null
     rsvpDeadline?: Date | null
+    /** Davetiye şablonu — `public-view` içinde normalleştirilir. */
+    template?: string | null
+    /** Seçilen font — boş dize "şablonun önerileni" demektir. */
+    fontKey?: string | null
   }
 }
 

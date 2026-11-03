@@ -56,6 +56,9 @@ enum class Screen {
 
     // Kart yönetimi (spec §6b.5)
     CARD_LIST,
+
+    // Davetiye görünümü — şablon + font seçimi
+    TEMPLATE,
 }
 
 /** Alt sekme tanımı. */

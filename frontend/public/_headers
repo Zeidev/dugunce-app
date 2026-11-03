@@ -47,3 +47,16 @@
 
 /.well-known/apple-app-site-association
   Cache-Control: public, max-age=300
+
+# Davetiye görsel varlıkları (font, motif, fotoğraf)
+#
+# NOT: Dosya adları hash İÇERMİYOR. Uzun `immutable` önbellek, bozuk bir
+# fontu düzeltip aynı yola koyduğumuzda kullanıcıda takılı kalır
+# (Mrs Saint Delafield vakası). Bu yüzden 1 yıl değil 1 hafta + revalidate.
+/assets/*
+  Cache-Control: public, max-age=604800, must-revalidate
+
+# Fontlar: yalnız .woff2 uzantısı için tip ver. OFL.txt gibi dosyalar
+# bu kurala girmemeli.
+/assets/fonts/*.woff2
+  Content-Type: font/woff2

@@ -1,6 +1,7 @@
 package com.dugunce.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.Repository
 import com.dugunce.app.data.TokenStore
 import com.dugunce.app.data.WeddingDto
@@ -68,6 +70,7 @@ fun SettingsScreen(
     onLoggedOut: () -> Unit,
     onInviteCoOwner: () -> Unit = {},
     onOpenCards: () -> Unit = {},
+    onOpenTemplates: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var editing by remember { mutableStateOf(false) }
@@ -188,6 +191,37 @@ fun SettingsScreen(
         }
 
         // --- İkinci eş ---
+        // --- Davetiye görünümü ---
+        item { SectionHeader("Davetiye") }
+        item {
+            Surface(
+                shape = RoundedCornerShape(Radius.lg),
+                color = c.surface,
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTemplates),
+            ) {
+                Row(
+                    Modifier.padding(Spacing.lg),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Davetiye görünümü",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = c.ink,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Şablon ve font seç",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = c.muted,
+                        )
+                    }
+                    Text("›", style = MaterialTheme.typography.titleLarge, color = c.muted)
+                }
+            }
+        }
+
         item { SectionHeader("Düğün ortağı") }
         item {
             Surface(
