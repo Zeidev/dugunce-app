@@ -49,13 +49,14 @@ Environment: `production`. Yedekler sunucuda `/tmp/dist-backup-*.tgz` (son 5).
 
 ## Mobil uygulama — gerçek durum
 
-### Durum: ✅ tamamlandı (2026-11-02)
+### Durum: ✅ tamamlandı (2026-11-02/03)
 
 | Ölçüm | Değer |
 |---|---|
-| Kotlin satırı | **~10600** (önce 1695) |
+| Kotlin satırı | **~10800** (önce 1695) |
 | Ekran | **27** enum değeri, hepsi bağlı (önce 4) |
-| Test | **122+** (önce 0) |
+| Test | **128** test metodu (önce 0) |
+| Backend desteği | kategori + kart + arama + sayfalama uçları eklendi |
 | APK | 18 MB, `mobile-ci` ✅ |
 | CI | testler + APK her push'ta |
 
@@ -97,20 +98,18 @@ kilitledi: her DTO gerçek backend JSON'u ile çözülüyor.
 - Dört ekran: giriş, bütçe, davetli, görev
 - Repository'nin 21 metodu backend'in gerçek sözleşmesiyle eşleşiyor (aşağıdaki 1 hata düzeltildi)
 
-### Kalan mobil işler (Aşama 6'ya bağlı)
+### Kalan işler — dış bağımlılık
 
-| # | Eksik | Neden |
+Aşağıdakiler **mobil kod eksikliği değil**, başka aşamalara veya platformlara bağlı:
+
+| # | Konu | Gerçek engel |
 |---|---|---|
-| 1 | Görev fotoğrafları | Aşama 6 (R2) yapılmadı |
-| 2 | Push bildirim (FCM/APNs) | İzin akışı var, gönderim altyapısı yok |
-| 3 | ~~Deep link (Android)~~ | ✅ **KAPANDI** — `/auth` + `/invite` intent-filter, onCreate/onNewIntent işleniyor. **iOS universal link** hâlâ eksik (AASA + Swift tarafı) |
-| 4 | Offline yazma kuyruğu | Spec v1.1'e erteledi; okuma önbelleği var |
-| 5 | Rehberden davetli seçimi | İzin akışı gerekli, manuel yol çalışıyor |
-| 6 | Satın alma (Play Billing) | Aşama 2.5 |
-| 7 | ~~Davetli arama parametresi~~ | ✅ **KAPANDI** — `?search=` ILIKE (ad+telefon), 10 test, canlıda |
-| 9 | ~~Kategori uçları~~ | ✅ **KAPANDI (2026-11-02)** — `/weddings/:id/categories` + 12 sistem kategorisi seed, canlıda |
-| 8 | Sayfalama (cursor) | Spec §6b.7 istiyor; backend listeleri henüz sayfalamıyor. 30 davetli limiti altında sorun değil, premium'da gerekli |
-| 10 | ~~Kart ucu~~ | ✅ **KAPANDI** — `/weddings/:id/cards` CRUD + güvenlik testleri, canlıda doğrulandı |
+| 1 | **iOS Xcode projesi** | Swift kaynak hazır (`iOSApp.swift`, `ContentView.swift`, `Info.plist`, `.entitlements`), ama `iosApp.xcodeproj` yalnızca macOS'ta Xcode ile üretilir. Kurulum adımları `mobile/iosApp/README.md`'de |
+| 2 | **Push bildirim gönderimi** | İzin UI'si ve sessiz saat kuralı var; FCM/APNs altyapısı Aşama 6+ işi. Spec §6b.3 "izin verilmezse uygulama çalışır" diyor — polling yeterli |
+| 3 | **Görev fotoğrafları** | Aşama 6 (R2 presigned URL + kota) yapılmadı. Spec sırası: fotoğraflar mobilde de görünmeli, ama önce Aşama 6 |
+| 4 | **Satın alma (Play Billing)** | Aşama 2.5. Plan ekranı ve limit metinleri hazır, mağaza entegrasyonu yok |
+| 5 | **Rehberden davetli seçimi** | Platform izin API'si gerekir; manuel + toplu ekleme çalışıyor |
+| 6 | **Offline yazma kuyruğu** | Spec §6b v1.1'e erteledi; okuma önbelleği çalışıyor |
 
 ### Düzeltilen bug (2026-11-02)
 
