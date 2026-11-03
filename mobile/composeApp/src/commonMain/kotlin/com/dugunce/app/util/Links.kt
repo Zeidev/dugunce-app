@@ -43,4 +43,3 @@ object Links {
     fun guestInvite(url: String?, token: String?): String? =
         absolute(url) ?: token?.let { "$PUBLIC_ORIGIN/d#$it" }
 }
-
