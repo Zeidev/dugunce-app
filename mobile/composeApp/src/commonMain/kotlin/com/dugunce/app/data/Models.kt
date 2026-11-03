@@ -78,6 +78,10 @@ data class WeddingDto(
     val status: String = "ACTIVE",
     val role: String? = null,
     val createdAt: String? = null,
+    /** Davetiye şablonu — `TemplateScreen` içindeki anahtarlarla aynı. */
+    val template: String = "ZARIF",
+    /** Seçilen font; boş dize "şablonun önerileni" demektir. */
+    val fontKey: String = "",
 )
 
 @Serializable
@@ -103,6 +107,9 @@ data class WeddingCreateRequest(
     val mapUrl: String? = null,
     val giftNote: String? = null,
     val rsvpDeadline: String? = null,
+    /** Yalnız güncellemede gönderilir; oluşturmada sunucu varsayılanı kullanır. */
+    val template: String? = null,
+    val fontKey: String? = null,
 )
 
 // --- Bütçe ---

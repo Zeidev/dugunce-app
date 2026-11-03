@@ -474,6 +474,14 @@ fun App(
                             )
                         } ?: Unit
 
+                        Screen.TEMPLATE -> wedding?.let { w ->
+                            TemplateScreen(
+                                wedding = w,
+                                repository = repository,
+                                onBack = { state.back() },
+                            )
+                        } ?: Unit
+
                         Screen.ACCEPT_INVITE -> AcceptInviteScreen(
                             repository = repository,
                             onBack = { state.back() },
