@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.GuestDto
 import com.dugunce.app.data.GuestUsageDto
 import com.dugunce.app.data.Repository
+import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.DugunceCard
 import com.dugunce.app.ui.components.DugunceTextField
 import com.dugunce.app.ui.components.EmptyState
@@ -88,6 +89,7 @@ fun GuestListScreen(
     // Sayfalama (spec §6b.7): ilk sayfa 50, "daha fazla" ile devam
     var hasMore by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // spec §6b.7: taraf ve RSVP filtresi SUNUCUDA uygulanır — istemci tüm
     // listeyi çekip elemez. (Arama metni için backend'de parametre yok;
