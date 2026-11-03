@@ -45,11 +45,9 @@ kotlin {
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
-            // materialIconsExtended Compose 1.7.3'te dondu (1.11.0'da yok).
-            // Uyumsuzluk çıkarsa Material Symbols'a geçilmeli; şimdilik
-            // kullanılan ikonlar (Search, People, Checklist, Send…) bu
-            // sürümde mevcut.
-            implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+            // material-icons-extended KALDIRILDI: Compose 1.7.3'te donmuştu,
+            // güncellenmiyordu (~2 MB). Yerine yalnız kullandığımız 29 ikon
+            // `ui/icons/AppIcons.kt` içinde Material Symbols'dan üretildi.
             implementation(compose.ui)
 
             implementation(libs.kotlinx.coroutines.core)

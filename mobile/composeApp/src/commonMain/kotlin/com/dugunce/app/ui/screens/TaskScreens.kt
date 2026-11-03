@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,14 +21,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.TaskAlt
-import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -184,7 +177,7 @@ fun TaskListScreen(
                             title = "Henüz görev yok",
                             description = "Hazırlık işlerini görevlere böl. Yardımcına atadığında " +
                                 "o da kendi linkinden görür.",
-                            icon = Icons.Filled.TaskAlt,
+                            icon = AppIcons.TaskAlt,
                             actionLabel = "Görev ekle",
                             onAction = onAddTask,
                         )
@@ -193,7 +186,7 @@ fun TaskListScreen(
                         EmptyState(
                             title = "Sonuç yok",
                             description = "Bu filtreye uyan görev bulunamadı.",
-                            icon = Icons.Filled.TaskAlt,
+                            icon = AppIcons.TaskAlt,
                         )
                     }
                     else -> items(filtered, key = { it.id }) { task ->
@@ -217,7 +210,7 @@ fun TaskListScreen(
                     Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(AppIcons.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(Spacing.sm))
                     Text(
                         "Görev",
@@ -273,7 +266,7 @@ private fun TaskRow(task: TaskDto, assignee: String?, onClick: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     StatusChip(taskStatusLabel(task.status), taskStatusTone(task.status), taskStatusIcon(task.status))
                     if (task.priority == "HIGH") StatusChip("Öncelikli", StatusTone.DANGER)
-                    if (assignee != null) StatusChip(assignee, StatusTone.INFO, Icons.Filled.Person)
+                    if (assignee != null) StatusChip(assignee, StatusTone.INFO, AppIcons.Person)
                 }
                 if (task.dueDate != null) {
                     Spacer(Modifier.height(Spacing.xs))
@@ -302,9 +295,9 @@ internal fun taskStatusTone(status: String?): StatusTone = when (status) {
 }
 
 internal fun taskStatusIcon(status: String?): androidx.compose.ui.graphics.vector.ImageVector = when (status) {
-    "DONE" -> Icons.Filled.CheckCircle
-    "DOING" -> Icons.Filled.Timelapse
-    else -> Icons.Filled.RadioButtonUnchecked
+    "DONE" -> AppIcons.CheckCircle
+    "DOING" -> AppIcons.Timelapse
+    else -> AppIcons.RadioButtonUnchecked
 }
 
 /**
@@ -542,7 +535,7 @@ fun TaskDetailScreen(
             task == null -> EmptyState(
                 title = "Görev bulunamadı",
                 description = "Bu görev silinmiş olabilir.",
-                icon = Icons.Filled.TaskAlt,
+                icon = AppIcons.TaskAlt,
                 modifier = Modifier.fillMaxSize(),
             )
             else -> {
@@ -730,7 +723,7 @@ fun TaskChatScreen(
                 messages.isEmpty() -> EmptyState(
                     title = "Sohbet boş",
                     description = "Bu görev hakkında not bırak. Yardımcın da aynı sohbeti görür.",
-                    icon = Icons.AutoMirrored.Filled.Send,
+                    icon = AppIcons.Send,
                     modifier = Modifier.fillMaxSize(),
                 )
                 else -> LazyColumn(
@@ -789,7 +782,7 @@ fun TaskChatScreen(
                     },
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.Send,
+                        AppIcons.Send,
                         contentDescription = "Gönder",
                         tint = if (input.isNotBlank() && !sending) c.sage else c.muted,
                     )
@@ -867,7 +860,7 @@ fun HelperListScreen(
                 title = "Henüz yardımcı yok",
                 description = "Yardımcı ekle, görev ata. Uygulama kurmasına gerek yok — " +
                     "sana özel linkle kendi görevlerini görür.",
-                icon = Icons.Filled.Person,
+                icon = AppIcons.Person,
                 actionLabel = "Yardımcı ekle",
                 onAction = onInvite,
                 modifier = Modifier.fillMaxSize(),

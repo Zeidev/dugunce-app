@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +15,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudUpload
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -267,7 +262,7 @@ fun SettingsScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             androidx.compose.material3.Icon(
-                                Icons.Filled.WorkspacePremium,
+                                AppIcons.WorkspacePremium,
                                 contentDescription = null,
                                 tint = c.warning,
                                 modifier = Modifier.padding(end = Spacing.sm),
@@ -321,7 +316,7 @@ fun SettingsScreen(
                 Column(Modifier.padding(Spacing.lg)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Icon(
-                            Icons.Filled.DarkMode,
+                            AppIcons.DarkMode,
                             contentDescription = null,
                             tint = c.sage,
                             modifier = Modifier.padding(end = Spacing.sm),
@@ -385,7 +380,7 @@ fun SettingsScreen(
                 Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Icon(
-                            Icons.Filled.Person,
+                            AppIcons.Person,
                             contentDescription = null,
                             tint = c.muted,
                             modifier = Modifier.padding(end = Spacing.sm),

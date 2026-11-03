@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,11 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -129,7 +125,7 @@ fun BudgetScreen(
                 title = "Henüz harcama yok",
                 description = "İlk harcamanı ekle — düğün hazırlığında ne harcadığını " +
                     "görmeye başla. Taksitli alışverişte aylık yük de hesaplanır.",
-                icon = Icons.Filled.AccountBalanceWallet,
+                icon = AppIcons.AccountBalanceWallet,
                 actionLabel = "Harcama ekle",
                 onAction = onAddExpense,
                 modifier = Modifier.align(Alignment.Center),
@@ -213,7 +209,7 @@ fun BudgetScreen(
                     Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(AppIcons.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(Spacing.sm))
                     Text(
                         "Harcama",
@@ -263,7 +259,7 @@ private fun SummaryCards(summary: BudgetSummaryDto?, onOpenCalendar: () -> Unit)
                 Column(Modifier.padding(Spacing.md)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Filled.Schedule,
+                            AppIcons.Schedule,
                             contentDescription = null,
                             tint = c.warning,
                             modifier = Modifier.size(16.dp),
@@ -448,7 +444,7 @@ fun InstallmentCalendarScreen(
             byMonth.isEmpty() -> EmptyState(
                 title = "Taksit yok",
                 description = "Taksitli bir harcama eklediğinde aylık ödeme planı burada görünür.",
-                icon = Icons.Filled.Schedule,
+                icon = AppIcons.Schedule,
                 modifier = Modifier.fillMaxSize(),
             )
             else -> LazyColumn(
@@ -491,7 +487,7 @@ fun InstallmentCalendarScreen(
 
                             if (allPaid) {
                                 Spacer(Modifier.height(Spacing.sm))
-                                StatusChip("Hepsi ödendi", StatusTone.SUCCESS, Icons.Filled.CheckCircle)
+                                StatusChip("Hepsi ödendi", StatusTone.SUCCESS, AppIcons.CheckCircle)
                             }
 
                             Spacer(Modifier.height(Spacing.md))

@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,10 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Whatsapp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -94,7 +91,7 @@ fun GuestDetailScreen(
             guest == null -> EmptyState(
                 title = "Davetli bulunamadı",
                 description = "Bu kayıt silinmiş olabilir.",
-                icon = Icons.Filled.People,
+                icon = AppIcons.People,
                 modifier = Modifier.fillMaxSize(),
             )
             else -> {
@@ -222,7 +219,7 @@ fun GuestDetailScreen(
                                         },
                                         loading = generating,
                                         variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
-                                        icon = Icons.Filled.Link,
+                                        icon = AppIcons.Link,
                                     )
                                 } else {
                                     Text(
@@ -243,7 +240,7 @@ fun GuestDetailScreen(
                                     DugunceButton(
                                         "WhatsApp'tan gönder",
                                         onClick = { },
-                                        icon = Icons.Filled.Whatsapp,
+                                        icon = AppIcons.Whatsapp,
                                     )
                                     Text(
                                         "wa.me bağlantısı: $waUrl",

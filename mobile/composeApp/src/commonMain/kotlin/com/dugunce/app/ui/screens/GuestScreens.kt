@@ -1,5 +1,6 @@
 package com.dugunce.app.ui.screens
 
+import com.dugunce.app.ui.icons.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,14 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -170,7 +163,7 @@ fun GuestListScreen(
                         onValueChange = { query = it },
                         label = "Ara",
                         placeholder = "İsim veya telefon",
-                        leadingIcon = Icons.Filled.Search,
+                        leadingIcon = AppIcons.Search,
                         imeAction = ImeAction.Search,
                     )
                 }
@@ -227,7 +220,7 @@ fun GuestListScreen(
                             title = "Henüz davetli yok",
                             description = "İlk davetlini ekle. Sonra WhatsApp'tan davetiye " +
                                 "linki gönderebilirsin.",
-                            icon = Icons.Filled.People,
+                            icon = AppIcons.People,
                             actionLabel = "Davetli ekle",
                             onAction = onAddGuest,
                         )
@@ -237,7 +230,7 @@ fun GuestListScreen(
                         EmptyState(
                             title = "Sonuç yok",
                             description = "Aramana uyan davetli bulunamadı. Filtreleri temizleyip tekrar dene.",
-                            icon = Icons.Filled.Search,
+                            icon = AppIcons.Search,
                         )
                     }
                 } else {
@@ -311,7 +304,7 @@ fun GuestListScreen(
                         Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(AppIcons.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(Spacing.sm))
                         Text(
                             "Davetli",
@@ -367,7 +360,7 @@ private fun GuestRow(guest: GuestDto, onClick: () -> Unit) {
                     Spacer(Modifier.height(Spacing.xxs))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Filled.Phone,
+                            AppIcons.Phone,
                             contentDescription = null,
                             tint = c.muted,
                             modifier = Modifier.size(12.dp),
@@ -404,9 +397,9 @@ internal fun rsvpTone(rsvp: String?): StatusTone = when (rsvp) {
 }
 
 internal fun rsvpIcon(rsvp: String?): androidx.compose.ui.graphics.vector.ImageVector = when (rsvp) {
-    "ATTENDING" -> Icons.Filled.CheckCircle
-    "DECLINED" -> Icons.Filled.EventBusy
-    else -> Icons.Filled.HourglassEmpty
+    "ATTENDING" -> AppIcons.CheckCircle
+    "DECLINED" -> AppIcons.EventBusy
+    else -> AppIcons.HourglassEmpty
 }
 
 /**
