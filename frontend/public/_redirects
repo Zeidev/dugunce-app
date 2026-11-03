@@ -1,3 +1,10 @@
 # /d/<token> eski link biçimi → fragment'e çevir
 # (token sunucuya gitmesin diye fragment kullanılıyor)
 /d/:token  /d/#:token  302
+
+# /auth → /auth/ açık kural.
+# Cloudflare Pages zaten 308 veriyor, ama açık kural fragment'ın
+# korunmasını garanti eder ve davranışı belgeler.
+# NOT: Backend artık doğrudan /auth/ üretiyor (magic-link.ts) —
+# bu kural yalnızca eski/link paylaşımları için güvenlik ağı.
+/auth  /auth/  301

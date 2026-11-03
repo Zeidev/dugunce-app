@@ -91,6 +91,19 @@ describe('magic link — link biçimi', () => {
     expect(sent[0]!.code).toMatch(/^\d{6}$/)
   })
 
+  it('taban URL sondaki eğik çizgiyi taşır (308 yönlendirme riski)', async () => {
+    // Cloudflare Pages `/auth` isteğini `/auth/` adresine yönlendiriyor.
+    // Yönlendirme sırasında fragment'ın korunacağı GARANTİ değil —
+    // doğrudan `/auth/` üretmek riski sıfırlar.
+    expect(MAGIC_LINK_BASE_URL.endsWith('/auth/')).toBe(true)
+
+    const { deps, sent } = makeDeps()
+    await requestMagicLink({ email: 'e@x.com', deps: deps as never })
+    const link = sent[0]!.link
+    // Fragment'tan önceki kısım tam olarak taban URL olmalı
+    expect(link.split('#')[0]).toBe('https://dugunce.com.tr/auth/')
+  })
+
   it('token fragment\'te olduğu için sunucuya gitmez', async () => {
     const { deps, sent } = makeDeps()
     await requestMagicLink({ email: 'e@x.com', deps: deps as never })

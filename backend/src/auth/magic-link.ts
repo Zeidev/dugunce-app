@@ -15,7 +15,16 @@ import { generateToken, hashToken, generateShortCode } from '../lib/crypto.js'
  */
 
 export const MAGIC_LINK_TTL_MINUTES = 5
-export const MAGIC_LINK_BASE_URL = 'https://dugunce.com.tr/auth'
+/**
+ * Giriş bağlantısının tabanı.
+ *
+ * **Sondaki eğik çizgi ÖNEMLİ:** Cloudflare Pages `/auth` isteğini
+ * `/auth/` adresine 308 ile yönlendiriyor. Yönlendirme fragment'ı
+ * koruyabilir ama garanti değil — bazı tarayıcı sürümleri ve proxy'ler
+ * `Location` başlığını izlerken `#token` kısmını düşürür. Doğrudan
+ * `/auth/` üretmek bu riski tamamen ortadan kaldırır.
+ */
+export const MAGIC_LINK_BASE_URL = 'https://dugunce.com.tr/auth/'
 
 /** Basit ama yeterli e-posta doğrulama (RFC 5322'nin pratik alt kümesi). */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
