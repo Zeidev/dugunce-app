@@ -264,3 +264,17 @@ curl -X POST https://api.dugunce.com.tr/api/v1/helper/session \
 # Mobil (JDK gerekir; bu makinede yok — CI'da doğrulanır)
 cd mobile && ./gradlew :composeApp:assembleDebug
 ```
+
+---
+
+## Geliştirici notu — CI bekleme
+
+Push sonrası `sleep` ile beklemek yanlıştı. Ölçüm (son 5 mobil koşu):
+**51, 56, 62, 115, 116 saniye** — ortalama ~80 sn. `sleep 210` her seferinde
+~130 sn boşa harcıyordu, üstelik yavaş bir günde yetmeyebilirdi.
+
+Doğru araç: `./scripts/wait-ci.sh <workflow> [sha]`
+- Koşuyu **commit SHA'sına göre** bulur (`--limit 1` önceki koşuyu döndürebilir)
+- `gh run watch` ile **bitene kadar** bekler, sabit süre varsaymaz
+- Yol filtresi commit'i kapsamıyorsa hangi dosyaların değiştiğini söyler
+- Gerçek süreyi raporlar: `✅ mobile-ci.yml başarılı (121sn)`
