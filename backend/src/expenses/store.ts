@@ -141,7 +141,49 @@ export function drizzleExpenseDeps(
         .where(and(...conditions))
         .orderBy(desc(expenses.purchaseDate))
 
-      return rows as unknown as ExpenseRecord[]
+      const list = rows as unknown as ExpenseRecord[]
+      if (list.length === 0) return list
+
+      /**
+       * Taksitleri TEK sorguda ekle.
+       *
+       * Bildirilen hata: panel "yaklaşan ödemeler"i gösteriyordu (özet
+       * ayrı bir uçtan geliyor) ama takvim boştu — çünkü liste yanıtı
+       * `installments` alanını hiç taşımıyordu ve istemci
+       * `e.installments.map { … }` üzerinde boş dizi görüyordu.
+       *
+       * N+1'den kaçınmak için `inArray` ile tek sorgu; harcama başına
+       * ayrı sorgu atmak 100 harcamada 101 sorgu olurdu.
+       */
+      const expenseIds = list.map((e) => e.id)
+      const inst = await db
+        .select({
+          expenseId: installments.expenseId,
+          id: installments.id,
+          number: installments.number,
+          amountKurus: installments.amountKurus,
+          dueMonth: installments.dueMonth,
+          status: installments.status,
+          paidAt: installments.paidAt,
+        })
+        .from(installments)
+        .where(inArray(installments.expenseId, expenseIds))
+        .orderBy(installments.number)
+
+      const byExpense = new Map<string, typeof inst>()
+      for (const row of inst) {
+        const arr = byExpense.get(row.expenseId)
+        if (arr) arr.push(row)
+        else byExpense.set(row.expenseId, [row])
+      }
+
+      for (const e of list) {
+        // `expenseId` istemciye sızdırılmaz — yalnızca gruplama için
+        const items = (byExpense.get(e.id) ?? []).map(({ expenseId: _drop, ...rest }) => rest)
+        ;(e as unknown as { installments: unknown }).installments = items
+      }
+
+      return list
     },
 
     async findById(expenseId, weddingId, userId) {
