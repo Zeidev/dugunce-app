@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { TEMPLATES, FONTS } from './templates.js'
+import { AppError } from '../lib/errors.js'
 
 /**
  * Düğün iş mantığı.
@@ -22,16 +23,38 @@ export const weddingInputSchema = z.object({
   timezone: z.string().default('Europe/Istanbul'),
   venueName: z.string().trim().max(200).optional(),
   venueAddress: z.string().trim().max(500).optional(),
-  mapUrl: z.string().url().max(1000).optional(),
+  /**
+   * Harita bağlantısı — YALNIZ http/https.
+   *
+   * `z.string().url()` tek başına `javascript:` ve `data:` şemalarını da
+   * kabul ediyor. Davetiye sayfası bu değeri `<a href>` içine koyduğu
+   * için şema beyaz listesi zorunlu (SECURITY §8).
+   */
+  mapUrl: z
+    .string()
+    .max(1000)
+    .url('Geçerli bir bağlantı girin')
+    .refine((v) => /^https?:\/\//i.test(v), {
+      message: 'Bağlantı http:// veya https:// ile başlamalı',
+    })
+    .optional(),
   giftNote: z.string().trim().max(1000).optional(),
   rsvpDeadline: z
     .string()
     .refine((v) => !Number.isNaN(Date.parse(v)), { message: 'Geçersiz tarih' })
     .optional(),
   /** Davetiye şablonu — anahtar listesi `templates.ts`. */
-  template: z.enum(TEMPLATES).optional(),
+  template: z
+    .enum(TEMPLATES, {
+      errorMap: () => ({ message: 'Geçersiz şablon' }),
+    })
+    .optional(),
   /** Font — boş bırakılırsa şablonun önerilen fontu kullanılır. */
-  fontKey: z.enum(FONTS).optional(),
+  fontKey: z
+    .enum(FONTS, {
+      errorMap: () => ({ message: 'Geçersiz font' }),
+    })
+    .optional(),
 })
 
 export type WeddingInput = z.input<typeof weddingInputSchema>
@@ -142,7 +165,7 @@ export async function updateWedding(
   )
 
   if (Object.keys(cleanPatch).length === 0) {
-    throw new Error('Güncellenecek alan yok')
+    throw AppError.badRequest('Güncellenecek alan yok', 'EMPTY_PATCH')
   }
 
   // Üyelik kontrolü — üye değilse güncelleme yok
