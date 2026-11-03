@@ -1,6 +1,9 @@
 package com.dugunce.app.api
 
 import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
@@ -38,6 +41,13 @@ object ApiConfig {
 class ApiClient(
     private val baseUrl: String = ApiConfig.BASE_URL,
     private val tokenProvider: () -> String? = { null },
+    /**
+     * HTTP motoru. `null` = platform varsayılanı (OkHttp / Darwin).
+     *
+     * Testler `MockEngine` enjekte ederek gerçek ağa çıkmadan
+     * 401 / token yenileme gibi akışları sınar.
+     */
+    engine: HttpClientEngine? = null,
 ) {
     val json = Json {
         ignoreUnknownKeys = true   // API alan eklerse istemci kırılmasın
@@ -46,7 +56,47 @@ class ApiClient(
         encodeDefaults = true
     }
 
-    val http: HttpClient = HttpClient {
+    val http: HttpClient = if (engine != null) HttpClient(engine) { configure() } else HttpClient { configure() }
+
+    /**
+     * 401 → token yenile → isteği BİR KEZ tekrar dene.
+     *
+     * NEDEN BURADA:
+     * 40'tan fazla çağrı yeri var. Her birinde retry yazmak yerine tek
+     * noktada yapılır; biri unutulduğunda 401 gövdesi başarı sanılır ve
+     * ekran boş kalır. Yenileme başarısızsa orijinal 401 yanıtı döner —
+     * `Repository.ensureSuccess` onu hataya çevirir.
+     *
+     * `refreshBlock` çağıran taraftan gelir (Repository.refresh) —
+     * ApiClient token saklamaz.
+     */
+    private var refreshBlock: (suspend () -> Boolean)? = null
+
+    fun installAuthRetry(block: suspend () -> Boolean) {
+        refreshBlock = block
+    }
+
+    /**
+     * İsteği gönderir; 401 alırsa `refreshBlock` ile token yenileyip
+     * bir kez tekrar dener.
+     *
+     * `/auth/refresh` isteğinin KENDİSİ bu yola girmez — yoksa sonsuz
+     * özyineleme olur (401 → refresh → 401 → refresh …).
+     */
+    suspend fun sendRetrying(block: suspend () -> HttpResponse): HttpResponse {
+        val res = block()
+        if (res.status.value != 401) return res
+
+        val refresher = refreshBlock ?: return res
+        if (!refresher()) return res
+
+        // Yanıt gövdesi okunmadan bırakılır — Ktor bağlantıyı kendisi
+        // yönetir, elle iptal gerekmez (ve `cancel` imzası sürümler
+        // arasında değişiyor).
+        return block()
+    }
+
+    private fun HttpClientConfig<*>.configure() {
         install(ContentNegotiation) {
             json(json)
         }
