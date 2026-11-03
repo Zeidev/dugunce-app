@@ -75,6 +75,7 @@ fun GuestListScreen(
     onAddGuest: () -> Unit,
     onOpenGuest: (String) -> Unit,
     onBulkAdd: () -> Unit,
+    onOpenTemplates: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var loading by remember { mutableStateOf(true) }
@@ -183,6 +184,40 @@ fun GuestListScreen(
                         item { GuestFilter("Katılmayacak", filterRsvp == "DECLINED") { filterRsvp = "DECLINED"; filterSide = null } }
                         item { GuestFilter("Gelin", filterSide == "BRIDE") { filterSide = "BRIDE"; filterRsvp = null } }
                         item { GuestFilter("Damat", filterSide == "GROOM") { filterSide = "GROOM"; filterRsvp = null } }
+                    }
+                }
+
+                // Davetiye görünümü — misafirin göreceği sayfanın şablonu.
+                // Davetli listesinin parçası: kullanıcı buradan aklına
+                // geldiğinde ulaşır (Ayarlar'da aramak zorunda kalmaz).
+                item {
+                    Surface(
+                        onClick = onOpenTemplates,
+                        shape = RoundedCornerShape(Radius.lg),
+                        color = c.sageSoft,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, c.sageBorder),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            Modifier.padding(Spacing.md),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Davetiye görünümü",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = c.ink,
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    "Misafirlerin göreceği şablonu ve yazı stilini seç",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = c.inkSoft,
+                                )
+                            }
+                            Text("›", style = MaterialTheme.typography.titleLarge, color = c.sage)
+                        }
                     }
                 }
 

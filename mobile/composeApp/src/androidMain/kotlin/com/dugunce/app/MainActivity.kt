@@ -33,6 +33,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Pano/paylaşım için uygulama bağlamı (util/Platform.android.kt)
+        com.dugunce.app.util.AppContextHolder.context = applicationContext
+
         handleIntent(intent)
 
         val settings = SharedPreferencesSettings(

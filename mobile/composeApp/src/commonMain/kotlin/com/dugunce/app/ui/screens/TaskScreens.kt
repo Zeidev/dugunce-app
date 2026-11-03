@@ -30,6 +30,9 @@ import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.Timelapse
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.foundation.text.selection.SelectionContainer
+import com.dugunce.app.util.copyToClipboard
+import com.dugunce.app.util.shareText
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -938,6 +941,7 @@ fun HelperInviteScreen(
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var createdUrl by remember { mutableStateOf<String?>(null) }
+    var copied by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize().background(c.cream)) {
@@ -989,16 +993,44 @@ fun HelperInviteScreen(
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Spacer(Modifier.height(Spacing.xs))
-                            Text(
-                                createdUrl!!,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = c.inkSoft,
-                            )
+                            // Seçilebilir: uzun basıp elle de kopyalanabilir
+                            SelectionContainer {
+                                Text(
+                                    createdUrl!!,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = c.inkSoft,
+                                )
+                            }
+                            Spacer(Modifier.height(Spacing.sm))
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                DugunceButton(
+                                    label = "Kopyala",
+                                    onClick = {
+                                        val ok = copyToClipboard(createdUrl!!)
+                                        copied = ok
+                                    },
+                                    variant = ButtonVariant.SECONDARY,
+                                    fullWidth = false,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                DugunceButton(
+                                    label = "Paylaş",
+                                    onClick = {
+                                        shareText(
+                                            createdUrl!!,
+                                            "Düğünce — görev listesi daveti",
+                                        )
+                                    },
+                                    fullWidth = false,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                             Spacer(Modifier.height(Spacing.sm))
                             Text(
-                                "Bu linki WhatsApp'tan gönder. Bir daha gösterilmez.",
+                                if (copied) "Bağlantı kopyalandı." else
+                                    "Bu linki WhatsApp'tan gönder. Bir daha gösterilmez.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = c.muted,
+                                color = if (copied) c.success else c.muted,
                             )
                         }
                     }

@@ -307,6 +307,7 @@ fun App(
                                 onAddGuest = { state.editingGuestId = null; state.go(Screen.GUEST_FORM) },
                                 onOpenGuest = { id -> state.editingGuestId = id; state.go(Screen.GUEST_DETAIL) },
                                 onBulkAdd = { state.go(Screen.BULK_GUEST) },
+                            onOpenTemplates = { state.go(Screen.TEMPLATE) },
                             )
                         } ?: Unit
 

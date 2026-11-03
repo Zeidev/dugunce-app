@@ -3,6 +3,8 @@ package com.dugunce.app.ui.screens
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
+import com.dugunce.app.ui.theme.templateFontFamilyOrNull
 
 /**
  * Şablon ve font etiketleri.
@@ -64,6 +66,18 @@ class TemplateLabelsTest {
     @Test
     fun `normalizeFont gecerli fontu korur`() {
         assertEquals("BODONI", normalizeFontKey("GECE", "BODONI"))
+    }
+
+    @Test
+    fun `her font anahtarinin compose font ailesi var`() {
+        // Font adı kendi stiliyle yazılıyor; aile tanımlı değilse
+        // ekran sessizce varsayılan fonta düşer.
+        FONT_KEYS.forEach { key ->
+            assertNotNull(
+                templateFontFamilyOrNull(key),
+                "$key için Compose font ailesi tanımlı değil",
+            )
+        }
     }
 
     @Test

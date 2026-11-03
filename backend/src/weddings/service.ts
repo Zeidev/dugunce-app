@@ -60,8 +60,26 @@ export const weddingInputSchema = z.object({
 export type WeddingInput = z.input<typeof weddingInputSchema>
 export type ValidatedWeddingInput = z.output<typeof weddingInputSchema>
 
-/** Güncellemede kabul edilen alanlar — plan/purchase ASLA kullanıcıdan gelmez. */
-export const weddingPatchSchema = weddingInputSchema.partial()
+/**
+ * Güncellemede kabul edilen alanlar — plan/purchase ASLA kullanıcıdan gelmez.
+ *
+ * `null` gelen alanlar ATILIR. Gerekçe: mobil istemci (Ktor) opsiyonel
+ * alanları bazen `null` olarak gönderiyor; `partial()` şeması `null`'ı
+ * geçerli değer saymadığı için istek 400 dönüyordu — kullanıcı
+ * "beklenmeyen bir hata oluştu" görüyordu. `null` = "bu alanı değiştirme".
+ */
+export const weddingPatchSchema = z.preprocess(
+  (input) => {
+    if (input === null || typeof input !== 'object' || Array.isArray(input)) return input
+    // `null` = "bu alanı değiştirme" → anahtarı tamamen at.
+    // Doğrulamadan ÖNCE yapılmalı; `transform` sonra çalışır ve null'lar
+    // `partial()` şemasında zaten reddedilmiş olur.
+    return Object.fromEntries(
+      Object.entries(input as Record<string, unknown>).filter(([, v]) => v !== null),
+    )
+  },
+  weddingInputSchema.partial(),
+)
 
 export function validateWeddingInput(input: unknown): ValidatedWeddingInput {
   return weddingInputSchema.parse(input)

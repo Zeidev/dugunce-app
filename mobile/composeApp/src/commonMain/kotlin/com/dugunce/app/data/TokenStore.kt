@@ -67,7 +67,19 @@ class TokenStore(private val settings: Settings) {
 
     fun putCache(key: String, value: String) = settings.putString("cache_$key", value)
 
-    val isLoggedIn: Boolean get() = !accessToken.isNullOrBlank()
+    /**
+     * Oturum geçerli mi?
+     *
+     * Access token KISA ömürlüdür (SECURITY §1.2 #4) ve süresi dolunca
+     * temizlenir. Yalnız access token'a bakmak, refresh token hâlâ
+     * geçerliyken kullanıcıyı "çıkış yapmış" sayar: her açılışta tanıtım
+     * ekranı görünür ve istekler "oturum gerekli" hatası alır.
+     *
+     * Bu yüzden refresh token da oturum kanıtı sayılır — asıl yenileme
+     * `Repository` içindeki 401 akışında yapılır.
+     */
+    val isLoggedIn: Boolean
+        get() = !accessToken.isNullOrBlank() || !refreshToken.isNullOrBlank()
 
     fun save(access: String, refresh: String, userId: String, email: String?, name: String?) {
         accessToken = access

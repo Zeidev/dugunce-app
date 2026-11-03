@@ -351,12 +351,18 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(Spacing.md)) {
+                    // TokenStore düz getter/setter'dır; Compose değişimi
+                    // görmez. Yerel state ile sarıyoruz, kalıcılık aynı.
+                    var notifOn by remember { mutableStateOf(tokens.notificationsEnabled) }
                     CheckRow(
                         label = "Bildirimlere izin ver",
                         description = "RSVP yanıtı ve görev değişikliklerinde haber verir. " +
                             "İzin vermezsen uygulama çalışmaya devam eder.",
-                        checked = tokens.notificationsEnabled,
-                        onCheckedChange = { tokens.notificationsEnabled = it },
+                        checked = notifOn,
+                        onCheckedChange = {
+                            notifOn = it
+                            tokens.notificationsEnabled = it
+                        },
                     )
                     Text(
                         "Sessiz saat: 22:00–09:00 arası bildirim gönderilmez.",

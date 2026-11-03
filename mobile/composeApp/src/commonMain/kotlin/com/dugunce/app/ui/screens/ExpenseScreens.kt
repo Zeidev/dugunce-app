@@ -36,6 +36,7 @@ import com.dugunce.app.data.Money
 import com.dugunce.app.data.Repository
 import com.dugunce.app.ui.components.ButtonVariant
 import com.dugunce.app.ui.components.DateField
+import com.dugunce.app.ui.components.CheckRow
 import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.DugunceTextField
 import com.dugunce.app.ui.components.ErrorState
@@ -79,6 +80,8 @@ fun ExpenseFormScreen(
     var status by remember { mutableStateOf("PAID") }
     var dateText by remember { mutableStateOf(Dates.formatShort(Dates.todayIso())) }
     var installmentText by remember { mutableStateOf("1") }
+    // Onay kutusu: işaretlenmedikçe taksit alanları gizli ve peşin sayılır
+    var isInstallment by remember { mutableStateOf(false) }
     var firstMonth by remember { mutableStateOf(Dates.currentMonth()) }
     var categories by remember { mutableStateOf<List<com.dugunce.app.data.CategoryDto>>(emptyList()) }
     var categoryId by remember { mutableStateOf<String?>(null) }
@@ -117,6 +120,7 @@ fun ExpenseFormScreen(
                     status = e.paymentStatus
                     dateText = Dates.formatShort(e.purchaseDate)
                     installmentText = (e.installmentCount ?: 1).toString()
+                    isInstallment = (e.installmentCount ?: 1) > 1
                     firstMonth = e.firstInstallmentMonth ?: Dates.currentMonth()
                 }
                 loading = false
@@ -126,7 +130,10 @@ fun ExpenseFormScreen(
     }
 
     val parsedAmount = Money.parseToKurus(amount)
-    val installmentCount = installmentText.toIntOrNull() ?: 1
+    // Taksit YALNIZ açıkça işaretlenirse etkin. Varsayılan: peşin.
+    // Önceden metin kutusunda "1" durduğu için nakit ödeme bile taksitli
+    // sayılıp takvime düşüyordu.
+    val installmentCount = if (isInstallment) (installmentText.toIntOrNull() ?: 1) else 1
     val isoDate = parseTurkishDate(dateText)
     val needsFirstMonth = installmentCount > 1
 
@@ -289,24 +296,30 @@ fun ExpenseFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            "Taksitli mi?",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = c.ink,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        DugunceTextField(
-                            value = installmentText,
-                            onValueChange = {
-                                installmentText = it.filter { ch -> ch.isDigit() }.take(2)
+                        CheckRow(
+                            label = "Taksitli ödeme",
+                            checked = isInstallment,
+                            description = "İşaretlemezsen harcama peşin sayılır.",
+                            onCheckedChange = { on ->
+                                isInstallment = on
                                 saveError = null
+                                if (on && installmentText.isBlank()) installmentText = "2"
                             },
-                            label = "Taksit sayısı",
-                            keyboard = KeyboardType.Number,
-                            imeAction = ImeAction.Next,
-                            helper = "1 = peşin. En fazla 36.",
-                            enabled = !saving,
                         )
+                        if (isInstallment) {
+                            DugunceTextField(
+                                value = installmentText,
+                                onValueChange = {
+                                    installmentText = it.filter { ch -> ch.isDigit() }.take(2)
+                                    saveError = null
+                                },
+                                label = "Taksit sayısı",
+                                keyboard = KeyboardType.Number,
+                                imeAction = ImeAction.Next,
+                                helper = "En az 2, en fazla 36.",
+                                enabled = !saving,
+                            )
+                        }
                         if (needsFirstMonth) {
                             DugunceTextField(
                                 value = firstMonth,
