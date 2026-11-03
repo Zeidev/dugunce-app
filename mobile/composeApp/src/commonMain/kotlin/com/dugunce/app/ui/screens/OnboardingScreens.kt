@@ -285,7 +285,7 @@ fun FirstExpenseScreen(
                         weddingId,
                         com.dugunce.app.data.ExpenseCreateRequest(
                             title = title.trim(),
-                            amount = Money.kurusToTlString(parsed!!),
+                            amount = Money.kurusToTlString(parsed),
                             purchaseDate = today,
                             installmentCount = 1,
                         ),

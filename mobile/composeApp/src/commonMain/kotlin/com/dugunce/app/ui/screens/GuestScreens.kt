@@ -373,7 +373,7 @@ private fun GuestRow(guest: GuestDto, onClick: () -> Unit) {
                             modifier = Modifier.size(12.dp),
                         )
                         Spacer(Modifier.width(Spacing.xxs))
-                        Text(guest.phone!!, style = MaterialTheme.typography.bodySmall, color = c.muted)
+                        Text(guest.phone, style = MaterialTheme.typography.bodySmall, color = c.muted)
                     }
                 }
                 Spacer(Modifier.height(Spacing.sm))

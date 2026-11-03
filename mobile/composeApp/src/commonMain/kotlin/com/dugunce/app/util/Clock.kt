@@ -1,12 +1,16 @@
 package com.dugunce.app.util
 
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 /**
- * "Şimdi" — kotlinx-datetime üzerinden.
+ * "Şimdi" — `kotlin.time.Clock` üzerinden.
  *
  * `commonMain`'de `System.currentTimeMillis()` yok; bu sarmalayıcı
  * platform farkını gizler ve testte sahte saat enjekte edilebilir.
+ *
+ * NOT: kotlinx-datetime 0.8.0'da `kotlinx.datetime.Clock` kullanımdan
+ * kaldırıldı; yerine `kotlin.time.Clock` geldi (Kotlin 2.4 standart
+ * kütüphanesi). Bu sarmalayıcı sayesinde çağıran kod değişmedi.
  */
 private var testClock: (() -> Long)? = null
 

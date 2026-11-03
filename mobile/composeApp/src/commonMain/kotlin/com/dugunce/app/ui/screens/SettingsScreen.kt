@@ -110,10 +110,10 @@ fun SettingsScreen(
                         SettingRow("Çift", wedding.coupleNames)
                         SettingRow("Tarih", Dates.formatDate(wedding.weddingDate))
                         if (!wedding.venueName.isNullOrBlank()) {
-                            SettingRow("Mekân", wedding.venueName!!)
+                            SettingRow("Mekân", wedding.venueName)
                         }
                         if (!wedding.venueAddress.isNullOrBlank()) {
-                            SettingRow("Adres", wedding.venueAddress!!)
+                            SettingRow("Adres", wedding.venueAddress)
                         }
                         SettingRow("Saat dilimi", wedding.timezone)
                     }
