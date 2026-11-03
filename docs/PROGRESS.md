@@ -111,6 +111,35 @@ Aşağıdakiler **mobil kod eksikliği değil**, başka aşamalara veya platform
 | 5 | **Rehberden davetli seçimi** | Platform izin API'si gerekir; manuel + toplu ekleme çalışıyor |
 | 6 | **Offline yazma kuyruğu** | Spec §6b v1.1'e erteledi; okuma önbelleği çalışıyor |
 
+### Düzeltilen bug (2026-11-03) — giriş akışı
+
+Kullanıcı bildirimi: "mail giriyorum, doğrulama maili geliyor ama bağlantıya
+tıklayınca onay alamıyorum; kodu gireyim deyince mail alanına dönüyor; kod
+geçersiz diyor."
+
+**4 ayrı hata, her biri bir belirtiyi üretiyordu:**
+
+| # | Hata | Belirti | Düzeltme |
+|---|---|---|---|
+| 1 | Backend linki `https://dugunce.com.tr/auth#<token>` (token **fragment**'te, sunucuya gitmez). Android `getQueryParameter`, iOS `queryItems` fragment'ı **okumaz** | Bağlantıya tıklayınca onay yok | Her iki istemci fragment'ı da ayrıştırıyor (`#token` ve `#token=...`) |
+| 2 | `/auth` sayfası **hiç yoktu** — SPA fallback ana sayfayı döndürüyordu | Link açılacak yer bulamıyor | `frontend/public/auth/index.html`: token'ı API'ye doğrular, başarı/hata gösterir, `dugunce://` ile uygulamayı açar, token'ı adres çubuğundan siler |
+| 3 | `onEnterCode` → `resetTo(LOGIN)` ekranı **e-posta modunda** yeniden kuruyordu | "Tekrar mail alanına geçiyor" | `AppState.showCodeEntry` + `LoginScreen(startWithCode)` |
+| 4 | `AuthResponse.expiresIn` zorunluydu ama backend **göndermiyor** | Doğrulama başarılı olsa bile JSON çözümleme patlar | Varsayılan `900` |
+
+**Kanıt (canlı, gerçek token'larla):**
+```
+KOD ile verify  (e-posta YOK)  → 200 + accessToken + refreshToken  ✅
+TOKEN ile verify (fragment)    → 200 + accessToken                 ✅
+aynı token tekrar              → 401 "Geçersiz veya süresi dolmuş"  ✅
+```
+Test verisi silindi (2 kullanıcı, sahipsiz token yok).
+
+**Regresyon testleri:** `tests/auth/magic-link-flow.test.ts` (12 test) —
+link biçimi, fragment'ın sunucuya gitmemesi, kodun e-posta gerektirmemesi,
+tek kullanımlık olması, süre ve deneme limiti.
+
+**Güvenlik başlıkları:** `/auth` için `no-store`, `noindex`, `no-referrer`.
+
 ### Düzeltilen bug (2026-11-02)
 
 `deleteGuest` yanlış uç kullanıyordu:
