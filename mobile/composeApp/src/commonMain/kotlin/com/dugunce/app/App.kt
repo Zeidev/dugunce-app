@@ -33,6 +33,7 @@ import com.dugunce.app.ui.nav.Screen
 import com.dugunce.app.ui.nav.isTab
 import com.dugunce.app.ui.screens.BudgetScreen
 import com.dugunce.app.ui.screens.CardListScreen
+import com.dugunce.app.ui.screens.TemplateScreen
 import com.dugunce.app.ui.screens.BudgetIntroScreen
 import com.dugunce.app.ui.screens.BulkGuestScreen
 import com.dugunce.app.ui.screens.AcceptInviteScreen
