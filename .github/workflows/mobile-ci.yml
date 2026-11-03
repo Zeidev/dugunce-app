@@ -51,6 +51,9 @@ jobs:
       - name: Compose kuralları
         run: node scripts/check-compose-conventions.mjs
 
+      - name: Kotlin import kontrolü
+        run: node scripts/check-kotlin-imports.mjs
+
       - name: Unit tests (commonTest)
         working-directory: mobile
         run: ./gradlew :composeApp:allTests --no-daemon --stacktrace

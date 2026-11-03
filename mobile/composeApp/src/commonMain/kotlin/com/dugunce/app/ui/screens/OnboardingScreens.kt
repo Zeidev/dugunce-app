@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import com.dugunce.app.api.ApiException
+import com.dugunce.app.data.Money
 import com.dugunce.app.data.Repository
 import com.dugunce.app.data.WeddingCreateRequest
 import com.dugunce.app.data.WeddingDto
