@@ -85,6 +85,41 @@ fun GuestListScreen(
     var loadingMore by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    // --- Rehberden ekleme ---
+    // Tek tek isim/telefon yazmak yerine sistem rehberinden çoklu seçim.
+    var importing by remember { mutableStateOf(false) }
+    var importMessage by remember { mutableStateOf<String?>(null) }
+    var importError by remember { mutableStateOf(false) }
+
+    val contactPicker = com.dugunce.app.ui.components.rememberContactPicker { picked ->
+        if (picked.isEmpty()) return@rememberContactPicker
+        importing = true
+        importMessage = null
+        importError = false
+        scope.launch {
+            // Seçilen kişileri toplu uca gönder (tek istek).
+            val payload = picked.map {
+                com.dugunce.app.data.GuestCreateRequest(
+                    name = it.name,
+                    phone = it.phone.ifBlank { null },
+                    side = filterSide ?: "BRIDE",
+                )
+            }
+            repository.createGuestsBulk(weddingId, payload).fold(
+                onSuccess = { added ->
+                    importMessage = "${added.size} kişi eklendi."
+                    importing = false
+                    reloadKey++
+                },
+                onFailure = { e ->
+                    importMessage = e.message ?: "Kişiler eklenemedi"
+                    importError = true
+                    importing = false
+                },
+            )
+        }
+    }
+
     // spec §6b.7: taraf ve RSVP filtresi SUNUCUDA uygulanır — istemci tüm
     // listeyi çekip elemez. (Arama metni için backend'de parametre yok;
     // yüklü sayfa içinde istemcide süzülür.)
@@ -143,6 +178,17 @@ fun GuestListScreen(
                         com.dugunce.app.ui.components.InfoBanner(
                             text = "Çevrimdışısın — son yüklenen liste gösteriliyor. " +
                                 "Değişiklik yapmak için internet gerekli.",
+                        )
+                    }
+                }
+
+                // Rehberden ekleme sonucu — sessiz kalmasın
+                importMessage?.let { msg ->
+                    item {
+                        com.dugunce.app.ui.components.InfoBanner(
+                            text = msg,
+                            isError = importError,
+                            onDismiss = { importMessage = null },
                         )
                     }
                 }
@@ -279,6 +325,26 @@ fun GuestListScreen(
                 Modifier.align(Alignment.BottomEnd).padding(Spacing.lg),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
+                // Rehberden ekle — tek tek isim/telefon yazmadan.
+                // `available=false` ise (iOS'ta henüz bağlı değil) GİZLENİR:
+                // çalışmayan düğme göstermeyiz.
+                if (contactPicker.available) {
+                    Surface(
+                        onClick = { if (!importing) contactPicker.launch() },
+                        shape = RoundedCornerShape(Radius.pill),
+                        color = c.surface,
+                        shadowElevation = 4.dp,
+                    ) {
+                        Box(Modifier.padding(Spacing.md), contentAlignment = Alignment.Center) {
+                            Text(
+                                if (importing) "Ekleniyor…" else "Rehber",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (importing) c.muted else c.sage,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                    }
+                }
                 Surface(
                     onClick = onBulkAdd,
                     shape = RoundedCornerShape(Radius.pill),
