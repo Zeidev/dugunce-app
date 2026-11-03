@@ -62,6 +62,25 @@ jobs:
         working-directory: mobile
         run: ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace
 
+      # App Links doğrulaması: APK'nın imza parmak izi assetlinks.json
+      # ile eşleşmezse https linkleri tarayıcıda kalır — sessiz hata.
+      # Bu adım eşleşmeyi her derlemede kanıtlar.
+      - name: App Links parmak izi doğrula
+        working-directory: mobile
+        run: |
+          APK=$(ls composeApp/build/outputs/apk/debug/*.apk | head -1)
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -1)
+          ACTUAL=$($APKSIGNER verify --print-certs "$APK" | grep -i "SHA-256" | head -1 | sed 's/.*: //' | tr -d ' ' | tr 'A-F' 'a-f')
+          EXPECTED=$(grep -o '"[0-9a-f:]*"' ../frontend/public/.well-known/assetlinks.json | head -1 | tr -d '"')
+          echo "APK      : $ACTUAL"
+          echo "assetlinks: $EXPECTED"
+          if [ "$ACTUAL" = "$EXPECTED" ]; then
+            echo "✅ App Links parmak izi eşleşiyor"
+          else
+            echo "::error::App Links parmak izi EŞLEŞMİYOR — https linkleri tarayıcıda kalır"
+            exit 1
+          fi
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
