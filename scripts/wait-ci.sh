@@ -38,7 +38,12 @@ for _ in $(seq 1 20); do
 done
 
 if [ -z "$RID" ]; then
-  echo "❌ $SHA için koşu bulunamadı (workflow tetiklenmemiş olabilir)"
+  # Yol filtresi bu commit'i kapsamıyorsa CI hiç tetiklenmez — bu bir hata
+  # değil, beklenen davranış. Hangi dosyaların değiştiğini göster.
+  echo "ℹ️  $SHA için koşu yok — workflow bu commit'te tetiklenmemiş."
+  echo "   Değişen dosyalar:"
+  git diff-tree --no-commit-id --name-only -r "$SHA" | head -10 | sed 's/^/     /'
+  echo "   (mobile-ci yalnızca 'mobile/**' değişince çalışır)"
   exit 2
 fi
 
