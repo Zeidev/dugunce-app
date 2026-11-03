@@ -385,7 +385,7 @@ fun ExpenseFormScreen(
                             weddingId,
                             ExpenseCreateRequest(
                                 title = title.trim(),
-                                amount = parsedAmount!!,
+                                amount = Money.kurusToTlString(parsedAmount!!),
                                 purchaseDate = isoDate!!,
                                 description = description.trim().ifBlank { null },
                                 categoryId = categoryId,

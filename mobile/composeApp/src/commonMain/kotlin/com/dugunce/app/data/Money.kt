@@ -38,6 +38,29 @@ object Money {
     }
 
     /**
+     * Kuruş → backend'in beklediği **TL** metni.
+     *
+     * **SÖZLEŞME:** backend `amount` alanını TL (ondalıklı) bekliyor ve
+     * kendi içinde `toKurus()` ile 100 ile çarpıyor
+     * (`expenses/service.ts` → `money.ts:toKurus`).
+     *
+     * `parseToKurus("12000")` → `"1200000"` (kuruş) döner; bunu doğrudan
+     * `amount` olarak göndermek **100 katı** tutara yol açar — bildirilen
+     * "tutar yanlış" hatası. Bu fonksiyon kuruşu TL'ye geri çevirir.
+     *
+     * `"1200000"` → `"12000.00"`
+     */
+    fun kurusToTlString(kurus: String): String {
+        val value = kurus.toLongOrNull() ?: return "0.00"
+        val negative = value < 0
+        val abs = if (negative) -value else value
+        val lira = abs / 100
+        val cents = abs % 100
+        val sign = if (negative) "-" else ""
+        return "$sign$lira.${cents.toString().padStart(2, '0')}"
+    }
+
+    /**
      * Kullanıcının girdiği TL metnini kuruşa çevirir.
      *
      * `"12.000,50"` ve `"12000.50"` → `"1200050"`

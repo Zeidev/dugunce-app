@@ -70,6 +70,27 @@ class MoneyTest {
     }
 
     @Test
+    fun `kurus TL string'e cevrilir (backend sozlesmesi)`() {
+        // Backend `amount` alanını TL bekliyor ve 100 ile çarpıyor.
+        // Doğrudan kuruş göndermek 100 katı tutara yol açıyordu.
+        assertEquals("12000.00", Money.kurusToTlString("1200000"))
+        assertEquals("0.05", Money.kurusToTlString("5"))
+        assertEquals("0.00", Money.kurusToTlString("0"))
+        assertEquals("1234.56", Money.kurusToTlString("123456"))
+    }
+
+    @Test
+    fun `buyuk tutar float'a donusmez`() {
+        // 9999999999999999999n float'ta bozulur — string korunmalı
+        assertEquals("99999999999999999.99", Money.kurusToTlString("9999999999999999999"))
+    }
+
+    @Test
+    fun `negatif tutar isaretli`() {
+        assertEquals("-150.00", Money.kurusToTlString("-15000"))
+    }
+
+    @Test
     fun `gidis donus tutarli`() {
         val original = "1234567"
         val formatted = Money.formatKurus(original)
