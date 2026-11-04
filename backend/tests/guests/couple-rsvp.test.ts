@@ -122,3 +122,41 @@ describe('setGuestRsvp — çift tarafı', () => {
     expect(r).toBeNull()
   })
 })
+
+describe('cift tarafi — dugun azamisi da gecerli', () => {
+  it('dugun azamisi dusukse cift de onu asamaz', async () => {
+    // Davetlinin izni 10 ama düğünün azamisi 4 → etkin sınır 4.
+    // Aksi hâlde davetli 4'te takılırken çift 10 girebilir; iki yüzey
+    // aynı davetiye için farklı gerçek söylerdi.
+    await pg.query(`UPDATE weddings SET max_party_size = 4 WHERE id = $1`, [weddingId])
+
+    const g = await createGuest({ weddingId, userId, input: { name: 'Geniş İzinli' } }, store)
+    await createInvitation(
+      { weddingId, userId, guestId: g.id, allowedPartySize: 10 },
+      store,
+    )
+
+    await expect(
+      setGuestRsvp(
+        { weddingId, userId, guestId: g.id, rsvp: 'ATTENDING', partySize: 6 },
+        store,
+      ),
+    ).rejects.toThrow('En fazla 4 kişi bildirilebilir')
+  })
+
+  it('dugun azamisi icinde kalan deger kabul edilir', async () => {
+    await pg.query(`UPDATE weddings SET max_party_size = 4 WHERE id = $1`, [weddingId])
+
+    const g = await createGuest({ weddingId, userId, input: { name: 'Sınırda' } }, store)
+    await createInvitation(
+      { weddingId, userId, guestId: g.id, allowedPartySize: 10 },
+      store,
+    )
+
+    const updated = await setGuestRsvp(
+      { weddingId, userId, guestId: g.id, rsvp: 'ATTENDING', partySize: 4 },
+      store,
+    )
+    expect(updated!.rsvp).toBe('ATTENDING')
+  })
+})

@@ -220,7 +220,9 @@ export interface GuestDeps {
   /** Davetlinin AKTİF (revoke/süre/silinme değil) davetiyeleri. */
   listActiveInvitationsForGuest(
     guestId: string,
-  ): Promise<{ id: string; allowedPartySize: number }[]>
+  ): Promise<
+    { id: string; allowedPartySize: number; weddingMaxPartySize?: number }[]
+  >
   /** Davetiye RSVP alanlarını yazar (çift tarafı düzeltmesi). */
   setInvitationRsvp(
     invitationId: string,
@@ -568,9 +570,15 @@ export async function setGuestRsvp(
   const existing = await deps.findById(params.guestId, params.weddingId, params.userId)
   if (!existing) return null
 
-  // Kişi sayısı doğrulaması davetiyedeki izne göre yapılır
+  // Kişi sayısı doğrulaması davetiyedeki izne VE düğünün azamisine göre
+  // yapılır. `min` şart: düğünün azamisi bir üst sınırdır — çift onu
+  // düşürdüğünde daha önce geniş izinli davetli de inmelidir. Yalnız
+  // davetli iznine bakmak, aynı davetiye için iki yüzeyin farklı gerçek
+  // söylemesine yol açardı (davetli 4'te takılır, çift 10 girebilir).
   const invitations = await deps.listActiveInvitationsForGuest(params.guestId)
-  const allowed = invitations[0]?.allowedPartySize ?? 1
+  const guestAllowed = invitations[0]?.allowedPartySize ?? 1
+  const weddingMax = invitations[0]?.weddingMaxPartySize ?? guestAllowed
+  const allowed = Math.max(1, Math.min(guestAllowed, weddingMax))
 
   let confirmed: number | null = null
   if (params.rsvp === 'ATTENDING') {

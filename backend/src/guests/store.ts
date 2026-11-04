@@ -236,9 +236,13 @@ export function drizzleGuestDeps(
         .select({
           id: guestInvitations.id,
           allowedPartySize: guestInvitations.allowedPartySize,
+          // Düğünün azamisi — çift tarafı da buna uymak zorunda, yoksa
+          // davetli 4'te takılırken çift 10 girebilirdi.
+          weddingMaxPartySize: weddings.maxPartySize,
         })
         .from(guestInvitations)
         .innerJoin(guests, eq(guests.id, guestInvitations.guestId))
+        .innerJoin(weddings, eq(weddings.id, guestInvitations.weddingId))
         .where(
           and(
             eq(guestInvitations.guestId, guestId),
