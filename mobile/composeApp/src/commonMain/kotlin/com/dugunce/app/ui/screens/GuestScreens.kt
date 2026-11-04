@@ -57,6 +57,38 @@ import com.dugunce.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
 /**
+ * Yüzen düğmelerin görünürlüğü — saf karar, test edilebilir.
+ *
+ * "Ekle" düğmesi davetli sayısından BAĞIMSIZ görünür: boş listede
+ * rehberden eklemenin de bir yolu olmalı (bildirilen hata: davetli
+ * yokken yüzen satırın tamamı gizleniyordu ve yalnız `EmptyState`'in
+ * elle ekleme düğmesi kalıyordu).
+ *
+ * "Gönder" davetli gerektirir — boşken anlamsız.
+ */
+internal data class GuestFabVisibility(
+    val showAdd: Boolean,
+    val showBulkSend: Boolean,
+)
+
+internal fun guestFabVisibility(
+    loading: Boolean,
+    hasError: Boolean,
+    guestCount: Int,
+    contactPickerAvailable: Boolean,
+): GuestFabVisibility {
+    // `contactPickerAvailable` şu an karara girmez: rehber bağlı
+    // olmasa da elle ekleme her platformda çalışır. Parametre, ileride
+    // "yalnız rehber" bir akış eklenirse diye duruyor ve testi
+    // niyeti belgeliyor.
+    val ready = !loading && !hasError
+    return GuestFabVisibility(
+        showAdd = ready,
+        showBulkSend = ready && guestCount > 0,
+    )
+}
+
+/**
  * Davetli listesi — brief §5.4, spec §6b.7.
  *
  * Arama + filtre (taraf, RSVP) + kota göstergesi (spec §6b.6).
@@ -93,6 +125,10 @@ fun GuestListScreen(
     var importing by remember { mutableStateOf(false) }
     var importMessage by remember { mutableStateOf<String?>(null) }
     var importError by remember { mutableStateOf(false) }
+
+    // "Davetli ekle" seçeneği: rehberden mi elle mi? Boş listede de
+    // ulaşılabilir olmalı — bildirilen hata buydu.
+    var addSheet by remember { mutableStateOf(false) }
 
     val contactPicker = com.dugunce.app.ui.components.rememberContactPicker { picked ->
         if (picked.isEmpty()) return@rememberContactPicker
@@ -250,7 +286,10 @@ fun GuestListScreen(
                                 "linki gönderebilirsin.",
                             icon = AppIcons.People,
                             actionLabel = "Davetli ekle",
-                            onAction = onAddGuest,
+                            // Boş listede TEK giriş noktası bu — o da
+                            // seçeneği açmalı, yoksa rehberden eklemenin
+                            // yolu kalmazdı.
+                            onAction = { addSheet = true },
                         )
                     }
                 } else if (filtered.isEmpty()) {
@@ -302,34 +341,21 @@ fun GuestListScreen(
             }
         }
 
-        if (!loading && error == null && guests.isNotEmpty()) {
+        val fab = guestFabVisibility(
+            loading = loading,
+            hasError = error != null,
+            guestCount = guests.size,
+            contactPickerAvailable = contactPicker.available,
+        )
+
+        if (fab.showAdd) {
             Row(
                 Modifier.align(Alignment.BottomEnd).padding(Spacing.lg),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                // Rehberden ekle — tek tek isim/telefon yazmadan.
-                // `available=false` ise (iOS'ta henüz bağlı değil) GİZLENİR:
-                // çalışmayan düğme göstermeyiz.
-                if (contactPicker.available) {
-                    Surface(
-                        onClick = { if (!importing) contactPicker.launch() },
-                        shape = RoundedCornerShape(Radius.pill),
-                        color = c.surface,
-                        shadowElevation = 4.dp,
-                    ) {
-                        Box(Modifier.padding(Spacing.md), contentAlignment = Alignment.Center) {
-                            Text(
-                                if (importing) "Ekleniyor…" else "Rehber",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (importing) c.muted else c.sage,
-                                fontWeight = FontWeight.Medium,
-                            )
-                        }
-                    }
-                }
                 // Toplu davetiye gönderimi — her kişiye KENDİ linki.
                 // Yalnız davetli varsa anlamlı.
-                if (guests.isNotEmpty()) {
+                if (fab.showBulkSend) {
                     Surface(
                         onClick = onBulkSend,
                         shape = RoundedCornerShape(Radius.pill),
@@ -350,8 +376,13 @@ fun GuestListScreen(
                 // çoklu ekleme zaten var, satır satır yazmak gereksizdi.
                 // `BulkGuestScreen` ve `Screen.BULK_GUEST` duruyor —
                 // ileride gerekirse tek satırla geri açılır.
+                //
+                // Ekle düğmesi artık SEÇENEK açar (rehber / elle).
+                // Eski ayrı "Rehber" düğmesi kaldırıldı: aynı işi iki
+                // yerden sunmak "hangisi?" sorusu doğuruyordu ve boş
+                // listede hiç görünmüyordu (bildirilen hata).
                 Surface(
-                    onClick = onAddGuest,
+                    onClick = { if (!importing) addSheet = true },
                     shape = RoundedCornerShape(Radius.pill),
                     color = c.sage,
                     shadowElevation = 6.dp,
@@ -363,7 +394,7 @@ fun GuestListScreen(
                         Icon(AppIcons.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(Spacing.sm))
                         Text(
-                            "Davetli",
+                            if (importing) "Ekleniyor…" else "Davetli",
                             color = Color.White,
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium,
@@ -372,6 +403,118 @@ fun GuestListScreen(
                 }
             }
         }
+        }
+    }
+
+    if (addSheet) {
+        AddGuestSheet(
+            contactPickerAvailable = contactPicker.available,
+            importing = importing,
+            onDismiss = { addSheet = false },
+            onManual = {
+                addSheet = false
+                onAddGuest()
+            },
+            onContactPicker = {
+                addSheet = false
+                contactPicker.launch()
+            },
+        )
+    }
+}
+
+/**
+ * "Davetli ekle" seçeneği — rehberden mi elle mi.
+ *
+ * Alt sayfa (bottom sheet): tek elle ulaşılır ve ileride "Excel'den içe
+ * aktar" gibi seçenekler eklemek kolay.
+ *
+ * Rehber bağlı değilse (iOS) satır GÖSTERİLMEZ — çalışmayan düğme
+ * göstermeyiz; elle ekleme her platformda var.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun AddGuestSheet(
+    contactPickerAvailable: Boolean,
+    importing: Boolean,
+    onDismiss: () -> Unit,
+    onManual: () -> Unit,
+    onContactPicker: () -> Unit,
+) {
+    val c = DugunceTheme.colors
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.md)
+                .padding(bottom = Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            Text(
+                "Davetli ekle",
+                style = MaterialTheme.typography.titleMedium,
+                color = c.ink,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(vertical = Spacing.sm),
+            )
+
+            if (contactPickerAvailable) {
+                AddOption(
+                    title = if (importing) "Rehberden ekle (ekleniyor…)" else "Rehberden ekle",
+                    description = "Telefon rehberinden birden çok kişiyi seç",
+                    enabled = !importing,
+                    onClick = onContactPicker,
+                )
+            }
+
+            AddOption(
+                title = "Elle ekle",
+                description = "İsim ve telefonu kendin yaz",
+                enabled = true,
+                onClick = onManual,
+            )
+        }
+    }
+}
+
+/** Alt sayfadaki tek seçenek satırı. */
+@Composable
+private fun AddOption(
+    title: String,
+    description: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val c = DugunceTheme.colors
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(Radius.lg),
+        color = c.cream,
+        modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.minTouchTarget),
+    ) {
+        Row(
+            Modifier.padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (enabled) c.ink else c.muted,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.muted,
+                )
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge, color = c.sage)
         }
     }
 }
