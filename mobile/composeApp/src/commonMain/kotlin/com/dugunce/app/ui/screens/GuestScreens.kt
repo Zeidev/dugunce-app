@@ -50,6 +50,7 @@ import com.dugunce.app.ui.components.LoadingState
 import com.dugunce.app.ui.components.QuotaBar
 import com.dugunce.app.ui.components.StatusChip
 import com.dugunce.app.ui.components.StatusTone
+import com.dugunce.app.ui.components.TopBar
 import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Radius
 import com.dugunce.app.ui.theme.Spacing
@@ -67,7 +68,8 @@ fun GuestListScreen(
     weddingId: String,
     onAddGuest: () -> Unit,
     onOpenGuest: (String) -> Unit,
-    onOpenTemplates: () -> Unit = {},
+    /** Davetli ayarları — davetiye görünümü + kişi sayısı. */
+    onOpenSettings: () -> Unit = {},
     /** Toplu davetiye gönderimi — her kişiye kendi linki. */
     onBulkSend: () -> Unit = {},
 ) {
@@ -160,7 +162,16 @@ fun GuestListScreen(
     // Sunucu zaten süzdü — istemcide tekrar filtreleme yok
     val filtered = guests
 
-    Box(Modifier.fillMaxSize().background(c.cream)) {
+    Column(Modifier.fillMaxSize().background(c.cream)) {
+        // Ayarlar düğmesi HER ZAMAN görünür (liste boşken de): davetiye
+        // görünümü henüz davetli yokken de anlamlı bir ayardır.
+        TopBar(
+            "Davetliler",
+            actionLabel = "Ayarlar",
+            onAction = onOpenSettings,
+        )
+
+        Box(Modifier.weight(1f)) {
         when {
             loading -> LoadingState(Modifier.fillMaxSize(), "Davetliler yükleniyor…")
             error != null -> ErrorState(error!!, onRetry = { reloadKey++ }, modifier = Modifier.fillMaxSize())
@@ -227,39 +238,9 @@ fun GuestListScreen(
                     }
                 }
 
-                // Davetiye görünümü — misafirin göreceği sayfanın şablonu.
-                // Davetli listesinin parçası: kullanıcı buradan aklına
-                // geldiğinde ulaşır (Ayarlar'da aramak zorunda kalmaz).
-                item {
-                    Surface(
-                        onClick = onOpenTemplates,
-                        shape = RoundedCornerShape(Radius.lg),
-                        color = c.sageSoft,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, c.sageBorder),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            Modifier.padding(Spacing.md),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    "Davetiye görünümü",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = c.ink,
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "Misafirlerin göreceği şablonu ve yazı stilini seç",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = c.inkSoft,
-                                )
-                            }
-                            Text("›", style = MaterialTheme.typography.titleLarge, color = c.sage)
-                        }
-                    }
-                }
+                // "Davetiye görünümü" kartı KALDIRILDI — aynı giriş artık
+                // Davetli ayarları sayfasında (`Screen.GUEST_SETTINGS`).
+                // İki yerde olması "hangisi doğru" sorusu doğururdu.
 
                 if (guests.isEmpty()) {
                     item {
@@ -390,6 +371,7 @@ fun GuestListScreen(
                     }
                 }
             }
+        }
         }
     }
 }

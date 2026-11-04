@@ -50,6 +50,7 @@ import com.dugunce.app.ui.screens.FirstGuestScreen
 import com.dugunce.app.ui.screens.GuestDetailScreen
 import com.dugunce.app.ui.screens.GuestFormScreen
 import com.dugunce.app.ui.screens.GuestListScreen
+import com.dugunce.app.ui.screens.GuestSettingsScreen
 import com.dugunce.app.ui.screens.HelperInviteScreen
 import com.dugunce.app.ui.screens.HelperListScreen
 import com.dugunce.app.ui.screens.InstallmentCalendarScreen
@@ -385,7 +386,7 @@ fun App(
                                 weddingId = w.id,
                                 onAddGuest = { state.editingGuestId = null; state.go(Screen.GUEST_FORM) },
                                 onOpenGuest = { id -> state.editingGuestId = id; state.go(Screen.GUEST_DETAIL) },
-                                onOpenTemplates = { state.go(Screen.TEMPLATE) },
+                                onOpenSettings = { state.go(Screen.GUEST_SETTINGS) },
                                 onBulkSend = { state.go(Screen.BULK_SEND) },
                             )
                         } ?: Unit
@@ -561,6 +562,16 @@ fun App(
                                 repository = repository,
                                 weddingId = w.id,
                                 onBack = { state.back() },
+                            )
+                        } ?: Unit
+
+                        Screen.GUEST_SETTINGS -> wedding?.let { w ->
+                            GuestSettingsScreen(
+                                wedding = w,
+                                repository = repository,
+                                onBack = { state.back() },
+                                onOpenTemplates = { state.go(Screen.TEMPLATE) },
+                                onSaved = { updated -> state.wedding = updated },
                             )
                         } ?: Unit
 
