@@ -176,6 +176,47 @@ fun CoOwnerInviteScreen(
     }
 }
 
+// ===========================================================================
+// Davet kodu akışı — GİRİŞ GEREKTİRİR
+//
+// BİLDİRİLEN HATA: kullanıcı giriş ekranında "Davet kodum var"a basıp
+// kodu giriyor; `POST /invites/accept` `requireAuth` arkasında olduğu
+// için 401 dönüyor. İstemci 401'i "oturum düştü" sayıp token'ları
+// siliyor ve "Oturumunuz sona erdi" uyarısı çıkıyor. Kullanıcı kodu bir
+// daha giremiyor.
+//
+// ÇÖZÜM: kod SAKLANIR, kullanıcı önce giriş yapar, kod girişten SONRA
+// otomatik uygulanır. İstek hiçbir zaman tokensız atılmaz.
+// ===========================================================================
+
+/** Davet kodu 7 karakter — backend `CODE_LENGTH` ile aynı. */
+private const val INVITE_CODE_LENGTH = 7
+
+/**
+ * Kodu normalize eder: büyük harf, yalnız harf/rakam, 7 karakter.
+ *
+ * Kullanıcı boşluk veya tire yazabilir ("abc-2345"); backend yalnız
+ * büyük harf + rakam bekler.
+ */
+fun normalizeInviteCode(raw: String?): String =
+    (raw ?: "")
+        .uppercase()
+        .filter { it.isLetterOrDigit() }
+        .take(INVITE_CODE_LENGTH)
+
+/** Bekleyen (henüz uygulanmamış) davet kodu var mı? */
+fun hasPendingInviteCode(code: String?): Boolean =
+    normalizeInviteCode(code).length == INVITE_CODE_LENGTH
+
+/**
+ * Davet kodu ŞİMDİ gönderilsin mi?
+ *
+ * `isLoggedIn = false` iken GÖNDERİLMEZ — 401 alıp oturumu düşürmemek
+ * için. Kod saklanır, girişten sonra gönderilir.
+ */
+fun shouldSubmitInviteNow(isLoggedIn: Boolean, code: String?): Boolean =
+    isLoggedIn && normalizeInviteCode(code).length == INVITE_CODE_LENGTH
+
 /**
  * Davet kodu gir — ikinci eşin tarafı.
  *
@@ -186,6 +227,15 @@ fun AcceptInviteScreen(
     repository: Repository,
     onBack: () -> Unit,
     onJoined: () -> Unit,
+    /**
+     * Kullanıcı giriş yapmış mı?
+     *
+     * `false` ise kod GÖNDERİLMEZ (401 → oturum düşer). Kod saklanır
+     * ve girişten sonra otomatik uygulanır.
+     */
+    isLoggedIn: Boolean = true,
+    /** Girişsiz kod girildi — kodu saklayıp girişe yönlendir. */
+    onNeedsLogin: (String) -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var code by remember { mutableStateOf("") }
@@ -236,6 +286,19 @@ fun AcceptInviteScreen(
                 "Düğüne katıl",
                 onClick = {
                     if (!valid || joining) return@DugunceButton
+
+                    // GİRİŞSİZ GÖNDERME YOK.
+                    //
+                    // `POST /invites/accept` `requireAuth` arkasında; tokensız
+                    // istek 401 döner, istemci bunu "oturum düştü" sayıp
+                    // token'ları siler ve kullanıcı kodu bir daha giremez
+                    // (bildirilen hata). Kod saklanır, girişten sonra
+                    // otomatik uygulanır.
+                    if (!shouldSubmitInviteNow(isLoggedIn, normalized)) {
+                        onNeedsLogin(normalized)
+                        return@DugunceButton
+                    }
+
                     joining = true
                     error = null
                     scope.launch {

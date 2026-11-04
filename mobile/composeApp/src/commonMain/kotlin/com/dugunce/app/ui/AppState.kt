@@ -50,6 +50,18 @@ class AppState {
     /** Giriş ekranı kod modunda açılsın mı (bağlantı ekranından gelindi). */
     var showCodeEntry by mutableStateOf(false)
 
+    /**
+     * Bekleyen davet kodu — GİRİŞ YAPILMADAN girildiyse burada tutulur.
+     *
+     * NEDEN: `POST /invites/accept` `requireAuth` arkasında. Girişsiz
+     * gönderilirse 401 döner, istemci "oturum düştü" sanıp token'ları
+     * siler ve kullanıcı kodu bir daha giremez (bildirilen hata).
+     *
+     * Akış: kod burada saklanır → kullanıcı giriş yapar → giriş
+     * başarılı olunca kod otomatik uygulanır.
+     */
+    var pendingInviteCode by mutableStateOf<String?>(null)
+
     /** Global hata bandı (ağ hatası, oturum süresi). */
     var banner by mutableStateOf<BannerMessage?>(null)
 

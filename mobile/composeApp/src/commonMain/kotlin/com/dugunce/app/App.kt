@@ -51,6 +51,8 @@ import com.dugunce.app.ui.screens.GuestDetailScreen
 import com.dugunce.app.ui.screens.GuestFormScreen
 import com.dugunce.app.ui.screens.GuestListScreen
 import com.dugunce.app.ui.screens.GuestSettingsScreen
+import com.dugunce.app.ui.screens.hasPendingInviteCode
+import com.dugunce.app.ui.screens.normalizeInviteCode
 import com.dugunce.app.ui.screens.HelperInviteScreen
 import com.dugunce.app.ui.screens.HelperListScreen
 import com.dugunce.app.ui.screens.InstallmentCalendarScreen
@@ -292,6 +294,9 @@ fun App(
                         Screen.LOGIN -> LoginScreen(
                             repository = repository,
                             startWithCode = state.showCodeEntry,
+                            // Bekleyen davet kodu varsa kullanıcıya göster —
+                            // girişten sonra otomatik uygulanacak.
+                            pendingInviteCode = state.pendingInviteCode,
                             onHasInviteCode = { state.go(Screen.ACCEPT_INVITE) },
                             onLinkSent = { state.go(Screen.LINK_SENT) },
                             onLoggedIn = {
@@ -318,6 +323,41 @@ fun App(
                                             isError = true,
                                         )
                                         state.resetTo(Screen.LOGIN)
+                                        return@launch
+                                    }
+
+                                    // BEKLEYEN DAVET KODU varsa önce onu
+                                    // uygula — kullanıcı kodu giriş
+                                    // yapmadan girmişti.
+                                    val pending = state.pendingInviteCode
+                                    if (hasPendingInviteCode(pending)) {
+                                        state.pendingInviteCode = null
+                                        repository.acceptInvite(normalizeInviteCode(pending)).fold(
+                                            onSuccess = {
+                                                // Üyelik eklendi — listeyi
+                                                // TAZELE, yeni düğün görünsün.
+                                                val refreshed = repository.listWeddings()
+                                                    .getOrNull() ?: weddings
+                                                val joined = refreshed.firstOrNull()
+                                                if (joined != null) {
+                                                    state.wedding = joined
+                                                    tokens.selectedWeddingId = joined.id
+                                                }
+                                                state.showBanner(
+                                                    "Düğüne katıldın!",
+                                                    isError = false,
+                                                )
+                                                state.resetTo(Screen.DASHBOARD)
+                                            },
+                                            onFailure = { e ->
+                                                state.showBanner(
+                                                    if (e is com.dugunce.app.api.ApiException) e.message
+                                                    else "Davet kodu uygulanamadı",
+                                                    isError = true,
+                                                )
+                                                state.resetTo(Screen.DASHBOARD)
+                                            },
+                                        )
                                         return@launch
                                     }
 
@@ -620,7 +660,19 @@ fun App(
 
                         Screen.ACCEPT_INVITE -> AcceptInviteScreen(
                             repository = repository,
+                            isLoggedIn = tokens.isLoggedIn,
                             onBack = { state.back() },
+                            onNeedsLogin = { code ->
+                                // Kodu SAKLA, girişe yönlendir. Giriş
+                                // başarılı olunca otomatik uygulanır.
+                                state.pendingInviteCode = code
+                                state.showBanner(
+                                    "Düğüne katılmak için önce e-posta ile giriş yap. " +
+                                        "Kodun kaydedildi.",
+                                    isError = false,
+                                )
+                                state.resetTo(Screen.LOGIN)
+                            },
                             onJoined = {
                                 scope.launch {
                                     repository.listWeddings().onSuccess { weddings ->

@@ -37,6 +37,7 @@ import com.dugunce.app.api.NetworkException
 import com.dugunce.app.data.Repository
 import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.DugunceTextField
+import com.dugunce.app.ui.components.InfoBanner
 import com.dugunce.app.ui.components.TextAction
 import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Radius
@@ -56,6 +57,8 @@ fun LoginScreen(
     onLinkSent: () -> Unit,
     onLoggedIn: () -> Unit,
     onHasInviteCode: () -> Unit = {},
+    /** Giriş yapılmadan girilmiş davet kodu — girişten sonra uygulanır. */
+    pendingInviteCode: String? = null,
     /**
      * Dışarıdan kod modunda aç.
      *
@@ -240,7 +243,16 @@ fun LoginScreen(
         )
         Spacer(Modifier.height(Spacing.sm))
         // İkinci eş: davet koduyla katılma
-        TextAction("Davet kodum var", onClick = onHasInviteCode)
+        if (pendingInviteCode != null) {
+            // Bekleyen kod — kullanıcı giriş yapınca otomatik uygulanacak.
+            Spacer(Modifier.height(Spacing.sm))
+            InfoBanner(
+                text = "Davet kodun kaydedildi: $pendingInviteCode. " +
+                    "Giriş yaptıktan sonra düğüne otomatik katılacaksın.",
+            )
+        } else {
+            TextAction("Davet kodum var", onClick = onHasInviteCode)
+        }
 
         Spacer(Modifier.height(Spacing.xxl))
 
