@@ -46,7 +46,7 @@
     font-family:'Josefin Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     line-height:1.55;-webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:560px;margin:0 auto;padding:0 0 40px}
+  .wrap{max-width:560px;margin:0 auto;padding:0 0 40px;position:relative;min-height:100vh}
 
   /* --- Başlık --- */
   .head{padding:20px 20px 14px}
@@ -56,21 +56,166 @@
     font-weight:600;margin:0 0 3px;letter-spacing:-.01em;line-height:1.25}
   .couple{font-size:13px;color:var(--muted);margin:0}
 
-  /* --- Kart --- */
+  /* --- Filtre sekmeleri --- */
+  .tabs{display:flex;gap:8px;padding:12px 20px;overflow-x:auto;
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;
+    background:var(--cream);scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:none;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+    padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);
+    background:var(--surface);color:var(--muted);white-space:nowrap;
+    min-height:38px}
+  .tab[aria-selected="true"]{background:var(--sage);border-color:var(--sage);color:#fff}
+  .tab .n{opacity:.65;font-weight:400;margin-left:4px}
+  .tab:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+
+  /* --- Liste --- */
+  #list{padding:16px 16px 32px;display:flex;flex-direction:column;gap:10px}
+
   .card{background:var(--surface);border-radius:var(--radius);padding:16px;
     margin:0 0 12px;box-shadow:0 1px 3px rgba(45,58,46,.05)}
 
+  .task{background:var(--surface);border-radius:var(--radius);padding:16px;
+    border:1.5px solid transparent;cursor:pointer;
+    box-shadow:0 1px 3px rgba(45,58,46,.05);transition:border-color .15s;
+    display:block;width:100%;text-align:left;font:inherit;color:inherit}
+  .task:active{border-color:var(--sage-border)}
+  .task:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+  .task.done{opacity:.62}
+  .t-title{font-size:15px;font-weight:600;margin:0 0 6px;letter-spacing:-.005em;
+    word-break:break-word;overflow-wrap:anywhere}
+  .task.done .t-title{text-decoration:line-through;text-decoration-thickness:1.5px}
+  .t-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;
+    letter-spacing:.02em;white-space:nowrap}
+  .badge.TODO{background:#f0eeea;color:#6f6a5f}
+  .badge.DOING{background:#fbf3e4;color:var(--doing)}
+  .badge.DONE{background:var(--sage-soft);color:var(--sage)}
+  .due{font-size:12px;color:var(--muted)}
+  .msgcount{font-size:12px;color:var(--gold);font-weight:600;margin-left:auto}
+
+  /* --- Görev sayfası (alttan) --- */
+  .scrim{position:fixed;inset:0;background:rgba(26,29,23,.32);
+    opacity:0;pointer-events:none;transition:opacity .24s;z-index:20}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--surface);
+    border-radius:var(--sheet-radius) var(--sheet-radius) 0 0;
+    transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);
+    max-height:86vh;display:flex;flex-direction:column;z-index:21;
+    box-shadow:0 -8px 32px rgba(45,58,46,.14)}
+  .sheet.on{transform:translateY(0)}
+  .handle{width:38px;height:4px;border-radius:2px;background:var(--line);
+    margin:10px auto 4px;flex:none;cursor:grab;touch-action:none}
+  .sheet-body{overflow-y:auto;padding:8px 20px 28px;
+    -webkit-overflow-scrolling:touch}
+  .s-title{font-family:'Playfair Display',Georgia,serif;font-size:21px;
+    font-weight:600;margin:6px 0 18px;line-height:1.3;
+    word-break:break-word;overflow-wrap:anywhere}
+  .s-title:focus{outline:none}
+  .sec-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold);font-weight:600;margin:0 0 10px}
+  .status-row{display:flex;gap:8px;margin:0 0 22px}
+  .status-row button{flex:1;font:inherit;font-size:13px;font-weight:600;
+    cursor:pointer;padding:13px 8px;border-radius:12px;
+    border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    min-height:44px}
+  .status-row button[aria-pressed="true"]{background:var(--sage);
+    color:#fff;border-color:var(--sage)}
+  .status-row button:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+  .desc{font-size:14px;color:var(--ink);margin:0 0 22px;white-space:pre-wrap;
+    word-break:break-word;overflow-wrap:anywhere}
+  .desc.empty{color:var(--muted);font-style:italic}
+  .chat-link{display:flex;align-items:center;gap:12px;width:100%;
+    font:inherit;text-align:left;cursor:pointer;
+    padding:16px;border-radius:14px;border:1.5px solid var(--sage-border);
+    background:var(--sage-soft);color:var(--ink);min-height:56px}
+  .chat-link:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+  .chat-link .lbl{flex:1;font-weight:600;font-size:14px}
+  .chat-link .cnt{font-size:12px;color:var(--sage);font-weight:600}
+  .chat-link .arrow{color:var(--sage);font-size:18px}
+
+  /* --- Sohbet ekranı --- */
+  .chat-screen{position:fixed;inset:0;background:var(--cream);
+    display:flex;flex-direction:column;transform:translateX(100%);
+    transition:transform .26s cubic-bezier(.32,.72,0,1);z-index:30}
+  .chat-screen.on{transform:translateX(0)}
+  .chat-head{flex:none;display:flex;align-items:center;gap:10px;
+    padding:16px 16px 14px;border-bottom:1px solid var(--line);
+    background:var(--cream);padding-top:calc(16px + env(safe-area-inset-top))}
+  .back{font:inherit;font-size:24px;line-height:1;background:none;border:0;
+    color:var(--sage);cursor:pointer;padding:8px;margin:-8px;min-width:44px;
+    min-height:44px}
+  .back:focus-visible{outline:2px solid var(--sage);outline-offset:2px;border-radius:8px}
+  .chat-title{font-size:14px;font-weight:600;flex:1;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chat-sub{font-size:11px;color:var(--muted);font-weight:400}
+
+  .msgs{flex:1;overflow-y:auto;padding:18px 16px;display:flex;
+    flex-direction:column;gap:10px;align-items:flex-start;
+    -webkit-overflow-scrolling:touch}
+  .msg{max-width:82%;padding:11px 14px;border-radius:14px;font-size:14px;
+    line-height:1.5;word-break:break-word;overflow-wrap:anywhere;
+    white-space:pre-wrap;text-align:left}
+  .msg.COUPLE{background:var(--surface);color:var(--ink);
+    align-self:flex-start;border-bottom-left-radius:5px;
+    box-shadow:0 1px 2px rgba(45,58,46,.05)}
+  .msg.HELPER{background:var(--sage);color:#fff;align-self:flex-end;
+    border-bottom-right-radius:5px}
+  .msg .who{display:block;font-size:10px;opacity:.72;margin:0 0 3px;
+    font-weight:600;letter-spacing:.03em}
+  .msgs-empty{color:var(--muted);font-size:13px;font-style:italic;margin:0}
+
+  .composer{flex:none;display:flex;gap:8px;padding:12px 16px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom));
+    background:var(--surface);border-top:1px solid var(--line)}
+  .composer input{flex:1;font:inherit;font-size:15px;padding:12px 16px;
+    border-radius:12px;border:1.5px solid var(--line);background:var(--cream);
+    min-width:0;color:var(--ink);min-height:44px}
+  .composer input:focus{outline:none;border-color:var(--sage)}
+  .composer button{font:inherit;font-weight:600;font-size:14px;padding:0 20px;
+    border-radius:12px;border:0;background:var(--sage);color:#fff;
+    cursor:pointer;min-height:44px}
+  .composer button:disabled{opacity:.5;cursor:not-allowed}
+  .composer button:focus-visible{outline:2px solid var(--sage-deep);outline-offset:2px}
+
+  /* --- Durum ekranları --- */
+  .center{text-align:center;padding:48px 8px}
+  .center h2{font-size:18px;margin:0 0 8px;font-weight:600}
+  .center p{color:var(--muted);font-size:14px;margin:0 0 16px}
+  .center p:last-child{margin-bottom:0}
+  .spinner{width:26px;height:26px;margin:0 auto 18px;border-radius:50%;
+    border:2.5px solid var(--line);border-top-color:var(--sage);
+    animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .retry{font:inherit;font-weight:600;font-size:14px;padding:12px 22px;
+    border-radius:12px;border:1.5px solid var(--sage);background:var(--surface);
+    color:var(--sage);cursor:pointer;min-height:44px}
+
+  .toast{position:fixed;left:50%;bottom:24px;
+    transform:translateX(-50%) translateY(80px);
+    background:var(--ink);color:#fff;font-size:14px;padding:11px 20px;
+    border-radius:999px;opacity:0;transition:transform .22s ease,opacity .22s ease;
+    pointer-events:none;z-index:40;max-width:90vw;text-align:center}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .toast.err{background:var(--danger)}
+
   [hidden]{display:none !important}
-  @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;animation:none !important}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header id="head" hidden>
+  <header class="head" id="head" hidden>
     <p class="brand">Düğünce · Görevlerim</p>
-    <h1 id="greeting"></h1>
-    <p class="sub" id="coupleLine"></p>
+    <h1 class="greet" id="greeting"></h1>
+    <p class="couple" id="coupleLine"></p>
   </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Görev filtresi" hidden></nav>
+
+  <div id="list" hidden></div>
 
   <div class="card" id="loading">
     <div class="center">
@@ -83,10 +228,9 @@
     <div class="center">
       <h2>Bağlantı geçersiz</h2>
       <p id="errorText">Bu bağlantının süresi dolmuş veya erişimi kapatılmış olabilir.<br>Lütfen çift ile iletişime geçin.</p>
+      <button type="button" class="retry" id="retryBtn">Tekrar dene</button>
     </div>
   </div>
-
-  <div id="list"></div>
 
   <div class="card" id="empty" hidden>
     <div class="center">
@@ -95,23 +239,56 @@
   </div>
 </div>
 
+<!-- Görev sayfası (alttan açılır) -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="handle" id="sheetHandle"></div>
+  <div class="sheet-body">
+    <h2 class="s-title" id="sheetTitle" tabindex="-1"></h2>
+
+    <p class="sec-label">Durum</p>
+    <div class="status-row" id="statusRow" role="group" aria-label="Görev durumu"></div>
+
+    <p class="sec-label">Açıklama</p>
+    <p class="desc" id="sheetDesc"></p>
+
+    <button type="button" class="chat-link" id="chatLink">
+      <span aria-hidden="true">💬</span>
+      <span class="lbl">Mesajlar</span>
+      <span class="cnt" id="chatCount">0</span>
+      <span class="arrow" aria-hidden="true">›</span>
+    </button>
+  </div>
+</div>
+
+<!-- Sohbet (tam ekran) -->
+<div class="chat-screen" id="chat" role="dialog" aria-modal="true" aria-labelledby="chatTitle">
+  <div class="chat-head">
+    <button type="button" class="back" id="backBtn" aria-label="Geri">‹</button>
+    <div style="flex:1;min-width:0">
+      <div class="chat-title" id="chatTitle"></div>
+      <div class="chat-sub" id="chatSub"></div>
+    </div>
+  </div>
+  <div class="msgs" id="msgs"></div>
+  <div class="composer">
+    <input type="text" id="msgInput" placeholder="Mesaj yaz…" maxlength="4000"
+           aria-label="Mesaj" autocomplete="off">
+    <button type="button" id="sendBtn">Gönder</button>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script type="module">
-/**
- * Yardımcı görev uygulaması.
- *
- * Akış:
- *   1. Token'ı #fragment'ten oku (sunucuya gitmez)
- *   2. POST /api/v1/helper/session  → kısa ömürlü oturum çerezi
- *   3. GET /api/v1/helper/tasks     → oturumla
- *   3. Durum değiştir → PATCH (yalnızca status)
- *   4. Sohbet → GET/POST messages (sayfalı)
- *
- * GÜVENLİK: Sayfa yüklenirken hiçbir yazma yapılmaz. Sadece GET.
- */
 const API = 'https://api.dugunce.com.tr/api/v1'
 const STATUS_LABELS = { TODO: 'Yapılacak', DOING: 'Yapılıyor', DONE: 'Bitti' }
+const FILTERS = [
+  { key: 'ALL', label: 'Tümü' },
+  { key: 'TODO', label: 'Yapılacak' },
+  { key: 'DOING', label: 'Yapılıyor' },
+  { key: 'DONE', label: 'Bitti' },
+]
 
 const state = {
   token: '',
@@ -121,6 +298,8 @@ const state = {
   tasks: [],
   openTaskId: null,
   messages: {},   // taskId -> Message[]
+  filter: 'ALL',
+  lastFocused: null,
 }
 
 const $ = (id) => document.getElementById(id)
@@ -143,144 +322,250 @@ function toast(msg, isError = false) {
 function show(which) {
   $('loading').hidden = which !== 'loading'
   $('error').hidden = which !== 'error'
-  $('head').hidden = which === 'error' || which === 'loading'
-  $('list').hidden = which !== 'list'
+  const listMode = which === 'list'
+  $('head').hidden = !listMode
+  $('tabs').hidden = !listMode
+  $('list').hidden = !listMode
+  if (!listMode) $('empty').hidden = true
 }
 
 function formatDate(d) {
   if (!d) return ''
   try {
-    return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d))
+    return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long' }).format(new Date(d))
   } catch { return '' }
 }
 
-/** DOM'u elle kur — innerHTML KULLANMA (XSS). */
-function buildTask(task) {
-  const card = document.createElement('div')
-  card.className = 'card task'
-  card.dataset['taskId'] = task.id
+/** Tarih yakın mı? (7 gün içinde) */
+function isSoon(d) {
+  if (!d) return false
+  try {
+    const diff = new Date(d).getTime() - Date.now()
+    return diff >= 0 && diff < 7 * 86400000
+  } catch { return false }
+}
 
-  const top = document.createElement('div')
-  top.className = 'task-top'
+// ===========================================================================
+// Filtre sekmeleri
+// ===========================================================================
 
-  const body = document.createElement('div')
-  body.className = 'task-body'
+function renderTabs() {
+  const nav = $('tabs')
+  nav.textContent = ''
+
+  for (const f of FILTERS) {
+    const count = f.key === 'ALL'
+      ? state.tasks.length
+      : state.tasks.filter((t) => t.status === f.key).length
+
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'tab'
+    btn.setAttribute('role', 'tab')
+    btn.setAttribute('aria-selected', String(state.filter === f.key))
+    btn.setAttribute('aria-label', `${count} ${f.label.toLowerCase()} görev`)
+
+    btn.append(document.createTextNode(f.label + ' '))
+    const n = document.createElement('span')
+    n.className = 'n'
+    n.textContent = String(count)
+    btn.append(n)
+
+    btn.addEventListener('click', () => {
+      state.filter = f.key
+      renderTabs()
+      renderList()
+    })
+    nav.append(btn)
+  }
+}
+
+// ===========================================================================
+// Liste
+// ===========================================================================
+
+/** Kartın görünen kısmını doldurur (rozet + meta). */
+function fillCard(card, task) {
+  card.textContent = ''
+  card.className = 'task' + (task.status === 'DONE' ? ' done' : '')
 
   const title = document.createElement('p')
-  title.className = 'task-title'
+  title.className = 't-title'
   title.textContent = task.title
-  body.append(title)
 
-  if (task.dueDate) {
-    const meta = document.createElement('p')
-    meta.className = 'task-meta'
-    meta.textContent = 'Son tarih: ' + formatDate(task.dueDate)
-    body.append(meta)
-  }
+  const meta = document.createElement('div')
+  meta.className = 't-meta'
 
   const badge = document.createElement('span')
   badge.className = 'badge ' + task.status
   badge.textContent = STATUS_LABELS[task.status] ?? task.status
+  meta.append(badge)
 
-  top.append(body, badge)
-
-  // Detay
-  const detail = document.createElement('div')
-  detail.className = 'detail'
-
-  const desc = document.createElement('p')
-  desc.className = 'desc' + (task.description ? '' : ' empty')
-  desc.textContent = task.description || 'Açıklama yok'
-  detail.append(desc)
-
-  // Durum butonları
-  const row = document.createElement('div')
-  row.className = 'status-row'
-  for (const s of ['TODO', 'DOING', 'DONE']) {
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.textContent = STATUS_LABELS[s]
-    btn.setAttribute('aria-pressed', String(task.status === s))
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      if (task.status !== s) changeStatus(task.id, s)
-    })
-    row.append(btn)
+  if (task.dueDate) {
+    const due = document.createElement('span')
+    due.className = 'due' + (isSoon(task.dueDate) && task.status !== 'DONE' ? ' soon' : '')
+    due.textContent = formatDate(task.dueDate)
+    meta.append(due)
   }
-  detail.append(row)
 
-  // Sohbet
-  const chat = document.createElement('div')
-  chat.className = 'chat'
-  const h3 = document.createElement('h3')
-  h3.textContent = 'Mesajlar'
-  const msgs = document.createElement('div')
-  msgs.className = 'msgs'
-  msgs.dataset['msgsFor'] = task.id
-  const form = document.createElement('div')
-  form.className = 'send'
-  const input = document.createElement('input')
-  input.type = 'text'
-  input.placeholder = 'Mesaj yaz…'
-  input.maxLength = 4000
-  input.setAttribute('aria-label', 'Mesaj')
-  const sendBtn = document.createElement('button')
-  sendBtn.type = 'button'
-  sendBtn.textContent = 'Gönder'
-
-  const doSend = async () => {
-    const text = input.value.trim()
-    if (!text) return
-    sendBtn.disabled = true
-    try {
-      await sendMessage(task.id, text)
-      input.value = ''
-    } finally {
-      sendBtn.disabled = false
-    }
+  const msgN = state.messages[task.id]?.length ?? 0
+  if (msgN > 0) {
+    const c = document.createElement('span')
+    c.className = 'msgcount'
+    c.textContent = msgN + ' mesaj'
+    meta.append(c)
   }
-  sendBtn.addEventListener('click', (e) => { e.stopPropagation(); doSend() })
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); doSend() }
+
+  card.append(title, meta)
+}
+
+function buildTask(task) {
+  const card = document.createElement('article')
+  card.setAttribute('role', 'button')
+  card.setAttribute('tabindex', '0')
+  card.dataset['taskId'] = task.id
+  fillCard(card, task)
+
+  const open = () => {
+    state.lastFocused = card
+    openSheet(task.id)
+  }
+  card.addEventListener('click', open)
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() }
   })
-  input.addEventListener('click', (e) => e.stopPropagation())
-
-  form.append(input, sendBtn)
-  chat.append(h3, msgs, form)
-  detail.append(chat)
-
-  card.append(top, detail)
-
-  card.addEventListener('click', () => toggleTask(task.id))
   return card
 }
 
 function renderList() {
   const list = $('list')
+  const scroll = list.scrollTop
   list.textContent = ''
 
-  if (state.tasks.length === 0) {
+  const visible = state.filter === 'ALL'
+    ? state.tasks
+    : state.tasks.filter((t) => t.status === state.filter)
+
+  if (visible.length === 0) {
     $('empty').hidden = false
+    list.hidden = true
     return
   }
   $('empty').hidden = true
+  list.hidden = false
 
-  for (const t of state.tasks) {
-    const el = buildTask(t)
-    if (t.id === state.openTaskId) el.classList.add('open')
-    list.append(el)
+  for (const t of visible) list.append(buildTask(t))
+  list.scrollTop = scroll   // kaydırma konumu korunur
+}
+
+// ===========================================================================
+// Görev sayfası
+// ===========================================================================
+
+let sheetEsc = null
+
+function openSheet(taskId) {
+  const task = state.tasks.find((t) => t.id === taskId)
+  if (!task) return
+
+  state.openTaskId = taskId
+
+  $('sheetTitle').textContent = task.title
+  const desc = $('sheetDesc')
+  desc.textContent = task.description || 'Açıklama yok'
+  desc.className = 'desc' + (task.description ? '' : ' empty')
+
+  // Durum butonları
+  const row = $('statusRow')
+  row.textContent = ''
+  for (const s of ['TODO', 'DOING', 'DONE']) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.textContent = STATUS_LABELS[s]
+    b.setAttribute('aria-pressed', String(task.status === s))
+    b.addEventListener('click', () => {
+      if (task.status !== s) changeStatus(taskId, s)
+    })
+    row.append(b)
   }
 
-  // Açık görevin mesajlarını yükle
-  if (state.openTaskId) {
-    const t = state.tasks.find((x) => x.id === state.openTaskId)
-    if (t) loadMessages(t.id)
-  }
+  // Mesaj sayısı
+  $('chatCount').textContent = String(state.messages[taskId]?.length ?? 0)
+
+  $('scrim').classList.add('on')
+  $('sheet').classList.add('on')
+  $('sheetTitle').focus()
+
+  sheetEsc = (e) => { if (e.key === 'Escape') closeSheet() }
+  document.addEventListener('keydown', sheetEsc)
+}
+
+function closeSheet() {
+  $('scrim').classList.remove('on')
+  $('sheet').classList.remove('on')
+  if (sheetEsc) { document.removeEventListener('keydown', sheetEsc); sheetEsc = null }
+  if (state.lastFocused) { state.lastFocused.focus(); state.lastFocused = null }
+}
+
+/** Tutamağı aşağı çekerek kapatma. */
+function initSheetDrag() {
+  const handle = $('sheetHandle')
+  const sheet = $('sheet')
+  let startY = null
+
+  handle.addEventListener('touchstart', (e) => {
+    startY = e.touches[0].clientY
+  }, { passive: true })
+
+  handle.addEventListener('touchmove', (e) => {
+    if (startY === null) return
+    const dy = e.touches[0].clientY - startY
+    if (dy > 0) sheet.style.transform = `translateY(${dy}px)`
+  }, { passive: true })
+
+  handle.addEventListener('touchend', (e) => {
+    if (startY === null) return
+    const dy = (e.changedTouches[0]?.clientY ?? startY) - startY
+    sheet.style.transform = ''
+    if (dy > 80) closeSheet()
+    startY = null
+  })
+}
+
+// ===========================================================================
+// Sohbet
+// ===========================================================================
+
+let chatEsc = null
+
+function openChat(taskId) {
+  const task = state.tasks.find((t) => t.id === taskId)
+  if (!task) return
+
+  state.openTaskId = taskId
+  $('chatTitle').textContent = task.title
+  $('chatSub').textContent = state.coupleNames
+  renderMessages(taskId)
+
+  $('chat').classList.add('on')
+  $('msgInput').focus()
+  loadMessages(taskId)
+
+  chatEsc = (e) => { if (e.key === 'Escape') closeChat() }
+  document.addEventListener('keydown', chatEsc)
+}
+
+function closeChat() {
+  $('chat').classList.remove('on')
+  if (chatEsc) { document.removeEventListener('keydown', chatEsc); chatEsc = null }
+  // Panele geri dön
+  const taskId = state.openTaskId
+  state.openTaskId = null
+  if (taskId) openSheet(taskId)
 }
 
 function renderMessages(taskId) {
-  const box = document.querySelector(`[data-msgs-for="${CSS.escape(taskId)}"]`)
-  if (!box) return
+  const box = $('msgs')
   box.textContent = ''
 
   const msgs = state.messages[taskId] ?? []
@@ -307,22 +592,26 @@ function renderMessages(taskId) {
   box.scrollTop = box.scrollHeight
 }
 
-function toggleTask(taskId) {
-  state.openTaskId = state.openTaskId === taskId ? null : taskId
-  renderList()
-}
-
 async function loadMessages(taskId) {
   try {
     const res = await apiFetch(`/helper/tasks/${taskId}/messages`)
     if (!res.ok) return
     const body = await res.json()
     state.messages[taskId] = body.messages ?? []
-    renderMessages(taskId)
+    // Sohbet açıksa yeniden çiz (polling sonrası)
+    if (state.openTaskId === taskId && $('chat').classList.contains('on')) {
+      renderMessages(taskId)
+    }
+    // Paneldeki mesaj sayısını güncelle
+    if (state.openTaskId === taskId) {
+      $('chatCount').textContent = String(state.messages[taskId]?.length ?? 0)
+    }
   } catch { /* sessiz */ }
 }
 
 async function sendMessage(taskId, text) {
+  const btn = $('sendBtn')
+  btn.disabled = true
   try {
     const res = await apiFetch(`/helper/tasks/${taskId}/messages`, {
       method: 'POST',
@@ -334,32 +623,59 @@ async function sendMessage(taskId, text) {
     })
     if (!res.ok) {
       toast('Mesaj gönderilemedi', true)
-      return
+      return false
     }
     const body = await res.json()
     state.messages[taskId] = [body.message, ...(state.messages[taskId] ?? [])]
     renderMessages(taskId)
+    $('chatCount').textContent = String(state.messages[taskId].length)
+    return true
   } catch {
     toast('Bağlantı hatası', true)
+    return false
+  } finally {
+    btn.disabled = false
   }
 }
 
+// ===========================================================================
+// Durum değiştirme — iyimser güncelleme + geri alma
+// ===========================================================================
+
 async function changeStatus(taskId, status) {
+  const task = state.tasks.find((t) => t.id === taskId)
+  if (!task) return
+
+  const previous = task.status
+  task.status = status
+
+  // Kartı YERİNDE güncelle — tüm listeyi yeniden çizme (kaydırma korunur)
+  const card = document.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`)
+  if (card) fillCard(card, task)
+  renderTabs()
+
+  // Paneldeki buton durumlarını güncelle
+  const row = $('statusRow')
+  for (const b of row.querySelectorAll('button')) {
+    b.setAttribute('aria-pressed', String(b.textContent === STATUS_LABELS[status]))
+  }
+
   try {
     const res = await apiFetch(`/helper/tasks/${taskId}`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     })
-    if (!res.ok) {
-      toast('Durum değiştirilemedi', true)
-      return
-    }
-    const t = state.tasks.find((x) => x.id === taskId)
-    if (t) t.status = status
-    renderList()
+    if (!res.ok) throw new Error('HTTP ' + res.status)
     toast('Durum güncellendi')
   } catch {
-    toast('Bağlantı hatası', true)
+    // Geri al
+    task.status = previous
+    if (card) fillCard(card, task)
+    renderTabs()
+    for (const b of row.querySelectorAll('button')) {
+      b.setAttribute('aria-pressed', String(b.textContent === STATUS_LABELS[previous]))
+    }
+    toast('Durum değiştirilemedi', true)
   }
 }
 
@@ -420,10 +736,6 @@ async function apiFetch(path, options = {}) {
 /**
  * Canlı güncelleme — görev ve sohbet yenilemesi.
  *
- * ÖNCE: yardımcı sayfayı elle yenilemek zorundaydı; yenileyince token
- * URL'de olmadığı için "geçersiz bağlantı" alıyordu. Artık sayfa açık
- * kaldıkça kendini günceller.
- *
  * Görünür sekmede 15 sn'de bir tazeler. Sekme gizlenince tamamen durur
  * (pil ve veri tasarrufu); sekmeye dönülünce yeniden başlar.
  */
@@ -439,10 +751,10 @@ function startPolling() {
       if (!res.ok) return
       const body = await res.json()
       const fresh = body.tasks ?? []
-      // Değişiklik var mı? (JSON karşılaştırma — küçük liste)
       const changed = JSON.stringify(fresh) !== JSON.stringify(state.tasks)
       if (changed) {
         state.tasks = fresh
+        renderTabs()
         renderList()
       }
       // Açık sohbet varsa mesajları da tazele
@@ -458,8 +770,6 @@ function stopPolling() {
 }
 
 // Sekme gizlenince durdur, görününce yeniden başlat.
-// Koşul CSRF'e değil, listenin görünür olmasına bağlı: oturum açıldıysa
-// liste gösterilir ve polling her hâlükârda yeniden başlamalı.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     stopPolling()
@@ -491,6 +801,7 @@ async function load() {
       $('greeting').textContent = `Merhaba ${state.helperName}`
       $('coupleLine').textContent = `${state.coupleNames} düğünü için görevleriniz`
       show('list')
+      renderTabs()
       renderList()
       startPolling()
       return
@@ -531,6 +842,7 @@ async function load() {
     $('coupleLine').textContent = `${state.coupleNames} düğünü için görevleriniz`
 
     show('list')
+    renderTabs()
     renderList()
     startPolling()
   } catch (err) {
@@ -540,7 +852,39 @@ async function load() {
   }
 }
 
+// ===========================================================================
+// Olay bağlama
+// ===========================================================================
+
+$('scrim').addEventListener('click', closeSheet)
+$('chatLink').addEventListener('click', () => {
+  const id = state.openTaskId
+  if (id) openChat(id)
+})
+$('backBtn').addEventListener('click', closeChat)
+$('retryBtn').addEventListener('click', () => { show('loading'); load() })
+
+$('sendBtn').addEventListener('click', async () => {
+  const input = $('msgInput')
+  const text = input.value.trim()
+  if (!text || !state.openTaskId) return
+  const ok = await sendMessage(state.openTaskId, text)
+  if (ok) input.value = ''
+})
+$('msgInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('sendBtn').click() }
+})
+
+initSheetDrag()
 load()
+
+// TEST KANCASI — yalnız yerel geliştirmede (file:// veya localhost).
+// Üretimde (dugunce.com.tr) hiçbir şey açığa çıkmaz.
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+  window.__helper = { state, renderTabs, renderList, openSheet, closeSheet,
+    openChat, closeChat, renderMessages, show, changeStatus, loadMessages }
+}
+
 </script>
 </body>
 </html>
