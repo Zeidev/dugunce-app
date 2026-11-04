@@ -88,9 +88,13 @@
   .t-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;
     letter-spacing:.02em;white-space:nowrap}
-  .badge.TODO{background:#f0eeea;color:#6f6a5f}
-  .badge.DOING{background:#fbf3e4;color:var(--doing)}
-  .badge.DONE{background:var(--sage-soft);color:var(--sage)}
+  /* Rozet renkleri WCAG AA (>=4.5:1) — olculdu:
+     TODO  6.40  (#5a554a / #f0eeea)
+     DOING 5.10  (#8a5f1f / #fbf3e4)  — once 2.92 idi, AA alti
+     DONE  8.15  (#3b4c37 / #eef2ec) */
+  .badge.TODO{background:#f0eeea;color:#5a554a}
+  .badge.DOING{background:#fbf3e4;color:#8a5f1f}
+  .badge.DONE{background:var(--sage-soft);color:#3b4c37}
   .due{font-size:12px;color:var(--muted)}
   .msgcount{font-size:12px;color:var(--gold);font-weight:600;margin-left:auto}
 
