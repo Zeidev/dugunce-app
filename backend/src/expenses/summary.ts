@@ -65,6 +65,12 @@ export interface BudgetSummaryDeps {
     weddingId: string,
     userId: string,
   ) => Promise<MonthTotal[]>
+  /**
+   * Düğünün saat dilimi — "bu ay" bundan hesaplanır.
+   *
+   * Saat dilimi okunamazsa `undefined` döner ve varsayılan kullanılır.
+   */
+  weddingTimezone: (weddingId: string, userId: string) => Promise<string | null>
 }
 
 export interface GetBudgetSummaryParams {

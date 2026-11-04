@@ -8,6 +8,7 @@ import {
   setInstallmentPaid,
 } from '../expenses/service.js'
 import { getBudgetSummary } from '../expenses/summary.js'
+import { currentMonthIn } from '../lib/month.js'
 import { drizzleExpenseDeps } from '../expenses/store.js'
 
 /**
@@ -150,10 +151,15 @@ export function createBudgetSummaryRouter(deps: {
       const raw = req.params['weddingId']
       const weddingId = Array.isArray(raw) ? String(raw[0]) : String(raw)
       const userId = req.auth!.userId
+      // "Bu ay" DÜĞÜNÜN saat diliminde hesaplanır.
+      //
+      // ESKİ HATA: `new Date().toISOString().slice(0,7)` UTC'ye çeviriyordu;
+      // Türkiye UTC+3 olduğu için ayın ilk günü 00:00–03:00 arasında
+      // "bu ay" hâlâ ÖNCEKİ aydı — çift yanlış ayın taksitlerini görüyordu.
       const month =
         typeof req.query['month'] === 'string'
           ? req.query['month']
-          : new Date().toISOString().slice(0, 7)
+          : currentMonthIn(await store.weddingTimezone(weddingId, userId))
 
       const summary = await getBudgetSummary({ weddingId, userId, month }, store)
       res.json({ summary })

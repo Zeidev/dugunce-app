@@ -4,6 +4,7 @@ import {
   expenses,
   installments,
   weddingMembers,
+  weddings,
 } from '../db/schema.js'
 import type { ExpenseDeps, ExpenseRecord, InstallmentInput, UpdateExpenseDeps, PaymentDeps } from './service.js'
 import type { BudgetSummaryDeps, SideBreakdown, CategoryBreakdown, MonthTotal } from './summary.js'
@@ -264,6 +265,27 @@ export function drizzleExpenseDeps(
     },
 
     // --- Özet ---
+    /**
+     * Düğünün saat dilimi — "bu ay" hesabı için.
+     *
+     * Üyelik join'i ile: başka düğünün saat dilimi dönmez (SECURITY §1.1).
+     */
+    async weddingTimezone(weddingId, userId) {
+      const rows = await db
+        .select({ timezone: weddings.timezone })
+        .from(weddings)
+        .innerJoin(
+          weddingMembers,
+          and(
+            eq(weddingMembers.weddingId, weddings.id),
+            eq(weddingMembers.userId, userId),
+          ),
+        )
+        .where(eq(weddings.id, weddingId))
+        .limit(1)
+      return rows[0]?.timezone ?? null
+    },
+
     async sumExpenses(weddingId, userId) {
       const rows = await db
         .select({
