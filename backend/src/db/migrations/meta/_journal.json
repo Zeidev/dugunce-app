@@ -71,6 +71,13 @@
       "when": 1793900000000,
       "tag": "0009_invitation_message",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794000000000,
+      "tag": "0010_admin_panel",
+      "breakpoints": true
     }
   ]
 }

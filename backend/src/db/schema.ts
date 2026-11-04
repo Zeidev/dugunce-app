@@ -617,3 +617,95 @@ export const messages = pgTable(
     taskIdx: index('messages_task_idx').on(table.taskId, table.createdAt),
   }),
 )
+
+/**
+ * admin_accounts — ürün sahibinin yönetim hesabı.
+ *
+ * Kullanıcı (`users`) tablosundan AYRI: admin oturumu kullanıcı
+ * token'ıyla açılamaz, tersi de. İki evren karışırsa tam yetki sızıntısı
+ * olur (Review Focus #1).
+ */
+export const adminAccounts = pgTable(
+  'admin_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull().unique(),
+    /** Argon2id — düz metin ASLA. */
+    passwordHash: text('password_hash').notNull(),
+    displayName: text('display_name').notNull(),
+    /** v1'de tek rol: SUPER_ADMIN. RBAC'e genişletilebilir. */
+    role: text('role').notNull().default('SUPER_ADMIN'),
+    /** ACTIVE | SUSPENDED */
+    status: text('status').notNull().default('ACTIVE'),
+    failedAttempts: integer('failed_attempts').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    /** v1'de KULLANILMAZ — 2FA sonraki tur. Sütunlar şimdi eklenir ki
+     *  sonraki turda migration gerekmesin. */
+    totpSecret: text('totp_secret'),
+    totpEnabledAt: timestamp('totp_enabled_at', { withTimezone: true }),
+    recoveryCodes: jsonb('recovery_codes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusIdx: index('admin_accounts_status_idx').on(table.status),
+  }),
+)
+
+/**
+ * admin_sessions — HttpOnly cookie oturumu.
+ *
+ * Ham oturum değeri DB'de YOK; yalnızca SHA-256 (SECURITY §1.2 #4 ile
+ * aynı kural). Kayan pencere: 30 dk boşta ölür, mutlak tavan 8 saat.
+ */
+export const adminSessions = pgTable(
+  'admin_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adminId: uuid('admin_id').notNull(),
+    sessionHash: text('session_hash').notNull().unique(),
+    csrfHash: text('csrf_hash').notNull(),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Mutlak tavan — kayan pencere bunu aşamaz. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => ({
+    adminFk: foreignKey({
+      name: 'admin_sessions_admin_fk',
+      columns: [table.adminId],
+      foreignColumns: [adminAccounts.id],
+    }).onDelete('cascade'),
+    expiresIdx: index('admin_sessions_expires_idx').on(table.expiresAt),
+  }),
+)
+
+/**
+ * audit_logs — değiştirilemez denetim kaydı.
+ *
+ * Uygulama katmanında `update`/`delete` fonksiyonu YOK. `metadata`'ya
+ * parola/token/TOTP secret ASLA yazılmaz (Review Focus #4).
+ */
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** ADMIN | USER | SYSTEM */
+    actorType: text('actor_type').notNull(),
+    actorId: uuid('actor_id'),
+    action: text('action').notNull(),
+    /** USER | WEDDING | null */
+    targetType: text('target_type'),
+    targetId: uuid('target_id'),
+    metadata: jsonb('metadata'),
+    ip: text('ip'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    createdAtIdx: index('audit_logs_created_at_idx').on(table.createdAt),
+    actionIdx: index('audit_logs_action_idx').on(table.action),
+  }),
+)
