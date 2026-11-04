@@ -19,6 +19,16 @@ export const INVITATION_TTL_DAYS = 90
 export const MIN_PARTY_SIZE = 1
 export const MAX_PARTY_SIZE = 10
 
+/**
+ * Davetiye üretilirken kişi sayısı belirtilmezse kullanılan varsayılan.
+ *
+ * ÖNCE 1 idi: davetli "kaç kişi geleceksiniz" sorusunda "+" butonuna
+ * basamıyordu — `max = 1` olduğu için buton hep devre dışıydı
+ * (bildirilen hata). 2, "davetli + bir refakatçi" için makul bir
+ * başlangıç; çift isterse 1'e düşürebilir.
+ */
+export const DEFAULT_PARTY_SIZE = 2
+
 export class PartySizeError extends Error {
   constructor(message: string) {
     super(message)
@@ -121,7 +131,7 @@ export async function createInvitation(
     'findGuestForInvitation' | 'insertInvitation' | 'revokeByGuestId' | 'transaction' | 'markInviteSent'
   >,
 ): Promise<CreatedInvitation | null> {
-  const allowedPartySize = params.allowedPartySize ?? MIN_PARTY_SIZE
+  const allowedPartySize = params.allowedPartySize ?? DEFAULT_PARTY_SIZE
 
   if (
     !Number.isInteger(allowedPartySize) ||

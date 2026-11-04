@@ -81,6 +81,10 @@ fun GuestDetailScreen(
     // Telefonu olmayan davetliye numara ekleyebilmek için (rehberden
     // eklenen kişide numara gelmemiş olabilir; o zaman davetiye
     // gönderilemiyordu).
+    // Davetlinin getirebileceği azami kişi sayısı. 1 ise davetli
+    // "kaç kişi" sorusunda "+" butonuna basamaz — bu yüzden en az 2
+    // varsayıyoruz (davetli + bir refakatçi).
+    var partySize by remember { mutableStateOf(2) }
     var editingPhone by remember { mutableStateOf(false) }
     var phoneText by remember { mutableStateOf("") }
     var savingPhone by remember { mutableStateOf(false) }
@@ -285,13 +289,48 @@ fun GuestDetailScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = c.muted,
                                     )
+                                    // Kaç kişi gelebilir? Davetli bu sınıra kadar
+                                    // artırabilir. 1 seçilirse davetli "+"ya
+                                    // basamaz — bu yüzden açıkça gösteriyoruz.
+                                    Text(
+                                        "En fazla kaç kişi gelebilir?",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = c.muted,
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                                    ) {
+                                        DugunceButton(
+                                            label = "−",
+                                            variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
+                                            fullWidth = false,
+                                            enabled = partySize > 1 && !generating,
+                                            onClick = { if (partySize > 1) partySize-- },
+                                        )
+                                        Text(
+                                            "$partySize kişi",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = c.ink,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                        DugunceButton(
+                                            label = "+",
+                                            variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
+                                            fullWidth = false,
+                                            enabled = partySize < 10 && !generating,
+                                            onClick = { if (partySize < 10) partySize++ },
+                                        )
+                                    }
+                                    Spacer(Modifier.height(Spacing.xs))
+
                                     DugunceButton(
                                         "Davetiye linki oluştur",
                                         onClick = {
                                             if (generating) return@DugunceButton
                                             generating = true
                                             scope.launch {
-                                                repository.createInvitation(weddingId, guestId).fold(
+                                                repository.createInvitation(weddingId, guestId, partySize).fold(
                                                     onSuccess = { res ->
                                                         generating = false
                                                         // Backend göreli yol döner ("/d#token") —

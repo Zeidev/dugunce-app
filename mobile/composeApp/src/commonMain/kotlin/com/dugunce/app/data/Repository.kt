@@ -385,11 +385,25 @@ class Repository(
         res.body<GuestResponse>().guest
     }
 
+    /**
+     * Davetli için davetiye üretir.
+     *
+     * @param allowedPartySize davetlinin getirebileceği azami kişi sayısı.
+     *   `null` ise backend varsayılanı (2) kullanılır. 1 verilirse davetli
+     *   "kaç kişi" sorusunda "+" butonuna BASAMAZ (max = 1).
+     */
     suspend fun createInvitation(
         weddingId: String,
         guestId: String,
+        allowedPartySize: Int? = null,
     ): Result<InvitationResponse> = safeCall {
-        val res = api.sendRetrying { api.http.post("weddings/$weddingId/guests/$guestId/invitation") }
+        val res = api.sendRetrying {
+            api.http.post("weddings/$weddingId/guests/$guestId/invitation") {
+                if (allowedPartySize != null) {
+                    setBody(mapOf("allowedPartySize" to allowedPartySize))
+                }
+            }
+        }
         ensureSuccess(res)
         res.body<InvitationResponse>()
     }

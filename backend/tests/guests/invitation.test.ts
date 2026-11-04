@@ -94,11 +94,14 @@ describe('createInvitation (Review Focus #2)', () => {
     expect(days).toBe(90)
   })
 
-  it('allowed_party_size varsayılan 1', async () => {
+  // ÖNCE varsayılan 1'di. Davetli "kaç kişi geleceksiniz" sorusunda
+  // "+" butonuna BASAMIYORDU (max = 1 olduğu için hep devre dışı).
+  // Artık 2: davetli + bir refakatçi. Çift isterse 1'e düşürebilir.
+  it('allowed_party_size varsayılan 2 (davetli "+"ya basabilsin)', async () => {
     const d = makeDeps()
     await createInvitation({ weddingId: 'w1', userId: 'u1', guestId: 'g1' }, d)
     const written = d.insertInvitation.mock.calls[0]![0] as Record<string, unknown>
-    expect(written['allowedPartySize']).toBe(1)
+    expect(written['allowedPartySize']).toBe(2)
   })
 
   it('allowed_party_size 10 kabul edilir', async () => {

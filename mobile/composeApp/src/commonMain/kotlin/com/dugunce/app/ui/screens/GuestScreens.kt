@@ -67,7 +67,6 @@ fun GuestListScreen(
     weddingId: String,
     onAddGuest: () -> Unit,
     onOpenGuest: (String) -> Unit,
-    onBulkAdd: () -> Unit,
     onOpenTemplates: () -> Unit = {},
     /** Toplu davetiye gönderimi — her kişiye kendi linki. */
     onBulkSend: () -> Unit = {},
@@ -366,21 +365,10 @@ fun GuestListScreen(
                         }
                     }
                 }
-                Surface(
-                    onClick = onBulkAdd,
-                    shape = RoundedCornerShape(Radius.pill),
-                    color = c.surface,
-                    shadowElevation = 4.dp,
-                ) {
-                    Box(Modifier.padding(Spacing.md), contentAlignment = Alignment.Center) {
-                        Text(
-                            "Toplu",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = c.sage,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                }
+                // "Toplu" butonu KALDIRILDI (kullanıcı isteği): rehberden
+                // çoklu ekleme zaten var, satır satır yazmak gereksizdi.
+                // `BulkGuestScreen` ve `Screen.BULK_GUEST` duruyor —
+                // ileride gerekirse tek satırla geri açılır.
                 Surface(
                     onClick = onAddGuest,
                     shape = RoundedCornerShape(Radius.pill),
