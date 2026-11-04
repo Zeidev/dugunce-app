@@ -11,7 +11,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveMapUrl } from '../../frontend/public/d/map-link.mjs'
+import { resolveMapUrl } from '../../frontend/public/assets/js/map-link.mjs'
 
 test('elle girilen mapUrl onceliklidir', () => {
   const url = resolveMapUrl({

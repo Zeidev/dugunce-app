@@ -1,5 +1,9 @@
 # /d/<token> eski link biçimi → fragment'e çevir
 # (token sunucuya gitmesin diye fragment kullanılıyor)
+#
+# NOT: `/d/` altında JS/CSS gibi GERÇEK dosya tutma — `:token` kuralı
+# onları da yakalar ve fragment'e yönlendirir. Paylaşılan JS
+# `/assets/js/` altında durur.
 /d/:token  /d/#:token  302
 
 # /auth → /auth/ açık kural.

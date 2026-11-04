@@ -377,6 +377,33 @@ if (existsSync(headersPath)) {
 }
 
 // ---------------------------------------------------------------------------
+// 9. /d/ altında gerçek dosya olmasın — `:token` kuralı onları yutar
+// ---------------------------------------------------------------------------
+
+/**
+ * `_redirects` içindeki `/d/:token → /d/#:token` kuralı, `/d/` altındaki
+ * GERÇEK dosyaları da yakalar: `/d/map-link.mjs` isteği
+ * `/d/#map-link.mjs`'e yönlendi ve modül yüklenemedi (canlıda görüldü).
+ * Paylaşılan varlıklar `/assets/` altında durmalı.
+ */
+{
+  const dDir = join(PUBLIC, 'd')
+  if (existsSync(dDir)) {
+    for (const entry of readdirSync(dDir)) {
+      if (entry === 'index.html') continue
+      if (/\.(m?js|css|json|map|woff2?|png|jpe?g|webp|svg)$/i.test(entry)) {
+        fail(
+          `frontend/public/d/${entry}`,
+          0,
+          `/d/ altında gerçek dosya var — "_redirects"teki "/d/:token" kuralı bunu ` +
+            `fragment'e yönlendirir ve dosya yüklenmez. "/assets/" altına taşı.`,
+        )
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Rapor
 // ---------------------------------------------------------------------------
 
