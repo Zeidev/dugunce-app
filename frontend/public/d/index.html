@@ -542,6 +542,7 @@
  * GET atar; eğer GET yazsaydı davetli hiç tıklamadan "geliyorum" olurdu.
  */
 import { resolveMapUrl } from '/assets/js/map-link.mjs'
+import { shouldShowSizeBox, nextPartySize } from '/assets/js/invitation-party.mjs'
 
 const API = 'https://api.dugunce.com.tr/api/v1'
 const $ = (id) => document.getElementById(id)
@@ -574,6 +575,17 @@ const state = {
   data: null,
   choice: null,   // 'ATTENDING' | 'DECLINED' | null
   size: 1,
+  /**
+   * Uçuştaki istek — sayaç hızlı tıklanınca istekler BİRİKMEZ.
+   *
+   * HATA B (bildirilen): `sendRsvp` tüm düğmeleri `disabled` yapıp
+   * sonda açıyordu; art arda tıklamada yalnız ilki işliyordu
+   * ("kişi sayısını değiştiremiyorum"). Artık sayaç ANINDA güncellenir,
+   * ağ isteği arka planda serileştirilir.
+   */
+  inFlight: false,
+  /** İstek sürerken biriken son değer — bitince bir kez gönderilir. */
+  pendingSize: null,
 }
 
 function getToken() {
@@ -731,6 +743,8 @@ function render(data) {
       state.size = Math.min(state.size, max)
       $('sizeLabel').textContent = 'Kaç kişi geleceksiniz?'
       updateStepper(max)
+      // Seçim yapılmamış olsa da alanı göster (HATA A).
+      paintChoice()
     }
   } else {
     const box = $('closedBox')
@@ -756,7 +770,16 @@ function paintChoice() {
   const no = $('btnNo')
   yes.setAttribute('aria-pressed', String(state.choice === 'ATTENDING'))
   no.setAttribute('aria-pressed', String(state.choice === 'DECLINED'))
-  $('sizeBox').classList.toggle('show', state.choice === 'ATTENDING')
+
+  // HATA A (bildirilen): alan yalnız "Geliyorum"a basınca görünüyordu.
+  // Oysa "kaç kişi geleceksiniz" sorusu seçimden ÖNCE de anlamlıdır —
+  // davetli sayıyı görüp ona göre karar verir. Karar saf fonksiyonda
+  // (`shouldShowSizeBox`) ve birim testiyle kilitli.
+  const show = shouldShowSizeBox({
+    partySizeEnabled: state.data?.partySizeEnabled,
+    choice: state.choice,
+  })
+  $('sizeBox').classList.toggle('show', show)
 }
 
 function setStatus(msg, kind) {
@@ -808,8 +831,15 @@ async function sendRsvp(rsvp) {
     payload.partySize = Math.min(state.size, max)
   }
 
-  const buttons = [$('btnYes'), $('btnNo'), $('btnMinus'), $('btnPlus')]
-  buttons.forEach((b) => { b.disabled = true })
+  // HATA B: düğmeleri KİLİTLEMİYORUZ. Sayaç anında güncellenir; ağ
+  // isteği zaten `state.inFlight` ile serileştirilir. Kilitlendiğinde
+  // hızlı tıklamalar yutuluyordu ("kişi sayısını değiştiremiyorum").
+  if (state.inFlight) {
+    // Sürerken yeni değer geldi — bitince en son değer gönderilir.
+    state.pendingSize = payload.partySize ?? state.pendingSize
+    return
+  }
+  state.inFlight = true
   setStatus('Gönderiliyor…')
 
   try {
@@ -855,9 +885,20 @@ async function sendRsvp(rsvp) {
   } catch {
     setStatus('Gönderilemedi. Bağlantınızı kontrol edip tekrar deneyin.', 'err')
   } finally {
-    buttons.forEach((b) => { b.disabled = false })
-    if (state.choice === 'ATTENDING') {
-      updateStepper(max)
+    state.inFlight = false
+    // `updateStepper` sınırları (+,−) doğru ayarlar — seçim ne olursa olsun.
+    updateStepper(max)
+    paintChoice()
+
+    // İstek sürerken biriken değer varsa şimdi gönder.
+    const queued = state.pendingSize
+    state.pendingSize = null
+    if (queued !== null && queued !== (state.data?.confirmedPartySize ?? null)) {
+      if (state.choice === 'ATTENDING') {
+        state.size = queued
+        updateStepper(max)
+        sendRsvp('ATTENDING')
+      }
     }
   }
 }
@@ -895,25 +936,29 @@ $('btnNo').addEventListener('click', () => {
   sendRsvp('DECLINED')
 })
 
-$('btnMinus').addEventListener('click', () => {
+/**
+ * Sayaç düğmeleri — değer ANINDA güncellenir, ağ isteği arka planda.
+ *
+ * HATA B: eskiden `sendRsvp` düğmeleri kilitliyordu; hızlı iki tıklama
+ * tek işliyordu. Artık her tıklama sayacı anında değiştirir; istek
+ * `state.inFlight` ile serileştirilir ve son değer kaybolmaz.
+ */
+function stepParty(delta) {
   if (state.data?.partySizeEnabled === false) return
   const max = Math.max(1, state.data?.allowedPartySize || 1)
-  if (state.size > 1) {
-    state.size -= 1
-    updateStepper(max)
-    sendRsvp('ATTENDING')
-  }
-})
+  const next = nextPartySize(state.size, max, delta)
+  if (next === state.size) return
 
-$('btnPlus').addEventListener('click', () => {
-  if (state.data?.partySizeEnabled === false) return
-  const max = Math.max(1, state.data?.allowedPartySize || 1)
-  if (state.size < max) {
-    state.size += 1
-    updateStepper(max)
-    sendRsvp('ATTENDING')
-  }
-})
+  state.size = next
+  updateStepper(max)
+  // Sayaç değiştiyse katılım da bildirilmiş olur.
+  state.choice = 'ATTENDING'
+  paintChoice()
+  sendRsvp('ATTENDING')
+}
+
+$('btnMinus').addEventListener('click', () => stepParty(-1))
+$('btnPlus').addEventListener('click', () => stepParty(+1))
 
 load()
 </script>
