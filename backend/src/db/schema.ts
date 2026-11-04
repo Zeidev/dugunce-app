@@ -120,6 +120,18 @@ export const weddings = pgTable(
      * Boş dize "şablonun önerilen fontunu kullan" demektir.
      */
     fontKey: text('font_key').notNull().default(''),
+    /**
+     * Davetliye "kaç kişi geleceksiniz" sorusu sorulsun mu.
+     *
+     * Kapalıyken davetiye yalnız "Geliyorum"/"Gelemeyeceğim" gösterir ve
+     * `rsvp.ts` kişi sayısını yok sayar. Varsayılan `true` — mevcut
+     * davranış korunur.
+     */
+    partySizeEnabled: boolean('party_size_enabled').notNull().default(true),
+    /** Yeni davetiyenin başlangıç izni (davetli + refakatçi). */
+    defaultPartySize: integer('default_party_size').notNull().default(2),
+    /** Çiftin izin verdiği üst sınır — davetlinin iznini de sınırlar. */
+    maxPartySize: integer('max_party_size').notNull().default(10),
     purchasedAt: timestamp('purchased_at', { withTimezone: true }),
     purchaseToken: text('purchase_token'),
     purchasePlatform: text('purchase_platform'),

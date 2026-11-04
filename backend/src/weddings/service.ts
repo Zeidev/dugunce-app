@@ -65,6 +65,22 @@ export const weddingInputSchema = z.object({
       })
       .optional(),
   ),
+  /** Davetliye "kaç kişi" sorusu sorulsun mu. */
+  partySizeEnabled: z.boolean().optional(),
+  /** Yeni davetiyenin başlangıç izni. */
+  defaultPartySize: z
+    .number()
+    .int('Kişi sayısı tam sayı olmalı')
+    .min(1, 'Kişi sayısı 1-10 arasında olmalı')
+    .max(10, 'Kişi sayısı 1-10 arasında olmalı')
+    .optional(),
+  /** Çiftin izin verdiği üst sınır. */
+  maxPartySize: z
+    .number()
+    .int('Kişi sayısı tam sayı olmalı')
+    .min(1, 'Kişi sayısı 1-10 arasında olmalı')
+    .max(10, 'Kişi sayısı 1-10 arasında olmalı')
+    .optional(),
 })
 
 export type WeddingInput = z.input<typeof weddingInputSchema>
@@ -199,6 +215,27 @@ export async function updateWedding(
   // Üyelik kontrolü — üye değilse güncelleme yok
   const existing = await deps.findById(params.weddingId, params.userId)
   if (!existing) return null
+
+  // Çapraz kural: varsayılan azamiyi geçemez.
+  //
+  // Şemada doğrulanamaz çünkü PATCH kısmi — yalnız `maxPartySize`
+  // gönderildiğinde `defaultPartySize` şemada yoktur. Birleşik sonuç
+  // üzerinden kontrol edilir. İstemciye güvenmek `allowed_party_size`
+  // hatasının tekrarı olurdu.
+  const nextDefault = (cleanPatch['defaultPartySize'] ??
+    existing['defaultPartySize']) as number | undefined
+  const nextMax = (cleanPatch['maxPartySize'] ??
+    existing['maxPartySize']) as number | undefined
+  if (
+    typeof nextDefault === 'number' &&
+    typeof nextMax === 'number' &&
+    nextDefault > nextMax
+  ) {
+    throw AppError.badRequest(
+      'Varsayılan kişi sayısı azamiyi geçemez',
+      'PARTY_SIZE_INCONSISTENT',
+    )
+  }
 
   // Tarih alanlarını Date'e çevir
   const normalized: Record<string, unknown> = { ...cleanPatch }
