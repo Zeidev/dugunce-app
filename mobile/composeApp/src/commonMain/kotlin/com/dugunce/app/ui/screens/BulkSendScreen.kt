@@ -171,7 +171,12 @@ fun BulkSendScreen(
                     }
                 }
 
-                items(sendable, key = { it.id }) { g ->
+                // GÖNDERİLMEYENLER ÖNDE: kullanıcı listeyi kaydırmadan
+                // sıradaki kişiye ulaşsın. Gönderilenler sona iner.
+                items(
+                    sendable.sortedBy { it.id in sent },
+                    key = { it.id },
+                ) { g ->
                     val done = g.id in sent
                     val busy = working == g.id
                     Surface(
