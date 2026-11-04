@@ -1,0 +1,80 @@
+name: frontend-ci
+
+# NEDEN VAR: Bu depoda frontend için CI YOKTU. Cloudflare Pages her
+# push'ta otomatik yayınladığı için hatalı bir değişiklik doğrudan
+# canlıya gidiyordu. Yardımcı arayüzü yenilenirken KRİTİK bir güvenlik
+# hatası (token'ın URL yoluna sızması) yalnız elle kod incelemesiyle
+# yakalandı — otomasyon bunu görmüyordu.
+#
+# Bu workflow `scripts/check-frontend.mjs` çalıştırır:
+#   1. HTML/JS sözdizimi — bozuk sayfa yayına gitmesin
+#   2. XSS — innerHTML ile kullanıcı verisi basılmasın
+#   3. Token sızıntısı — token yalnız #fragment'te
+#   4. Sayfa yüklemesinde yazma isteği — önizleme botu yan etki yaratmasın
+#   5. Kontrast — WCAG AA
+#   6. Kaynak bütünlüğü — font/görsel referansları gerçekten var mı
+#   7. _redirects / _headers tutarlılığı
+
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - 'scripts/check-frontend.mjs'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'scripts/check-frontend.mjs'
+      - '.github/workflows/frontend-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Frontend kontrolleri
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Bağımlılık YOK: script yalnız Node standart kütüphanesini kullanır.
+      # `npm ci` gerekmez — frontend'de package.json yok.
+      - name: Sağlık kontrolleri
+        run: node scripts/check-frontend.mjs
+
+      # Fontların gerçekten indirilebilir olduğunu doğrula.
+      # Eksik bir .woff2 sessizce fallback fonta düşer ve tasarım bozulur
+      # (GESCE dersinden sonra eklendi).
+      - name: Font dosyaları erişilebilir mi
+        run: |
+          missing=0
+          while IFS= read -r f; do
+            if [ ! -s "$f" ]; then
+              echo "::error::Boş veya eksik font: $f"
+              missing=$((missing+1))
+            fi
+          done < <(find frontend/public/assets/fonts -name '*.woff2')
+          if [ "$missing" -gt 0 ]; then exit 1; fi
+          echo "✅ Tüm font dosyaları mevcut ve boş değil"
+
+      # HTML'de referans verilen her yerel kaynak gerçekten var mı?
+      # (check-frontend.mjs bunu yapar; burada yalnız özet yazdırılır.)
+      - name: Özet
+        if: always()
+        run: |
+          echo "### Frontend kontrolleri" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Kontroller: sözdizimi, XSS, token sızıntısı, yüklemede yazma," >> "$GITHUB_STEP_SUMMARY"
+          echo "kontrast (WCAG AA), kaynak bütünlüğü, _redirects/_headers." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "HTML dosyaları: $(find frontend/public -name '*.html' | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Font dosyaları: $(find frontend/public/assets/fonts -name '*.woff2' | wc -l)" >> "$GITHUB_STEP_SUMMARY"
