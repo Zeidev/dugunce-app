@@ -28,6 +28,8 @@ import com.dugunce.app.data.TokenStore
 import com.dugunce.app.ui.AppState
 import com.dugunce.app.ui.components.InfoBanner
 import com.dugunce.app.ui.components.LoadingState
+import com.dugunce.app.ui.nav.isOnboarding
+import com.dugunce.app.ui.PlatformBackHandler
 import com.dugunce.app.ui.nav.MainTabs
 import com.dugunce.app.ui.nav.Screen
 import com.dugunce.app.ui.nav.isTab
@@ -36,6 +38,7 @@ import com.dugunce.app.ui.screens.CardListScreen
 import com.dugunce.app.ui.screens.TemplateScreen
 import com.dugunce.app.ui.screens.BudgetIntroScreen
 import com.dugunce.app.ui.screens.BulkGuestScreen
+import com.dugunce.app.ui.screens.BulkSendScreen
 import com.dugunce.app.ui.screens.AcceptInviteScreen
 import com.dugunce.app.ui.screens.CoOwnerInviteScreen
 import com.dugunce.app.ui.screens.CreateWeddingScreen
@@ -77,6 +80,13 @@ fun App(
     initialAuthToken: String? = null,
     initialInviteCode: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    /**
+     * Baslik serif fontu (Playfair Display). Platformdan gelir -
+     * `MainActivity` `R.font.playfair_display` gecer. `null` = sistem fontu.
+     */
+    displayFont: androidx.compose.ui.text.font.FontFamily? = null,
+    /** Govde sans fontu (Josefin Sans). */
+    bodyFont: androidx.compose.ui.text.font.FontFamily? = null,
 ) {
     var themeMode by remember {
         mutableStateOf(
@@ -88,7 +98,7 @@ fun App(
         )
     }
 
-    DugunceTheme(themeMode = themeMode) {
+    DugunceTheme(themeMode = themeMode, displayFont = displayFont, bodyFont = bodyFont) {
         val state = remember { AppState() }
         val scope = rememberCoroutineScope()
         var bootstrapping by remember { mutableStateOf(true) }
@@ -160,7 +170,17 @@ fun App(
 
         val wedding = state.wedding
         val screen = state.current
-        val showBottomBar = screen.isTab() && wedding != null
+        // Alt navigasyon onboarding ve giriş dışında HER ZAMAN görünür.
+        // Önce yalnız `isTab()` iken gösteriliyordu; alt ekrana girince
+        // (harcama formu, görev detayı, şablon seçimi…) bar kayboluyordu.
+        val showBottomBar = wedding != null && !screen.isOnboarding()
+
+        // Telefonun kendi geri tuşu: yığın varsa bir önceki ekran,
+        // yığın boşsa sistem davranışı (uygulamadan çık).
+        // `isOnboarding()` dışında hiçbir ekran geri tuşunu yutmasın.
+        PlatformBackHandler(enabled = state.stack.size > 1) {
+            state.back()
+        }
 
         Scaffold(
             containerColor = c.cream,
@@ -307,7 +327,8 @@ fun App(
                                 onAddGuest = { state.editingGuestId = null; state.go(Screen.GUEST_FORM) },
                                 onOpenGuest = { id -> state.editingGuestId = id; state.go(Screen.GUEST_DETAIL) },
                                 onBulkAdd = { state.go(Screen.BULK_GUEST) },
-                            onOpenTemplates = { state.go(Screen.TEMPLATE) },
+                                onOpenTemplates = { state.go(Screen.TEMPLATE) },
+                                onBulkSend = { state.go(Screen.BULK_SEND) },
                             )
                         } ?: Unit
 
@@ -404,6 +425,14 @@ fun App(
                                 weddingId = w.id,
                                 onBack = { state.back() },
                                 onSaved = { state.back() },
+                            )
+                        } ?: Unit
+
+                        Screen.BULK_SEND -> wedding?.let { w ->
+                            BulkSendScreen(
+                                repository = repository,
+                                weddingId = w.id,
+                                onBack = { state.back() },
                             )
                         } ?: Unit
 

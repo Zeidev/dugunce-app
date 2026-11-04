@@ -52,6 +52,25 @@ export interface CreateAppOptions {
   helperRateLimit?: boolean
   categoryStore?: ReturnType<typeof import('./expenses/categories.js').drizzleCategoryDeps>
   cardStore?: ReturnType<typeof import('./expenses/cards.js').drizzleCardDeps>
+  /**
+   * Düğün deposu ve üyelik araması.
+   *
+   * Verilmezse gerçek DB bağlantısı kurulur. Testler PGlite enjekte
+   * ederek `PATCH /weddings/:id` gibi akışları gerçek HTTP üzerinden
+   * doğrulayabilir — bu, kullanıcının gördüğü "kaydet hatası"nın
+   * yakalandığı yerdir.
+   */
+  weddingStore?: ReturnType<typeof import('./weddings/store.js').drizzleWeddingDeps>
+  /** Auth middleware'inin kullanıcı araması (testler için PGlite). */
+  authDeps?: import('./middleware/require-auth.js').RequireAuthDeps
+  membershipDeps?: import('./middleware/require-member.js').MembershipLookup
+  /**
+   * 404/hata yakalayıcıdan ÖNCE çalışan ek route'lar.
+   *
+   * Yerel doğrulama sunucuları (polling gibi canlı davranışları sınamak
+   * için) kullanır. Üretimde verilmez.
+   */
+  extraRoutes?: (app: Express) => void
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -92,8 +111,12 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   // --- Auth middleware'leri ---
   const env = loadEnv()
-  const requireAuth = createRequireAuth(drizzleAuthDeps(env.JWT_SECRET))
-  const requireMember = createRequireWeddingMember(drizzleMembershipDeps())
+  const requireAuth = createRequireAuth(
+    options.authDeps ?? drizzleAuthDeps(env.JWT_SECRET),
+  )
+  const requireMember = createRequireWeddingMember(
+    options.membershipDeps ?? drizzleMembershipDeps(),
+  )
 
   // --- API route'ları ---
   /**
@@ -111,7 +134,14 @@ export function createApp(options: CreateAppOptions = {}): Express {
     corsForInvitations({ allowedMethods: ['GET', 'POST', 'OPTIONS'] }),
     createAuthRouter({ requireAuth }),
   )
-  app.use('/api/v1/weddings', createWeddingsRouter({ requireAuth, requireMember }))
+  app.use(
+    '/api/v1/weddings',
+    createWeddingsRouter({
+      requireAuth,
+      requireMember,
+      ...(options.weddingStore ? { store: options.weddingStore } : {}),
+    }),
+  )
 
   // Davet kodları iki yerde: düğün altında üretim, kökte kabul
   const invites = createInvitesRouter({ requireAuth, requireMember })
@@ -189,6 +219,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
       ...(options.helperRateLimit === false ? { rateLimit: false } : {}),
     }),
   )
+
+  // Yerel doğrulama kancaları — 404'ten ÖNCE
+  options.extraRoutes?.(app)
 
   // 404 ve hata yönetimi en sonda
   app.use(notFoundHandler)

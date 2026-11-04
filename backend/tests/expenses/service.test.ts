@@ -111,7 +111,10 @@ describe('validateExpenseInput', () => {
 })
 
 describe('createExpense', () => {
-  it('taksitsiz harcama tek installment üretir', async () => {
+  it('taksitsiz harcama HİÇ installment üretmez (takvimde görünmesin)', async () => {
+    // ÖNCE: count=1 için tek satırlık "taksit" üretiliyordu ve takvim
+    // bu tablodan beslendiği için peşin harcama da taksit gibi
+    // görünüyordu (bildirilen hata).
     const d = makeDeps()
     await createExpense(
       {
@@ -121,8 +124,7 @@ describe('createExpense', () => {
       },
       d,
     )
-    const rows = d.insertInstallments.mock.calls[0]![0] as unknown[]
-    expect(rows).toHaveLength(1)
+    expect(d.insertInstallments).not.toHaveBeenCalled()
   })
 
   it('4 taksit → 4 installment', async () => {
@@ -187,12 +189,16 @@ describe('createExpense', () => {
   })
 
   it('taksit ekleme hatası → harcama da geri alınır', async () => {
+    // Taksitli olmalı: taksitsizde `insertInstallments` hiç çağrılmıyor.
     const d = makeDeps({ insertInstallments: vi.fn().mockRejectedValue(new Error('DB')) })
     await expect(
       createExpense(
         {
           userId: 'u1', weddingId: 'w1',
-          input: { title: 'X', amount: '100', purchaseDate: '2026-01-15' },
+          input: {
+            title: 'X', amount: '1200', purchaseDate: '2026-01-15',
+            installmentCount: 3, firstInstallmentMonth: '2026-02',
+          },
         },
         d,
       ),

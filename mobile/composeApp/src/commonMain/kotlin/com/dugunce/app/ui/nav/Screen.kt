@@ -37,6 +37,8 @@ enum class Screen {
     GUEST_FORM,
     GUEST_DETAIL,
     BULK_GUEST,
+    /** Toplu davetiye gönderimi — her kişiye kendi linki. */
+    BULK_SEND,
 
     // Görev alt ekranları
     TASK_FORM,

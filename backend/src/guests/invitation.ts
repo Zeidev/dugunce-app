@@ -83,6 +83,8 @@ export interface InvitationDeps {
   insertInvitation(values: Record<string, unknown>, tx?: unknown): Promise<{ id: string }>
   findByTokenHash(tokenHash: string): Promise<InvitationRow | null>
   revokeByGuestId(guestId: string, tx?: unknown): Promise<number>
+  /** Davetiye gönderildi işareti (`inviteStatus = SENT`). */
+  markInviteSent(guestId: string, tx?: unknown): Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +118,7 @@ export async function createInvitation(
   params: CreateInvitationParams,
   deps: Pick<
     InvitationDeps,
-    'findGuestForInvitation' | 'insertInvitation' | 'revokeByGuestId' | 'transaction'
+    'findGuestForInvitation' | 'insertInvitation' | 'revokeByGuestId' | 'transaction' | 'markInviteSent'
   >,
 ): Promise<CreatedInvitation | null> {
   const allowedPartySize = params.allowedPartySize ?? MIN_PARTY_SIZE
@@ -164,6 +166,10 @@ export async function createInvitation(
       },
       tx,
     )
+    // "Gönderildi" işareti — AYNI transaction'da. Davetiye üretildiyse
+    // çift onu paylaşmaya hazırdır; ayrı işaretleme başarısız olursa
+    // durum tutarsız kalırdı.
+    await deps.markInviteSent(params.guestId, tx)
   })
 
   return { token, storedHash, expiresAt }

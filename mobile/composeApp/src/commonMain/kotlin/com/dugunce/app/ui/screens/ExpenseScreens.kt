@@ -272,7 +272,16 @@ fun ExpenseFormScreen(
                         "TRANSFER" to "Havale",
                     ),
                     selected = method,
-                    onSelect = { method = it },
+                    onSelect = {
+                        method = it
+                        // Kart dışına geçilince taksit ANLAMSIZ: işareti
+                        // temizle, yoksa gizli kalan taksit kaydedilir.
+                        if (it != "CARD") {
+                            isInstallment = false
+                            cardId = null
+                        }
+                        saveError = null
+                    },
                 )
             }
 
@@ -288,7 +297,12 @@ fun ExpenseFormScreen(
                 )
             }
 
-            // Taksit
+            // Taksit — YALNIZ kartla ödemede.
+            //
+            // Nakit/havalede taksit kavramı yok; blok tamamen gizlenir.
+            // Yöntem kart dışına çıkınca işaret de temizlenir ki arkada
+            // taksit kalmasın.
+            if (method == "CARD") {
             item {
                 Surface(
                     shape = RoundedCornerShape(Radius.md),
@@ -345,6 +359,7 @@ fun ExpenseFormScreen(
                         }
                     }
                 }
+            }
             }
 
             if (cards.isNotEmpty() && installmentCount > 1) {

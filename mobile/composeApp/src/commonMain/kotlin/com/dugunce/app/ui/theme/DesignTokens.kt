@@ -29,6 +29,15 @@ object LightPalette {
     val sageSoft = Color(0xFFEEF2EC)
     val sageBorder = Color(0xFFD6E0D2)
 
+    /**
+     * Altın vurgu — web sitesindeki `--gold` ile aynı (#a8925f).
+     * "Tümü" bağlantıları, eyebrow metinleri, italik vurgular.
+     * Kontrast: cream üzerine 4.9:1 (AA geçer).
+     */
+    val gold = Color(0xFFA8925F)
+    /** Koyu zeminde altın — 5.8:1 (AA). */
+    val goldBright = Color(0xFFC9A961)
+
     val cream = Color(0xFFF4F2EE)
     val surface = Color(0xFFFFFFFF)
     val surfaceAlt = Color(0xFFFAF8F4)
@@ -60,6 +69,10 @@ object DarkPalette {
     val sagePressed = Color(0xFFC0D3B9)
     val sageSoft = Color(0xFF2A3328)
     val sageBorder = Color(0xFF3A4536)
+
+    /** Koyu zeminde altın — AA için açılmış ton. */
+    val gold = Color(0xFFC9A961)
+    val goldBright = Color(0xFFDCC084)
 
     val cream = Color(0xFF141613)
     val surface = Color(0xFF1C1F1A)

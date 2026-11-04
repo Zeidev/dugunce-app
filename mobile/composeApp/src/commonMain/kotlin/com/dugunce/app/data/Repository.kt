@@ -32,18 +32,27 @@ class Repository(
     private val json = api.json
     private val cache = OfflineCache(tokens, json)
 
+    init {
+        // 401 → token yenile → istek bir kez tekrar denenir (tek nokta).
+        api.installAuthRetry { refresh().isSuccess }
+    }
+
     // --- Auth ---
 
     suspend fun requestMagicLink(email: String): Result<Unit> = safeCall {
-        val res = api.http.post("auth/magic-link") {
-            setBody(MagicLinkRequest(email))
+        val res = api.sendRetrying {
+            api.http.post("auth/magic-link") {
+                setBody(MagicLinkRequest(email))
+            }
         }
         ensureSuccess(res)
     }
 
     suspend fun verify(token: String): Result<AuthResponse> = safeCall {
-        val res = api.http.post("auth/verify") {
-            setBody(VerifyRequest(token = token))
+        val res = api.sendRetrying {
+            api.http.post("auth/verify") {
+                setBody(VerifyRequest(token = token))
+            }
         }
         ensureSuccess(res)
         res.body<AuthResponse>().also { storeTokens(it) }
@@ -57,16 +66,20 @@ class Repository(
      * `VerifyRequest` şemasında olmadığı için zaten yok sayılıyordu.
      */
     suspend fun verifyCodeOnly(code: String): Result<AuthResponse> = safeCall {
-        val res = api.http.post("auth/verify") {
-            setBody(VerifyRequest(code = code))
+        val res = api.sendRetrying {
+            api.http.post("auth/verify") {
+                setBody(VerifyRequest(code = code))
+            }
         }
         ensureSuccess(res)
         res.body<AuthResponse>().also { storeTokens(it) }
     }
 
     suspend fun verifyCode(email: String, code: String): Result<AuthResponse> = safeCall {
-        val res = api.http.post("auth/verify") {
-            setBody(VerifyRequest(email = email, code = code))
+        val res = api.sendRetrying {
+            api.http.post("auth/verify") {
+                setBody(VerifyRequest(email = email, code = code))
+            }
         }
         ensureSuccess(res)
         res.body<AuthResponse>().also { storeTokens(it) }
@@ -79,7 +92,12 @@ class Repository(
         val res = api.http.post("auth/refresh") {
             setBody(RefreshRequest(rt))
         }
-        ensureSuccess(res)
+        // DİKKAT: burada `ensureSuccess` KULLANILMAZ.
+        // `ensureSuccess` 401'de `refresh()` çağırıyor; `refresh()` de
+        // `ensureSuccess` çağırırsa 401 → refresh → 401 → refresh…
+        // SONSUZ ÖZYİNELEME olur ve uygulama StackOverflowError ile çöker.
+        // Yenileme isteğinin kendi kontrolü burada, tek seviyede yapılır.
+        if (!res.status.isSuccess()) throw res.toApiException()
         val body = res.body<RefreshResponse>()
         tokens.accessToken = body.accessToken
         tokens.refreshToken = body.refreshToken
@@ -100,7 +118,7 @@ class Repository(
     // --- Düğün ---
 
     suspend fun listWeddings(): Result<List<WeddingDto>> = safeCall {
-        val res = api.http.get("weddings")
+        val res = api.sendRetrying { api.http.get("weddings") }
         ensureSuccess(res)
         val list = res.body<WeddingListResponse>().weddings
         list.firstOrNull()?.let {
@@ -114,20 +132,22 @@ class Repository(
         cache.getList(OfflineCache.WEDDINGS, "all", WeddingDto.serializer())
 
     suspend fun getWedding(weddingId: String): Result<WeddingDto> = safeCall {
-        val res = api.http.get("weddings/$weddingId")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId") }
         ensureSuccess(res)
         res.body<WeddingResponse>().wedding
     }
 
     suspend fun createWedding(body: WeddingCreateRequest): Result<WeddingDto> = safeCall {
-        val res = api.http.post("weddings") { setBody(body) }
+        val res = api.sendRetrying { api.http.post("weddings") { setBody(body) } }
         ensureSuccess(res)
         res.body<WeddingResponse>().wedding
     }
 
     suspend fun updateWedding(weddingId: String, body: WeddingCreateRequest): Result<WeddingDto> =
         safeCall {
-            val res = api.http.patch("weddings/$weddingId") { setBody(body) }
+            val res = api.sendRetrying {
+                api.http.patch("weddings/$weddingId") { setBody(body) }
+            }
             ensureSuccess(res)
             res.body<WeddingResponse>().wedding
         }
@@ -141,7 +161,9 @@ class Repository(
      */
     suspend fun patchWedding(weddingId: String, body: WeddingPatchRequest): Result<WeddingDto> =
         safeCall {
-            val res = api.http.patch("weddings/$weddingId") { setBody(body) }
+            val res = api.sendRetrying {
+                api.http.patch("weddings/$weddingId") { setBody(body) }
+            }
             ensureSuccess(res)
             res.body<WeddingResponse>().wedding
         }
@@ -155,7 +177,7 @@ class Repository(
             } else {
                 "weddings/$weddingId/budget-summary"
             }
-            val res = api.http.get(path)
+            val res = api.sendRetrying { api.http.get(path) }
             ensureSuccess(res)
             val s = res.body<BudgetSummaryResponse>().summary
             cache.put(OfflineCache.SUMMARY, weddingId, BudgetSummaryDto.serializer(), s)
@@ -169,14 +191,16 @@ class Repository(
     // --- Kategori (brief §5.3) ---
 
     suspend fun listCategories(weddingId: String): Result<List<CategoryDto>> = safeCall {
-        val res = api.http.get("weddings/$weddingId/categories")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/categories") }
         ensureSuccess(res)
         res.body<CategoryListResponse>().categories
     }
 
     suspend fun createCategory(weddingId: String, name: String): Result<CategoryDto> = safeCall {
-        val res = api.http.post("weddings/$weddingId/categories") {
-            setBody(CategoryCreateRequest(name))
+        val res = api.sendRetrying {
+            api.http.post("weddings/$weddingId/categories") {
+                setBody(CategoryCreateRequest(name))
+            }
         }
         ensureSuccess(res)
         res.body<CategoryResponse>().category
@@ -185,24 +209,24 @@ class Repository(
     // --- Kart (spec §6b.5) ---
 
     suspend fun listCards(weddingId: String): Result<List<CardDto>> = safeCall {
-        val res = api.http.get("weddings/$weddingId/cards")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/cards") }
         ensureSuccess(res)
         res.body<CardListResponse>().cards
     }
 
     suspend fun createCard(weddingId: String, body: CardCreateRequest): Result<CardDto> = safeCall {
-        val res = api.http.post("weddings/$weddingId/cards") { setBody(body) }
+        val res = api.sendRetrying { api.http.post("weddings/$weddingId/cards") { setBody(body) } }
         ensureSuccess(res)
         res.body<CardResponse>().card
     }
 
     suspend fun deleteCard(weddingId: String, cardId: String): Result<Unit> = safeCall {
-        val res = api.http.delete("weddings/$weddingId/cards/$cardId")
+        val res = api.sendRetrying { api.http.delete("weddings/$weddingId/cards/$cardId") }
         ensureSuccess(res)
     }
 
     suspend fun listExpenses(weddingId: String): Result<List<ExpenseDto>> = safeCall {
-        val res = api.http.get("weddings/$weddingId/expenses")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/expenses") }
         ensureSuccess(res)
         val list = res.body<ExpenseListResponse>().expenses
         cache.putList(OfflineCache.EXPENSES, weddingId, ExpenseDto.serializer(), list)
@@ -214,20 +238,20 @@ class Repository(
         cache.getList(OfflineCache.EXPENSES, weddingId, ExpenseDto.serializer())
 
     suspend fun getExpense(weddingId: String, expenseId: String): Result<ExpenseDto> = safeCall {
-        val res = api.http.get("weddings/$weddingId/expenses/$expenseId")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/expenses/$expenseId") }
         ensureSuccess(res)
         res.body<ExpenseResponse>().expense
     }
 
     suspend fun createExpense(weddingId: String, body: ExpenseCreateRequest): Result<ExpenseDto> =
         safeCall {
-            val res = api.http.post("weddings/$weddingId/expenses") { setBody(body) }
+            val res = api.sendRetrying { api.http.post("weddings/$weddingId/expenses") { setBody(body) } }
             ensureSuccess(res)
             res.body<ExpenseResponse>().expense
         }
 
     suspend fun deleteExpense(weddingId: String, expenseId: String): Result<Unit> = safeCall {
-        val res = api.http.delete("weddings/$weddingId/expenses/$expenseId")
+        val res = api.sendRetrying { api.http.delete("weddings/$weddingId/expenses/$expenseId") }
         ensureSuccess(res)
     }
 
@@ -236,8 +260,10 @@ class Repository(
         installmentId: String,
         paid: Boolean,
     ): Result<Unit> = safeCall {
-        val res = api.http.patch("weddings/$weddingId/installments/$installmentId") {
-            setBody(mapOf("paid" to paid))
+        val res = api.sendRetrying {
+            api.http.patch("weddings/$weddingId/installments/$installmentId") {
+                setBody(mapOf("paid" to paid))
+            }
         }
         ensureSuccess(res)
     }
@@ -259,7 +285,7 @@ class Repository(
             "limit" to limit?.toString(),
             "cursor" to cursor,
         )
-        val res = api.http.get("weddings/$weddingId/guests$query")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/guests$query") }
         ensureSuccess(res)
         val list = res.body<GuestListResponse>().guests
         // Filtresiz liste önbelleğe yazılır — filtreli sonuç tam listeyi temsil etmez
@@ -274,14 +300,14 @@ class Repository(
         cache.getList(OfflineCache.GUESTS, weddingId, GuestDto.serializer())
 
     suspend fun guestUsage(weddingId: String): Result<GuestUsageDto> = safeCall {
-        val res = api.http.get("weddings/$weddingId/guests/limit")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/guests/limit") }
         ensureSuccess(res)
         res.body<GuestUsageResponse>().usage
     }
 
     suspend fun createGuest(weddingId: String, body: GuestCreateRequest): Result<GuestDto> =
         safeCall {
-            val res = api.http.post("weddings/$weddingId/guests") { setBody(body) }
+            val res = api.sendRetrying { api.http.post("weddings/$weddingId/guests") { setBody(body) } }
             ensureSuccess(res)
             res.body<GuestResponse>().guest
         }
@@ -290,8 +316,10 @@ class Repository(
         weddingId: String,
         guests: List<GuestCreateRequest>,
     ): Result<List<GuestDto>> = safeCall {
-        val res = api.http.post("weddings/$weddingId/guests/bulk") {
-            setBody(mapOf("guests" to guests))
+        val res = api.sendRetrying {
+            api.http.post("weddings/$weddingId/guests/bulk") {
+                setBody(mapOf("guests" to guests))
+            }
         }
         ensureSuccess(res)
         res.body<GuestListResponse>().guests
@@ -302,7 +330,7 @@ class Repository(
         guestId: String,
         body: GuestPatchRequest,
     ): Result<GuestDto> = safeCall {
-        val res = api.http.patch("weddings/$weddingId/guests/$guestId") { setBody(body) }
+        val res = api.sendRetrying { api.http.patch("weddings/$weddingId/guests/$guestId") { setBody(body) } }
         ensureSuccess(res)
         res.body<GuestResponse>().guest
     }
@@ -316,7 +344,7 @@ class Repository(
      * hatası döner.
      */
     suspend fun deleteGuest(weddingId: String, guestId: String): Result<Unit> = safeCall {
-        val res = api.http.delete("weddings/$weddingId/guests/$guestId")
+        val res = api.sendRetrying { api.http.delete("weddings/$weddingId/guests/$guestId") }
         ensureSuccess(res)
     }
 
@@ -326,8 +354,10 @@ class Repository(
         rsvp: String,
         partySize: Int? = null,
     ): Result<GuestDto> = safeCall {
-        val res = api.http.patch("weddings/$weddingId/guests/$guestId/rsvp") {
-            setBody(GuestRsvpRequest(rsvp = rsvp, partySize = partySize))
+        val res = api.sendRetrying {
+            api.http.patch("weddings/$weddingId/guests/$guestId/rsvp") {
+                setBody(GuestRsvpRequest(rsvp = rsvp, partySize = partySize))
+            }
         }
         ensureSuccess(res)
         res.body<GuestResponse>().guest
@@ -337,7 +367,7 @@ class Repository(
         weddingId: String,
         guestId: String,
     ): Result<InvitationResponse> = safeCall {
-        val res = api.http.post("weddings/$weddingId/guests/$guestId/invitation")
+        val res = api.sendRetrying { api.http.post("weddings/$weddingId/guests/$guestId/invitation") }
         ensureSuccess(res)
         res.body<InvitationResponse>()
     }
@@ -350,7 +380,7 @@ class Repository(
         assigneeHelperId: String? = null,
     ): Result<List<TaskDto>> = safeCall {
         val query = queryString("status" to status, "assigneeHelperId" to assigneeHelperId)
-        val res = api.http.get("weddings/$weddingId/tasks$query")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/tasks$query") }
         ensureSuccess(res)
         val list = res.body<TaskListResponse>().tasks
         if (status == null && assigneeHelperId == null) {
@@ -364,7 +394,7 @@ class Repository(
         cache.getList(OfflineCache.TASKS, weddingId, TaskDto.serializer())
 
     suspend fun createTask(weddingId: String, body: TaskCreateRequest): Result<TaskDto> = safeCall {
-        val res = api.http.post("weddings/$weddingId/tasks") { setBody(body) }
+        val res = api.sendRetrying { api.http.post("weddings/$weddingId/tasks") { setBody(body) } }
         ensureSuccess(res)
         res.body<TaskResponse>().task
     }
@@ -374,13 +404,13 @@ class Repository(
         taskId: String,
         body: TaskPatchRequest,
     ): Result<TaskDto> = safeCall {
-        val res = api.http.patch("weddings/$weddingId/tasks/$taskId") { setBody(body) }
+        val res = api.sendRetrying { api.http.patch("weddings/$weddingId/tasks/$taskId") { setBody(body) } }
         ensureSuccess(res)
         res.body<TaskResponse>().task
     }
 
     suspend fun deleteTask(weddingId: String, taskId: String): Result<Unit> = safeCall {
-        val res = api.http.delete("weddings/$weddingId/tasks/$taskId")
+        val res = api.sendRetrying { api.http.delete("weddings/$weddingId/tasks/$taskId") }
         ensureSuccess(res)
     }
 
@@ -395,8 +425,10 @@ class Repository(
         taskId: String,
         helperId: String?,
     ): Result<TaskDto> = safeCall {
-        val res = api.http.patch("weddings/$weddingId/tasks/$taskId/assign") {
-            setBody(TaskAssignRequest(helperId))
+        val res = api.sendRetrying {
+            api.http.patch("weddings/$weddingId/tasks/$taskId/assign") {
+                setBody(TaskAssignRequest(helperId))
+            }
         }
         ensureSuccess(res)
         res.body<TaskResponse>().task
@@ -405,7 +437,7 @@ class Repository(
     // --- Yardımcı ---
 
     suspend fun listHelpers(weddingId: String): Result<List<HelperDto>> = safeCall {
-        val res = api.http.get("weddings/$weddingId/helpers")
+        val res = api.sendRetrying { api.http.get("weddings/$weddingId/helpers") }
         ensureSuccess(res)
         res.body<HelperListResponse>().helpers
     }
@@ -414,20 +446,22 @@ class Repository(
         weddingId: String,
         displayName: String,
     ): Result<HelperCreatedResponse> = safeCall {
-        val res = api.http.post("weddings/$weddingId/helpers") {
-            setBody(HelperCreateRequest(displayName))
+        val res = api.sendRetrying {
+            api.http.post("weddings/$weddingId/helpers") {
+                setBody(HelperCreateRequest(displayName))
+            }
         }
         ensureSuccess(res)
         res.body<HelperCreatedResponse>()
     }
 
     suspend fun revokeHelper(weddingId: String, helperId: String): Result<Unit> = safeCall {
-        val res = api.http.post("weddings/$weddingId/helpers/$helperId/revoke")
+        val res = api.sendRetrying { api.http.post("weddings/$weddingId/helpers/$helperId/revoke") }
         ensureSuccess(res)
     }
 
     suspend fun deleteHelper(weddingId: String, helperId: String): Result<Unit> = safeCall {
-        val res = api.http.delete("weddings/$weddingId/helpers/$helperId")
+        val res = api.sendRetrying { api.http.delete("weddings/$weddingId/helpers/$helperId") }
         ensureSuccess(res)
     }
 
@@ -443,7 +477,7 @@ class Repository(
             append("weddings/$weddingId/tasks/$taskId/messages?limit=$limit")
             if (before != null) append("&before=$before")
         }
-        val res = api.http.get(path)
+        val res = api.sendRetrying { api.http.get(path) }
         ensureSuccess(res)
         res.body<MessageListResponse>().messages
     }
@@ -454,8 +488,10 @@ class Repository(
         body: String,
         idempotencyKey: String? = null,
     ): Result<MessageDto> = safeCall {
-        val res = api.http.post("weddings/$weddingId/tasks/$taskId/messages") {
-            setBody(MessageSendRequest(body = body, idempotencyKey = idempotencyKey))
+        val res = api.sendRetrying {
+            api.http.post("weddings/$weddingId/tasks/$taskId/messages") {
+                setBody(MessageSendRequest(body = body, idempotencyKey = idempotencyKey))
+            }
         }
         ensureSuccess(res)
         res.body<MessageResponse>().message
@@ -467,15 +503,17 @@ class Repository(
         weddingId: String,
         role: String = "CO_OWNER",
     ): Result<InviteResponse> = safeCall {
-        val res = api.http.post("weddings/$weddingId/invites") {
-            setBody(InviteCreateRequest(role = role))
+        val res = api.sendRetrying {
+            api.http.post("weddings/$weddingId/invites") {
+                setBody(InviteCreateRequest(role = role))
+            }
         }
         ensureSuccess(res)
         res.body<InviteResponse>()
     }
 
     suspend fun acceptInvite(code: String): Result<Unit> = safeCall {
-        val res = api.http.post("invites/accept") { setBody(InviteAcceptRequest(code)) }
+        val res = api.sendRetrying { api.http.post("invites/accept") { setBody(InviteAcceptRequest(code)) } }
         ensureSuccess(res)
     }
 
@@ -514,20 +552,20 @@ class Repository(
     }
 
     /**
-     * Başarısız yanıtı `ApiException`'a çevirir.
+     * Başarısız yanıtı hataya çevirir.
      *
-     * 401 görülürse bir kez token yenilenir ve istek tekrarlanır; bu da
-     * başarısızsa oturum kapatılır (brief §15.1).
+     * 401'i artık `ApiClient.sendRetrying` hallediyor: token'ı yeniler ve
+     * isteği bir kez tekrar gönderir. Buraya 401 geldiyse yenileme de
+     * başarısız olmuş demektir → oturum kapanır.
+     *
+     * ÖNCE: `throw` bloğun DIŞINDAYDI — yenileme başarılı olsa bile her
+     * 401 hata sayılıyordu. `listWeddings()` bu yüzden asla başarılı
+     * olamıyor, açılış `onFailure` dalına düşüyor, `state.wedding` null
+     * kalıyor ve panel hiç çizilmiyordu (beyaz ekran).
      */
     private suspend fun ensureSuccess(res: HttpResponse) {
         if (res.status.isSuccess()) return
-        if (res.status.value == 401) {
-            val refreshed = refresh().isSuccess
-            if (!refreshed) {
-                onSessionExpired()
-                throw res.toApiException()
-            }
-        }
+        if (res.status.value == 401) onSessionExpired()
         throw res.toApiException()
     }
 

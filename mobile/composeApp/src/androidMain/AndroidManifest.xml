@@ -3,6 +3,20 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+      Rehberden kişi seçimi (Android 11+ paket görünürlüğü).
+      ACTION_PICK ile sistem rehber seçicisi açılır; READ_CONTACTS izni
+      GEREKMEZ — seçici kendi yetkisiyle çalışır ve uygulamaya yalnız
+      seçilen kişilerin URI'si döner.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PICK" />
+            <data android:mimeType="vnd.android.cursor.dir/contact" />
+        </intent>
+    </queries>
+
+
     <application
         android:allowBackup="false"
         android:icon="@android:drawable/sym_def_app_icon"

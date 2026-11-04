@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +31,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.BudgetSummaryDto
 import com.dugunce.app.data.GuestDto
@@ -113,33 +116,47 @@ fun DashboardScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        // Başlık
+        // Başlık — web'deki `.hero` ile aynı dil:
+        // altın eyebrow (tarih), serif isim, mekân satırı.
         item {
             Column {
+                Text(
+                    buildString {
+                        append(Dates.formatDate(wedding.weddingDate))
+                        if (daysLeft != null && daysLeft >= 0) {
+                            append(" · ${Dates.relativeDays(wedding.weddingDate)}")
+                        }
+                    }.uppercase(),
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.6.sp),
+                    color = c.gold,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(Spacing.sm))
                 Text(
                     wedding.coupleNames,
                     style = MaterialTheme.typography.headlineLarge,
                     color = c.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(Spacing.xs))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        AppIcons.CalendarMonth,
-                        contentDescription = null,
-                        tint = c.muted,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(Spacing.xs))
-                    Text(
-                        buildString {
-                            append(Dates.formatDate(wedding.weddingDate))
-                            if (daysLeft != null && daysLeft >= 0) {
-                                append(" · ${Dates.relativeDays(wedding.weddingDate)}")
-                            }
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = c.muted,
-                    )
+                if (wedding.venueName != null) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            AppIcons.CalendarMonth,
+                            contentDescription = null,
+                            tint = c.muted,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.width(Spacing.xs))
+                        Text(
+                            wedding.venueName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = c.muted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
@@ -249,7 +266,7 @@ fun DashboardScreen(
 
                 // Yaklaşan görevler
                 if (upcomingTasks.isNotEmpty()) {
-                    items(upcomingTasks.take(3)) { task ->
+                    items(upcomingTasks.take(2)) { task ->
                         DugunceCard(onClick = { onNavigate(Screen.TASKS) }) {
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -341,54 +358,78 @@ private fun BudgetHeroCard(
     onClick: () -> Unit,
 ) {
     val c = DugunceTheme.colors
+    val isDark = c.isDark
+    // Koyu tema: kart zemini sayfadan AYRIŞMALI. Açık tema: adaçayı koyu blok.
+    // Ölçüldü — koyu temada kart/zemin kontrastı 1.39:1, kenarlık şart.
+    val cardBg = if (isDark) androidx.compose.ui.graphics.Color(0xFF2A3328) else c.sage
+    val cardBorder = if (isDark) {
+        androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFF3A4536))
+    } else {
+        null
+    }
+    val labelColor = if (isDark) c.goldBright else androidx.compose.ui.graphics.Color(0xFFC9A961)
+    val subLabelColor = if (isDark) {
+        androidx.compose.ui.graphics.Color(0xFFA8A29A)
+    } else {
+        androidx.compose.ui.graphics.Color(0xB8F2EFE8)
+    }
+    val valueColor = if (isDark) c.ink else androidx.compose.ui.graphics.Color.White
+
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Radius.lg),
-        color = c.sage,
+        color = cardBg,
+        border = cardBorder,
     ) {
         Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Text(
-                "Toplam harcama",
-                style = MaterialTheme.typography.labelMedium,
-                color = c.sageSoft,
+                "TOPLAM HARCANAN",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.2.sp),
+                color = labelColor,
+                fontWeight = FontWeight.SemiBold,
             )
-            MoneyText(
+            // Rakam serif + büyük — web'deki `.budget-num`.
+            Text(
                 Money.formatKurus(totalSpent),
-                big = true,
-                color = androidx.compose.ui.graphics.Color.White,
+                style = MaterialTheme.typography.displaySmall,
+                color = valueColor,
+                fontWeight = FontWeight.Bold,
             )
 
             com.dugunce.app.ui.components.Divider(
-                Modifier.background(androidx.compose.ui.graphics.Color(0x33FFFFFF)),
+                Modifier.background(
+                    if (isDark) androidx.compose.ui.graphics.Color(0xFF3A4536)
+                    else androidx.compose.ui.graphics.Color(0x33FFFFFF),
+                ),
             )
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(
-                        "Bu ay ödenecek",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = c.sageSoft,
+                        "BU AY",
+                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp),
+                        color = subLabelColor,
                     )
                     Spacer(Modifier.height(Spacing.xxs))
                     Text(
                         Money.formatKurus(dueThisMonth),
                         style = MaterialTheme.typography.titleMedium,
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = valueColor,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "Kalan taahhüt",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = c.sageSoft,
+                        "KALAN",
+                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp),
+                        color = subLabelColor,
                     )
                     Spacer(Modifier.height(Spacing.xxs))
                     Text(
                         Money.formatKurus(remaining),
                         style = MaterialTheme.typography.titleMedium,
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = valueColor,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
@@ -415,20 +456,29 @@ private fun StatCard(
         StatusTone.ACCENT -> c.sage
         StatusTone.NEUTRAL -> c.inkSoft
     }
+    // Web'deki `.stat`: renkli nokta + sol yaslı serif rakam.
+    // Renk TEK BAŞINA anlam taşımaz — metin etiket her zaman görünür
+    // (brief §3.1).
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(Radius.md),
         color = c.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, c.line),
     ) {
         Column(Modifier.padding(Spacing.md), horizontalAlignment = Alignment.Start) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .background(tint, CircleShape),
+            )
             Spacer(Modifier.height(Spacing.sm))
             Text(
                 value,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 color = c.ink,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
             )
+            Spacer(Modifier.height(2.dp))
             Text(label, style = MaterialTheme.typography.labelSmall, color = c.muted)
         }
     }

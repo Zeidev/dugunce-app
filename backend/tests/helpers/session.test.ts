@@ -151,6 +151,33 @@ describe('loadSession', () => {
     const [, next] = touch.mock.calls[0] as [string, Date]
     expect(next.getTime()).toBe(created.getTime() + SESSION_MAX_MS)
   })
+
+  // Çerez ömrü 30 dk. Kayan pencere veritabanında uzatılıyor ama
+  // tarayıcıdaki çerez tazelenmezse 30 dk sonra siliniyor → kullanıcı,
+  // oturum sunucuda geçerliyken "geçersiz bağlantı" görüyor.
+  it('uzattığında renewed bayrağını işaretler', async () => {
+    const now = Date.now()
+    const d = deps({
+      findByHash: vi
+        .fn()
+        .mockResolvedValue(
+          ctx({ expiresAt: new Date(now + SESSION_SLIDE_THRESHOLD_MS - 60_000) }),
+        ),
+      touch: vi.fn().mockResolvedValue(undefined),
+    })
+    const out = await loadSession('x', d, now)
+    expect(out?.renewed).toBe(true)
+  })
+
+  it('uzatmadığında renewed bayrağı YOK', async () => {
+    const now = Date.now()
+    const d = deps({
+      findByHash: vi.fn().mockResolvedValue(ctx({ expiresAt: new Date(now + SESSION_TTL_MS) })),
+      touch: vi.fn(),
+    })
+    const out = await loadSession('x', d, now)
+    expect(out?.renewed).toBeUndefined()
+  })
 })
 
 describe('verifyCsrf', () => {

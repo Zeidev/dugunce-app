@@ -88,7 +88,7 @@ export function createHelperAppRouter(deps?: {
   /** Oturumu çözer; yoksa 401. */
   async function requireSession(
     req: Request,
-    _res: Response,
+    res: Response,
     next: NextFunction,
   ): Promise<SessionContext | null> {
     const raw = readCookie(req.headers.cookie, SESSION_COOKIE)
@@ -96,6 +96,16 @@ export function createHelperAppRouter(deps?: {
     if (!ctx) {
       next(AppError.unauthorized('Oturum gerekli veya süresi dolmuş'))
       return null
+    }
+    // Oturum veritabanında uzatıldıysa çerezleri de tazele.
+    // Aksi halde tarayıcı çerezi 30 dk sonra siler ve kullanıcı —
+    // oturum sunucuda hâlâ geçerliyken — "geçersiz bağlantı" görür.
+    if (ctx.renewed && raw) {
+      const maxAgeSec = Math.floor((ctx.expiresAt.getTime() - Date.now()) / 1000)
+      const csrf = readCookie(req.headers.cookie, CSRF_COOKIE)
+      const cookies = [sessionCookie(raw, maxAgeSec, cookieBase)]
+      if (csrf) cookies.push(csrfCookie(csrf, maxAgeSec, cookieBase))
+      res.setHeader('Set-Cookie', cookies)
     }
     return ctx
   }

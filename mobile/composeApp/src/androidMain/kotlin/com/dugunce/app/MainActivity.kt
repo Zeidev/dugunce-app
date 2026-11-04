@@ -33,8 +33,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Pano/paylaşım için uygulama bağlamı (util/Platform.android.kt)
+        // Pano/paylaşım için bağlamlar (util/Platform.android.kt).
+        //
+        // `activity` AYRICA gerekli: `applicationContext` ile
+        // `startActivity` çağrılırsa Android Activity başlatmaz ve hata
+        // da vermez — paylaşım butonu sessizce çalışmıyordu.
         com.dugunce.app.util.AppContextHolder.context = applicationContext
+        com.dugunce.app.util.AppContextHolder.activity = this
 
         handleIntent(intent)
 
@@ -49,6 +54,14 @@ class MainActivity : ComponentActivity() {
             App(
                 repository = repository,
                 tokens = tokens,
+                // Web sitesiyle ayni tipografi: basliklar serif,
+                // govde sans. Ikisi de Turkce karakterleri kapsar.
+                displayFont = androidx.compose.ui.text.font.FontFamily(
+                    androidx.compose.ui.text.font.Font(com.dugunce.app.R.font.playfair_display),
+                ),
+                bodyFont = androidx.compose.ui.text.font.FontFamily(
+                    androidx.compose.ui.text.font.Font(com.dugunce.app.R.font.josefin_sans),
+                ),
                 initialAuthToken = deepLinkToken.value,
                 initialInviteCode = deepLinkInviteCode.value,
                 onDeepLinkConsumed = {

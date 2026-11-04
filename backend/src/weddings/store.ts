@@ -3,14 +3,20 @@ import { getDb } from '../db/client.js'
 import { weddings, weddingMembers } from '../db/schema.js'
 import type { WeddingDeps, WeddingRecord } from './service.js'
 
+/** Testlerin PGlite bağlantısı enjekte edebilmesi için. */
+type Db = ReturnType<typeof getDb>
+
 /**
  * Düğün deposunun Drizzle implementasyonu.
  *
  * KRİTİK: `findById` her zaman `userId` ile birlikte filtreler —
  * başka kullanıcının düğünü asla dönmez (SECURITY §1.1).
+ *
+ * `dbOverride` diğer depolar (`drizzleGuestDeps`, `drizzleTaskDeps`) ile
+ * aynı desen: testler PGlite bağlantısı enjekte edebilsin diye.
  */
-export function drizzleWeddingDeps(): WeddingDeps {
-  const db = getDb()
+export function drizzleWeddingDeps(dbOverride?: Db): WeddingDeps {
+  const db = dbOverride ?? getDb()
 
   return {
     async transaction(fn) {

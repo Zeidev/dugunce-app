@@ -16,3 +16,16 @@ expect fun copyToClipboard(text: String): Boolean
  * paylaşımı iptal ederse de `true` döner — niyet gösterildi sayılır.
  */
 expect fun shareText(text: String, subject: String): Boolean
+
+/**
+ * Bir URL'yi sistemde açar (tarayıcı veya ilgili uygulama).
+ *
+ * WhatsApp daveti için `https://wa.me/<telefon>?text=<mesaj>` açılır:
+ * WhatsApp kuruluysa doğrudan sohbet açılır, değilse tarayıcıya düşer.
+ *
+ * Android `Intent.ACTION_VIEW`, iOS `UIApplication.openURL`.
+ *
+ * @return açılabildiyse `true`. `false` ise çağıran kullanıcıya
+ *         alternatif sunmalı (panoya kopyala gibi) — sessizce yutma.
+ */
+expect fun openUrl(url: String): Boolean

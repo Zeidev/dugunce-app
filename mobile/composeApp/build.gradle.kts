@@ -74,6 +74,8 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.multiplatform.settings.test)
+            // Sahte HTTP motoru — Repository davranışını ağa çıkmadan sına.
+            implementation(libs.ktor.client.mock)
         }
     }
 }
