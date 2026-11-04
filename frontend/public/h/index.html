@@ -34,9 +34,9 @@
 
   :root{
     --cream:#f4f2ee;--surface:#fff;--surface-alt:#faf8f4;
-    --ink:#2d3a2e;--muted:#7a746a;--line:#e6e1d8;
+    --ink:#2d3a2e;--muted:#746e65;--line:#e6e1d8;
     --sage:#4a5f45;--sage-deep:#3b4c37;--sage-soft:#eef2ec;--sage-border:#d6e0d2;
-    --gold:#a8925f;--gold-soft:#f0ece0;
+    --gold:#a8925f;--gold-text:#7c6c46;--gold-soft:#f0ece0;
     --doing:#b8863b;--danger:#a35b4a;
     --radius:16px;--sheet-radius:22px;
   }
@@ -51,7 +51,7 @@
   /* --- Başlık --- */
   .head{padding:20px 20px 14px}
   .brand{font-size:10px;letter-spacing:.18em;text-transform:uppercase;
-    color:var(--gold);margin:0 0 8px;font-weight:600}
+    color:var(--gold-text);margin:0 0 8px;font-weight:600}
   .greet{font-family:'Playfair Display',Georgia,serif;font-size:24px;
     font-weight:600;margin:0 0 3px;letter-spacing:-.01em;line-height:1.25}
   .couple{font-size:13px;color:var(--muted);margin:0}
@@ -64,9 +64,9 @@
   .tab{flex:none;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
     padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);
     background:var(--surface);color:var(--muted);white-space:nowrap;
-    min-height:38px}
+    min-height:44px}
   .tab[aria-selected="true"]{background:var(--sage);border-color:var(--sage);color:#fff}
-  .tab .n{opacity:.65;font-weight:400;margin-left:4px}
+  .tab .n{font-weight:400;margin-left:4px}
   .tab:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
 
   /* --- Liste --- */
@@ -81,7 +81,7 @@
     display:block;width:100%;text-align:left;font:inherit;color:inherit}
   .task:active{border-color:var(--sage-border)}
   .task:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
-  .task.done{opacity:.62}
+  .task.done{opacity:.80}
   .t-title{font-size:15px;font-weight:600;margin:0 0 6px;letter-spacing:-.005em;
     word-break:break-word;overflow-wrap:anywhere}
   .task.done .t-title{text-decoration:line-through;text-decoration-thickness:1.5px}
@@ -96,7 +96,8 @@
   .badge.DOING{background:#fbf3e4;color:#8a5f1f}
   .badge.DONE{background:var(--sage-soft);color:#3b4c37}
   .due{font-size:12px;color:var(--muted)}
-  .msgcount{font-size:12px;color:var(--gold);font-weight:600;margin-left:auto}
+  .due.soon{color:#8a3f2f;font-weight:600}
+  .msgcount{font-size:12px;color:var(--gold-text);font-weight:600;margin-left:auto}
 
   /* --- Görev sayfası (alttan) --- */
   .scrim{position:fixed;inset:0;background:rgba(26,29,23,.32);
@@ -107,7 +108,12 @@
     transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);
     max-height:86vh;display:flex;flex-direction:column;z-index:21;
     box-shadow:0 -8px 32px rgba(45,58,46,.14)}
-  .sheet.on{transform:translateY(0)}
+  /* Kapalı panel EKRAN OKUYUCUYA VE TAB SIRASINA KAPALI olmalı.
+     Yalnız `transform` ile ekran dışına taşımak yetmez: Tab hâlâ
+     içindeki butonlara gider, ekran okuyucu iki aria-modal diyalog
+     ilan eder. `visibility:hidden` ikisini de çözer. */
+  .sheet{visibility:hidden}
+  .sheet.on{transform:translateY(0);visibility:visible}
   .handle{width:38px;height:4px;border-radius:2px;background:var(--line);
     margin:10px auto 4px;flex:none;cursor:grab;touch-action:none}
   .sheet-body{overflow-y:auto;padding:8px 20px 28px;
@@ -117,7 +123,7 @@
     word-break:break-word;overflow-wrap:anywhere}
   .s-title:focus{outline:none}
   .sec-label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--gold);font-weight:600;margin:0 0 10px}
+    color:var(--gold-text);font-weight:600;margin:0 0 10px}
   .status-row{display:flex;gap:8px;margin:0 0 22px}
   .status-row button{flex:1;font:inherit;font-size:13px;font-weight:600;
     cursor:pointer;padding:13px 8px;border-radius:12px;
@@ -142,7 +148,8 @@
   .chat-screen{position:fixed;inset:0;background:var(--cream);
     display:flex;flex-direction:column;transform:translateX(100%);
     transition:transform .26s cubic-bezier(.32,.72,0,1);z-index:30}
-  .chat-screen.on{transform:translateX(0)}
+  .chat-screen{visibility:hidden}
+  .chat-screen.on{transform:translateX(0);visibility:visible}
   .chat-head{flex:none;display:flex;align-items:center;gap:10px;
     padding:16px 16px 14px;border-bottom:1px solid var(--line);
     background:var(--cream);padding-top:calc(16px + env(safe-area-inset-top))}
@@ -230,7 +237,7 @@
 
   <div class="card" id="error" hidden>
     <div class="center">
-      <h2>Bağlantı geçersiz</h2>
+      <h2 id="errorTitle">Bağlantı kurulamadı</h2>
       <p id="errorText">Bu bağlantının süresi dolmuş veya erişimi kapatılmış olabilir.<br>Lütfen çift ile iletişime geçin.</p>
       <button type="button" class="retry" id="retryBtn">Tekrar dene</button>
     </div>
@@ -304,15 +311,24 @@ const state = {
   messages: {},   // taskId -> Message[]
   filter: 'ALL',
   lastFocused: null,
+  hasOlder: {},   // taskId -> daha eski mesaj var mı
 }
 
 const $ = (id) => document.getElementById(id)
 
+/**
+ * Token YALNIZ `#fragment`'ten okunur.
+ *
+ * YOL TABANLI OKUMA KALDIRILDI: `/h/<token>` biçimi token'ı HTTP istek
+ * satırına koyar — sunucu erişim loglarına, CDN loglarına ve Referer
+ * başlığına düşer. Fragment ise sunucuya hiç gitmez (spec §3).
+ *
+ * Not: `_redirects` içinde `/d/:token → /d/#:token` kuralı var ama
+ * `/h/` için eşdeğeri YOK; yol biçimi bugün 404 dönerdi — yani ölü
+ * koddu, ama kurulu bir tuzaktı.
+ */
 function getToken() {
-  const hash = location.hash.replace(/^#/, '')
-  if (hash) return hash
-  const m = location.pathname.match(/\/h\/([A-Za-z0-9_-]+)$/)
-  return m ? m[1] : ''
+  return location.hash.replace(/^#/, '')
 }
 
 function toast(msg, isError = false) {
@@ -336,7 +352,8 @@ function show(which) {
 function formatDate(d) {
   if (!d) return ''
   try {
-    return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long' }).format(new Date(d))
+    // Yıl da yazılır: düğün bir sonraki yıla sarkarsa "5 Ocak" belirsiz kalır.
+    return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(d))
   } catch { return '' }
 }
 
@@ -510,11 +527,22 @@ function openSheet(taskId) {
   $('sheet').classList.add('on')
   $('sheetTitle').focus()
 
+  // ESKİ DİNLEYİCİYİ KALDIR — yoksa her açılışta bir tane birikir.
+  // Akış: kart → sheet → sohbet → geri → sheet (yeni dinleyici, eskisi
+  // kalır) → kapat (yalnız yenisi kalkar) → orphan dinleyici sonsuza dek.
+  if (sheetEsc) { document.removeEventListener('keydown', sheetEsc); sheetEsc = null }
   sheetEsc = (e) => { if (e.key === 'Escape') closeSheet() }
   document.addEventListener('keydown', sheetEsc)
+
+  // Mesaj sayısı ve geçmişi hemen yükle (aksi halde "Mesajlar 0" görünür).
+  loadMessages(taskId)
 }
 
 function closeSheet() {
+  // Sohbet açıksa Escape ÖNCE onu kapatmalı. İki `keydown` dinleyicisi
+  // aynı anda kayıtlı; panel önce kapanırsa `closeChat` panele dönemez
+  // (openTaskId null olmuş olur) ve kullanıcı doğrudan listeye düşer.
+  if ($('chat').classList.contains('on')) return
   $('scrim').classList.remove('on')
   $('sheet').classList.remove('on')
   if (sheetEsc) { document.removeEventListener('keydown', sheetEsc); sheetEsc = null }
@@ -582,7 +610,30 @@ function closeChat() {
 
 function renderMessages(taskId) {
   const box = $('msgs')
+
+  // ÖLÇÜM TEMİZLEMEDEN ÖNCE: `textContent=''` scrollTop'u sıfırlar,
+  // sonra ölçmek "hep en altta" gibi yanlış sonuç verir.
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 8
+  const prevCount = Number(box.dataset['msgCount'] ?? '0')
+  const msgsAll = state.messages[taskId] ?? []
+  const shouldScroll = atBottom || msgsAll.length > prevCount
+
   box.textContent = ''
+
+  // Daha eski mesajlar varsa başa düğme koy (geçmiş sessizce kaybolmasın).
+  if (state.hasOlder[taskId]) {
+    const older = document.createElement('button')
+    older.type = 'button'
+    older.className = 'retry'
+    older.style.cssText = 'align-self:center;font-size:13px;padding:10px 18px;margin:0 0 6px'
+    older.textContent = 'Daha eski mesajlar'
+    older.addEventListener('click', () => {
+      const msgs = state.messages[taskId] ?? []
+      const oldest = msgs[msgs.length - 1]
+      if (oldest) loadMessages(taskId, oldest.id)
+    })
+    box.append(older)
+  }
 
   const msgs = state.messages[taskId] ?? []
   if (msgs.length === 0) {
@@ -592,6 +643,10 @@ function renderMessages(taskId) {
     box.append(p)
     return
   }
+
+  // Kullanıcı geçmişi okuyorsa aşağı fırlatma: yalnız zaten en alttaysa
+  // veya yeni mesaj geldiyse en alta in.
+  box.dataset['msgCount'] = String(msgs.length)
 
   // Eski → yeni
   for (const m of [...msgs].reverse()) {
@@ -605,15 +660,39 @@ function renderMessages(taskId) {
     div.append(who, txt)
     box.append(div)
   }
-  box.scrollTop = box.scrollHeight
+  if (shouldScroll) box.scrollTop = box.scrollHeight
 }
 
-async function loadMessages(taskId) {
+/**
+ * Mesajları yükler.
+ *
+ * `limit=100` = backend `MAX_PAGE_SIZE`. Varsayılan 30'du ve uzun
+ * yazışmada geçmiş SESSİZCE kayboluyordu.
+ *
+ * `before` verilirse daha eski mesajlar istenir (sayfalama).
+ */
+async function loadMessages(taskId, before) {
   try {
-    const res = await apiFetch(`/helper/tasks/${taskId}/messages`)
-    if (!res.ok) return
+    const q = new URLSearchParams({ limit: '100' })
+    if (before) q.set('before', before)
+    const res = await apiFetch(`/helper/tasks/${taskId}/messages?${q}`)
+    if (!res.ok) {
+      // Sessiz kalma: ağ hatasında "Henüz mesaj yok" yanıltıcı olur.
+      toast('Mesajlar yüklenemedi', true)
+      return
+    }
     const body = await res.json()
-    state.messages[taskId] = body.messages ?? []
+    const fresh = body.messages ?? []
+    if (before) {
+      // Eskiler listenin SONUNA eklenir (state en yeniden eskiye sıralı)
+      const existing = state.messages[taskId] ?? []
+      const seen = new Set(existing.map((m) => m.id))
+      state.messages[taskId] = [...existing, ...fresh.filter((m) => !seen.has(m.id))]
+      state.hasOlder[taskId] = fresh.length >= 100
+    } else {
+      state.messages[taskId] = fresh
+      state.hasOlder[taskId] = fresh.length >= 100
+    }
     // Sohbet açıksa yeniden çiz (polling sonrası)
     if (state.openTaskId === taskId && $('chat').classList.contains('on')) {
       renderMessages(taskId)
@@ -622,7 +701,14 @@ async function loadMessages(taskId) {
     if (state.openTaskId === taskId) {
       $('chatCount').textContent = String(state.messages[taskId]?.length ?? 0)
     }
-  } catch { /* sessiz */ }
+    // KARTTAKİ "N mesaj" rozetini de tazele — yoksa yalnız açık görev
+    // için görünür, diğerleri hiç güncellenmez.
+    const card = document.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`)
+    const task = state.tasks.find((t) => t.id === taskId)
+    if (card && task) fillCard(card, task)
+  } catch {
+    toast('Mesajlar yüklenemedi', true)
+  }
 }
 
 async function sendMessage(taskId, text) {
@@ -675,6 +761,13 @@ async function changeStatus(taskId, status) {
   // Kartı YERİNDE güncelle — tüm listeyi yeniden çizme (kaydırma korunur)
   const card = document.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`)
   if (card) fillCard(card, task)
+
+  // Filtre artık uyuşmuyorsa kartı listeden kaldır — aksi halde
+  // "Bitti" filtresinde "Yapılacak" rozetli kart polling'e kadar kalır.
+  if (card && state.filter !== 'ALL' && task.status !== state.filter) {
+    card.remove()
+    if (document.querySelectorAll('.task').length === 0) $('empty').hidden = false
+  }
   renderTabs()
 
   // Paneldeki buton durumlarını güncelle
