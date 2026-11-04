@@ -893,11 +893,26 @@ $('msgInput').addEventListener('keydown', (e) => {
 initSheetDrag()
 load()
 
-// TEST KANCASI — yalnız yerel geliştirmede (file:// veya localhost).
+// TEST KANCASI — yalnız yerel geliştirmede (localhost).
+//
 // Üretimde (dugunce.com.tr) hiçbir şey açığa çıkmaz.
+// `state` DOĞRUDAN verilmez: CSRF token'ı ve oturum bilgisi global
+// nesnede durmasın. Testler yalnız davranış fonksiyonlarını görür;
+// veri kurmak için `seed()` kullanılır.
 if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-  window.__helper = { state, renderTabs, renderList, openSheet, closeSheet,
-    openChat, closeChat, renderMessages, show, changeStatus, loadMessages }
+  window.__helper = {
+    seed(tasks, coupleNames) {
+      state.tasks = tasks ?? []
+      state.coupleNames = coupleNames ?? state.coupleNames
+      renderTabs(); renderList()
+    },
+    get tasks() { return state.tasks },
+    get filter() { return state.filter },
+    get openTaskId() { return state.openTaskId },
+    setMessages(taskId, msgs) { state.messages[taskId] = msgs },
+    renderTabs, renderList, openSheet, closeSheet,
+    openChat, closeChat, renderMessages, show, changeStatus, loadMessages,
+  }
 }
 
 </script>
