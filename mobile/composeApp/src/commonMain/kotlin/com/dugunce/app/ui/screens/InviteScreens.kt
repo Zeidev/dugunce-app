@@ -193,16 +193,20 @@ fun CoOwnerInviteScreen(
 private const val INVITE_CODE_LENGTH = 7
 
 /**
- * Kodu normalize eder: büyük harf, yalnız harf/rakam, 7 karakter.
+ * Kodu normalize eder: büyük harf, yalnız harf/rakam.
  *
  * Kullanıcı boşluk veya tire yazabilir ("abc-2345"); backend yalnız
  * büyük harf + rakam bekler.
+ *
+ * DİKKAT: `take(7)` KULLANILMAZ. Fazla karakter sessizce kırpılırsa
+ * 8 karakterlik YANLIŞ bir kod 7'ye kesilip geçerli sayılır ve
+ * kullanıcı anlamsız bir "kod bulunamadı" hatası alır. Uzunluk
+ * kontrolü `hasPendingInviteCode` / `shouldSubmitInviteNow` içinde.
  */
 fun normalizeInviteCode(raw: String?): String =
     (raw ?: "")
         .uppercase()
         .filter { it.isLetterOrDigit() }
-        .take(INVITE_CODE_LENGTH)
 
 /** Bekleyen (henüz uygulanmamış) davet kodu var mı? */
 fun hasPendingInviteCode(code: String?): Boolean =
