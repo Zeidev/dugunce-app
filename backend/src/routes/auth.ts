@@ -5,6 +5,7 @@ import { rotateRefreshToken, revokeRefreshToken, revokeAllUserTokens } from '../
 import { drizzleRefreshDeps } from '../auth/refresh-store.js'
 import { drizzleMagicLinkDeps } from '../auth/magic-link-store.js'
 import { createRateLimit, RATE_LIMITS } from '../middleware/rate-limit.js'
+import { loadEnv } from '../config/env.js'
 
 /**
  * Auth route'ları.
@@ -25,7 +26,7 @@ export function createAuthRouter(deps: {
   const refreshLimit = createRateLimit(RATE_LIMITS.refresh)
 
   const magicDeps = drizzleMagicLinkDeps()
-  const refreshDeps = drizzleRefreshDeps()
+  const refreshDeps = drizzleRefreshDeps(loadEnv().JWT_SECRET)
 
   /**
    * POST /auth/magic-link
@@ -117,7 +118,12 @@ export function createAuthRouter(deps: {
         }
 
         const result = await rotateRefreshToken(body.refreshToken, refreshDeps)
-        res.status(200).json({ refreshToken: result.refreshToken })
+        // `accessToken` DA dönmeli — yoksa istemci 15 dakika sonra yine
+        // 401 alır ve kullanıcı sürekli giriş ekranına düşer.
+        res.status(200).json({
+          refreshToken: result.refreshToken,
+          accessToken: result.accessToken,
+        })
       } catch (err) {
         next(AppError.unauthorized('Geçersiz veya süresi dolmuş yenileme tokenı'))
       }

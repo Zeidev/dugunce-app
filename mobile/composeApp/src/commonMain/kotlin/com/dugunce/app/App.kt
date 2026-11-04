@@ -142,14 +142,26 @@ fun App(
                     "Oturumunuz sona erdi. Lütfen yeniden giriş yapın.",
                     isError = true,
                 )
-                state.resetTo(Screen.WELCOME)
+                state.resetTo(Screen.LOGIN)
             }
         }
+
+        /**
+         * Tanıtım yalnız İLK AÇILIŞTA gösterilir.
+         *
+         * `onboardingDone` bayrağı vardı ama HİÇ OKUNMUYORDU — yalnız
+         * yazılıyordu. Bu yüzden oturum düştükçe tanıtım sayfası her
+         * seferinde tekrar çıkıyordu (bildirilen hata).
+         *
+         * Bittiyse doğrudan giriş ekranına gidilir.
+         */
+        fun startScreen(): Screen =
+            if (tokens.onboardingDone) Screen.LOGIN else Screen.WELCOME
 
         // Açılış: oturum varsa düğünü yükle, yoksa onboarding
         LaunchedEffect(Unit) {
             if (!tokens.isLoggedIn) {
-                state.resetTo(Screen.WELCOME)
+                state.resetTo(startScreen())
                 bootstrapping = false
                 return@LaunchedEffect
             }
@@ -178,7 +190,7 @@ fun App(
                     // zaman önbellekteki düğünü yükleyip ekranı çizeriz.
                     if (!tokens.isLoggedIn) {
                         state.wedding = null
-                        state.resetTo(Screen.WELCOME)
+                        state.resetTo(startScreen())
                         return@fold
                     }
                     val cached = repository.cachedWedding()
@@ -191,7 +203,7 @@ fun App(
                             "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
                             isError = true,
                         )
-                        state.resetTo(Screen.WELCOME)
+                        state.resetTo(startScreen())
                     }
                 },
             )
@@ -264,8 +276,16 @@ fun App(
                     when (screen) {
                         // --- Onboarding ---
                         Screen.WELCOME -> WelcomeScreen(
-                            onDone = { state.go(Screen.LOGIN) },
-                            onSkip = { state.go(Screen.LOGIN) },
+                            // Tanıtım BİR KEZ görülsün: devam da atla da
+                            // bayrağı set eder, bir daha çıkmaz.
+                            onDone = {
+                                tokens.onboardingDone = true
+                                state.go(Screen.LOGIN)
+                            },
+                            onSkip = {
+                                tokens.onboardingDone = true
+                                state.go(Screen.LOGIN)
+                            },
                         )
 
                         Screen.LOGIN -> LoginScreen(
@@ -395,7 +415,7 @@ fun App(
                                         ThemeMode.SYSTEM -> "SYSTEM"
                                     }
                                 },
-                                onLoggedOut = { state.resetTo(Screen.WELCOME) },
+                                onLoggedOut = { state.resetTo(startScreen()) },
                                 onInviteCoOwner = { state.go(Screen.CO_OWNER_INVITE) },
                                 onOpenCards = { state.go(Screen.CARD_LIST) },
                                 onOpenTemplates = { state.go(Screen.TEMPLATE) },

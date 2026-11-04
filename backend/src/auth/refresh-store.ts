@@ -9,10 +9,12 @@ import type { RefreshDeps } from './tokens.js'
  * `tokens.ts` içindeki saf mantık test edilebilir kalsın diye
  * bağımlılıklar enjekte edilir; bu dosya gerçek DB'ye bağlar.
  */
-export function drizzleRefreshDeps(): RefreshDeps {
+export function drizzleRefreshDeps(jwtSecret: string): RefreshDeps {
   const db = getDb()
 
   return {
+    // Yenileme sonrası yeni access token imzalamak için.
+    jwtSecret,
     async findByHash(hash) {
       const rows = await db
         .select()

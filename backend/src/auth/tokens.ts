@@ -146,11 +146,22 @@ export interface RefreshDeps {
   }) => Promise<unknown>
   revokeToken: (id: string) => Promise<boolean>
   revokeAllForUser: (userId: string) => Promise<number>
+  /** Access token imzalamak için — yenileme sonrası yeni token üretilir. */
+  jwtSecret: string
 }
 
 export interface RotateResult {
   refreshToken: string
   userId: string
+  /**
+   * Yeni access token.
+   *
+   * KRİTİK: bu alan olmadan istemci yenileme sonrası access token'ı
+   * kaybediyordu (`body.accessToken` null). Sonuç: her 15 dakikada bir
+   * oturum düşüyordu — kullanıcı "90 gün giriş yapıp kalsın dedik ama
+   * bir saatte doluyor" diyordu.
+   */
+  accessToken: string
 }
 
 /**
@@ -199,7 +210,11 @@ export async function rotateRefreshToken(
     expiresAt: next.expiresAt,
   })
 
-  return { refreshToken: next.raw, userId: record.userId }
+  // Yeni access token DA üretilir. Aksi halde istemci 15 dakika sonra
+  // yine 401 alır ve refresh döngüsü işe yaramaz.
+  const accessToken = signAccessToken({ userId: record.userId }, deps.jwtSecret)
+
+  return { refreshToken: next.raw, userId: record.userId, accessToken }
 }
 
 /**

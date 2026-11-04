@@ -4,6 +4,7 @@ import {
   rotateRefreshToken,
   revokeRefreshToken,
   revokeAllUserTokens,
+  verifyAccessToken,
 } from '../../src/auth/tokens.js'
 
 /**
@@ -31,6 +32,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
     insertToken: vi.fn().mockResolvedValue(undefined),
     revokeToken: vi.fn().mockResolvedValue(true),
     revokeAllForUser: vi.fn().mockResolvedValue(3),
+    jwtSecret: 'test-secret-that-is-at-least-32-chars-long!!',
     ...overrides,
   }
 }
@@ -153,5 +155,52 @@ describe('revokeAllUserTokens', () => {
     const count = await revokeAllUserTokens('u1', d)
     expect(d.revokeAllForUser).toHaveBeenCalledWith('u1')
     expect(count).toBe(3)
+  })
+})
+
+describe('refresh — access token döner (oturum ömrü)', () => {
+  /**
+   * BİLDİRİLEN HATA: "90 gün giriş yapıp kalsın demiştik ama bir saatte
+   * doluyor, sürekli giriş ekranına atıyor."
+   *
+   * KÖK NEDEN: `/auth/refresh` yalnız `refreshToken` dönüyordu;
+   * `accessToken` HİÇ dönmüyordu. Mobil `body.accessToken` okuyunca
+   * null alıyor, `tokens.accessToken = null` oluyor ve oturum düşüyordu.
+   * Access token ömrü 15 dakika olduğu için bu her 15 dakikada bir
+   * tekrarlanıyordu.
+   */
+  it('yenileme yanıtı accessToken İÇERİR', async () => {
+    const raw = 'gecerli-refresh-token'
+    const d = makeDeps({
+      findByHash: vi.fn().mockResolvedValue({
+        id: 'r1',
+        userId: 'u1',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        revokedAt: null,
+      }),
+    })
+
+    const result = await rotateRefreshToken(raw, d)
+
+    expect(result.accessToken).toBeTruthy()
+    // Geçerli bir JWT olmalı (üç parça)
+    expect(result.accessToken.split('.')).toHaveLength(3)
+  })
+
+  it('yenilenen access token doğrulanabilir ve doğru kullanıcıyı taşır', async () => {
+    const d = makeDeps({
+      findByHash: vi.fn().mockResolvedValue({
+        id: 'r1',
+        userId: 'kullanici-42',
+        expiresAt: new Date(Date.now() + 86_400_000),
+        revokedAt: null,
+      }),
+    })
+
+    const result = await rotateRefreshToken('tok', d)
+    const payload = verifyAccessToken(result.accessToken, d.jwtSecret)
+
+    expect(payload).not.toBeNull()
+    expect(payload?.userId).toBe('kullanici-42')
   })
 })
