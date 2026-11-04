@@ -509,6 +509,8 @@ function closeSheet() {
   $('sheet').classList.remove('on')
   if (sheetEsc) { document.removeEventListener('keydown', sheetEsc); sheetEsc = null }
   if (state.lastFocused) { state.lastFocused.focus(); state.lastFocused = null }
+  // Açık görev yok artık: polling gereksiz mesaj isteği atmasın.
+  state.openTaskId = null
 }
 
 /** Tutamağı aşağı çekerek kapatma. */
