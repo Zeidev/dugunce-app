@@ -474,6 +474,9 @@ fun App(
                                     onBack = { state.back() },
                                     onEdit = { state.go(Screen.GUEST_FORM) },
                                     onDeleted = { state.back() },
+                                    partySizeEnabled = w.partySizeEnabled,
+                                    defaultPartySize = w.defaultPartySize,
+                                    maxPartySize = w.maxPartySize,
                                 )
                             }
                         } ?: Unit
