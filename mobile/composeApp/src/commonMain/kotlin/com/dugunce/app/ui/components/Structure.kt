@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Radius
 import com.dugunce.app.ui.theme.Spacing
@@ -93,6 +94,8 @@ fun TopBar(
     onBack: (() -> Unit)? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    /** Aksiyon düğmesi etkin mi — "Kaydet" gibi değişiklik yokken soluk. */
+    actionEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val c = DugunceTheme.colors
@@ -123,7 +126,21 @@ fun TopBar(
         )
 
         if (actionLabel != null && onAction != null) {
-            TextAction(actionLabel, onAction)
+            if (actionEnabled) {
+                TextAction(actionLabel, onClick = onAction)
+            } else {
+                // Kaydet gibi "henüz yapılacak bir şey yok" aksiyonları
+                // soluk gösterilir. `enabled = false` deseni: tıklanabilir
+                // ama işlevsiz buton gösterme kuralı
+                // (`check-dead-buttons.mjs`).
+                Text(
+                    actionLabel.uppercase(),
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.2.sp),
+                    color = c.muted,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = Spacing.sm),
+                )
+            }
         } else {
             androidx.compose.foundation.layout.Spacer(Modifier.padding(horizontal = Spacing.lg))
         }

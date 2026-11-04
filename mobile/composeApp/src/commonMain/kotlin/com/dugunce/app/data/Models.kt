@@ -82,6 +82,12 @@ data class WeddingDto(
     val template: String = "ZARIF",
     /** Seçilen font; boş dize "şablonun önerileni" demektir. */
     val fontKey: String = "",
+    /** Davetliye "kaç kişi" sorusu sorulsun mu. */
+    val partySizeEnabled: Boolean = true,
+    /** Yeni davetiyenin başlangıç izni. */
+    val defaultPartySize: Int = 2,
+    /** Çiftin izin verdiği üst sınır. */
+    val maxPartySize: Int = 10,
 )
 
 @Serializable
@@ -131,6 +137,9 @@ data class WeddingPatchRequest(
     val rsvpDeadline: String? = null,
     val template: String? = null,
     val fontKey: String? = null,
+    val partySizeEnabled: Boolean? = null,
+    val defaultPartySize: Int? = null,
+    val maxPartySize: Int? = null,
 )
 
 // --- Bütçe ---
