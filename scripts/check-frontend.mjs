@@ -338,6 +338,30 @@ if (existsSync(headersPath)) {
 }
 
 // ---------------------------------------------------------------------------
+// 8. Davetiye — kişi sayısı özelliği iki yerde de kontrol edilmeli
+// ---------------------------------------------------------------------------
+
+/**
+ * `partySizeEnabled` yalnız `render()` içinde kontrol edilirse stepper
+ * gizlenir ama `sendRsvp` yine `partySize` gönderir → backend 422 →
+ * davetli "Geliyorum"a basamaz. İki kullanım da zorunlu.
+ */
+{
+  const invitePath = join(PUBLIC, 'd/index.html')
+  if (existsSync(invitePath)) {
+    const src = readFileSync(invitePath, 'utf8')
+    const count = (src.match(/partySizeEnabled/g) || []).length
+    if (count < 2) {
+      fail(
+        'frontend/public/d/index.html',
+        0,
+        `partySizeEnabled yalnız ${count} kez geçiyor — hem render() hem sendRsvp() içinde kontrol edilmeli`,
+      )
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Rapor
 // ---------------------------------------------------------------------------
 

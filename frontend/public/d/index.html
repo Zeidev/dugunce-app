@@ -638,9 +638,18 @@ function render(data) {
       showConfirmed()
     }
 
+    // Özellik kapalıyken davetiye kişi sayısı SORMAZ: stepper hiç
+    // görünmez ve "Geliyorum" tek kişi olarak bildirilir.
     const max = Math.max(1, data.allowedPartySize || 1)
-    $('sizeLabel').textContent = 'Kaç kişi geleceksiniz?'
-    updateStepper(max)
+    if (data.partySizeEnabled === false) {
+      $('sizeBox').hidden = true
+      state.size = 1
+    } else {
+      $('sizeBox').hidden = false
+      state.size = Math.min(state.size, max)
+      $('sizeLabel').textContent = 'Kaç kişi geleceksiniz?'
+      updateStepper(max)
+    }
   } else {
     const box = $('closedBox')
     box.textContent = 'Katılım bildirimi kapandı. Değişiklik için lütfen çift ile iletişime geçin.'
@@ -710,7 +719,10 @@ async function sendRsvp(rsvp) {
 
   const max = Math.max(1, state.data.allowedPartySize || 1)
   const payload = { rsvp }
-  if (rsvp === 'ATTENDING') {
+  // Özellik kapalıyken `partySize` GÖNDERİLMEZ — backend kişi sayısını
+  // yok sayar ve 1 yazar. Gönderilse bile 422 riski yok ama gereksiz
+  // alan taşımamak sözleşmeyi net tutar.
+  if (rsvp === 'ATTENDING' && state.data.partySizeEnabled !== false) {
     payload.partySize = Math.min(state.size, max)
   }
 
@@ -798,6 +810,7 @@ $('btnNo').addEventListener('click', () => {
 })
 
 $('btnMinus').addEventListener('click', () => {
+  if (state.data?.partySizeEnabled === false) return
   const max = Math.max(1, state.data?.allowedPartySize || 1)
   if (state.size > 1) {
     state.size -= 1
@@ -807,6 +820,7 @@ $('btnMinus').addEventListener('click', () => {
 })
 
 $('btnPlus').addEventListener('click', () => {
+  if (state.data?.partySizeEnabled === false) return
   const max = Math.max(1, state.data?.allowedPartySize || 1)
   if (state.size < max) {
     state.size += 1
