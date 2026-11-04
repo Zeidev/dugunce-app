@@ -64,7 +64,7 @@ beforeAll(async () => {
   userId = u.rows[0]!.id
 
   const w = await pg.query<{ id: string }>(
-    `INSERT INTO weddings (couple_names, wedding_date) VALUES ('T & P','2026-09-12T19:00:00Z') RETURNING id`,
+    `INSERT INTO weddings (couple_names, wedding_date, plan) VALUES ('T & P','2026-09-12T19:00:00Z','PREMIUM') RETURNING id`,
   )
   weddingId = w.rows[0]!.id
 

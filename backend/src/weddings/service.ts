@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { TEMPLATES, FONTS } from './templates.js'
 import { AppError } from '../lib/errors.js'
 import { MAX_GREETING_LENGTH } from '../guests/greeting.js'
+import { isTemplateFree } from './templates.js'
 import {
   DEFAULT_PARTY_SIZE,
   MAX_PARTY_SIZE,
@@ -261,6 +262,22 @@ export async function updateWedding(
   // Üyelik kontrolü — üye değilse güncelleme yok
   const existing = await deps.findById(params.weddingId, params.userId)
   if (!existing) return null
+
+  // PREMIUM KAPISI — şablon.
+  //
+  // Ücretsiz düğün yalnız `FREE_TEMPLATES` içindekileri seçebilir.
+  // Kapı SUNUCUDA: istemci "premium şablon seç" derse burada reddedilir,
+  // aksi hâlde premium özelliği herkese açık olurdu.
+  if (
+    typeof cleanPatch['template'] === 'string' &&
+    !isTemplateFree(cleanPatch['template']) &&
+    existing['plan'] !== 'PREMIUM'
+  ) {
+    throw AppError.forbidden(
+      'Bu şablon Premium üyelik gerektiriyor',
+      'PREMIUM_REQUIRED',
+    )
+  }
 
   // Çapraz kural: varsayılan azamiyi geçemez.
   //

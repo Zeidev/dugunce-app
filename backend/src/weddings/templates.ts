@@ -26,6 +26,31 @@ export const TEMPLATES = [
   'TIPOGRAFI',
 ] as const
 
+/**
+ * ÜCRETSİZ şablonlar — kullanıcı kararı (2026-11-04).
+ *
+ * "Şablonların başı olan 2 tanesi ücretsiz, diğerleri premium özel."
+ * İlk ikisi: ZARIF (varsayılan, klasik) ve BOTANIK (kır düğünü).
+ *
+ * `TEMPLATES`in BAŞINDAKİ ikisi olmalı — `template-tiers.test.ts`
+ * bunu doğrular.
+ */
+export const FREE_TEMPLATES = ['ZARIF', 'BOTANIK'] as const
+
+/** Premium (ücretli) şablonlar — `TEMPLATES` eksi `FREE_TEMPLATES`. */
+export const PREMIUM_TEMPLATES = TEMPLATES.filter(
+  (t) => !(FREE_TEMPLATES as readonly string[]).includes(t),
+)
+
+/**
+ * Şablon ücretsiz mi?
+ *
+ * Sunucu tarafı kapı: premium şablon seçimi burada reddedilir.
+ */
+export function isTemplateFree(value: unknown): boolean {
+  return typeof value === 'string' && (FREE_TEMPLATES as readonly string[]).includes(value)
+}
+
 /** Geçerli font anahtarları — hepsi Türkçe karakterleri kapsar. */
 export const FONTS = [
   'PARISIENNE',

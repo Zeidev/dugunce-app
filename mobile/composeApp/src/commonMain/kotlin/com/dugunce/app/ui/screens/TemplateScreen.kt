@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,6 +61,18 @@ val TEMPLATE_KEYS: List<String> = listOf(
     "ZARIF", "BOTANIK", "ROMANTIK", "MINIMAL", "GECE", "ZEYTIN",
     "EDITORYAL", "MONOGRAM", "LUKS", "FOTOGRAFLI", "TIPOGRAFI",
 )
+
+/**
+ * ÜCRETSİZ şablonlar — backend `FREE_TEMPLATES` ile BİREBİR aynı.
+ *
+ * Kullanıcı kararı: ilk 2 şablon ücretsiz, diğerleri premium.
+ * Ayrışırsa kullanıcı seçer, sunucu reddeder ve "premium gerekli"
+ * hatası alır — `TemplateTiersTest` bunu yakalar.
+ */
+val FREE_TEMPLATE_KEYS: List<String> = listOf("ZARIF", "BOTANIK")
+
+/** Şablon ücretsiz mi? */
+fun isTemplateFree(key: String): Boolean = FREE_TEMPLATE_KEYS.contains(key)
 
 /** Font anahtarları — hepsi Türkçe karakterleri kapsar. */
 val FONT_KEYS: List<String> = listOf(
@@ -150,6 +163,9 @@ fun TemplateScreen(
     onSaved: (WeddingDto) -> Unit = {},
 ) {
     val theme = DugunceTheme.colors
+    // Premium şablonlar galeride GÖRÜNÜR ama kilitli — kullanıcı neyi
+    // kaçırdığını görür. Seçmeye çalışınca bilgi çıkar; kapı sunucuda.
+    val isPremium = wedding.plan == "PREMIUM"
     val scope = rememberCoroutineScope()
 
     var selectedTemplate by remember(wedding.id) {
@@ -188,15 +204,22 @@ fun TemplateScreen(
                     TEMPLATE_KEYS.chunked(2).forEach { rowKeys ->
                         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                             rowKeys.forEach { key ->
+                                val locked = !isPremium && !isTemplateFree(key)
                                 TemplateCard(
                                     key = key,
                                     selected = key == selectedTemplate,
+                                    locked = locked,
                                     modifier = Modifier.weight(1f),
                                     onClick = {
-                                        selectedTemplate = key
-                                        selectedFont = recommendedFont(key)
-                                        message = null
-                                        error = null
+                                        if (locked) {
+                                            message = null
+                                            error = "Bu şablon Premium üyelik gerektiriyor."
+                                        } else {
+                                            selectedTemplate = key
+                                            selectedFont = recommendedFont(key)
+                                            message = null
+                                            error = null
+                                        }
                                     },
                                 )
                             }
@@ -305,6 +328,7 @@ fun TemplateScreen(
 private fun TemplateCard(
     key: String,
     selected: Boolean,
+    locked: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -329,6 +353,22 @@ private fun TemplateCard(
                 .background(preview.bg, RoundedCornerShape(Radius.sm)),
             contentAlignment = Alignment.Center,
         ) {
+            if (locked) {
+                // Kilit rozeti — renk tek başına anlatmaz, metin eşlik eder.
+                Surface(
+                    shape = RoundedCornerShape(Radius.sm),
+                    color = theme.ink.copy(alpha = 0.72f),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+                ) {
+                    Text(
+                        "PREMIUM",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = theme.surface,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     Modifier

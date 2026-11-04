@@ -49,7 +49,7 @@ beforeAll(async () => {
     `INSERT INTO users (email, display_name) VALUES ('combo@test.local','C') RETURNING id`,
   )
   const w = await pg.query<{ id: string }>(
-    `INSERT INTO weddings (couple_names, wedding_date) VALUES ('C & C','2026-09-12T19:00:00Z') RETURNING id`,
+    `INSERT INTO weddings (couple_names, wedding_date, plan) VALUES ('C & C','2026-09-12T19:00:00Z','PREMIUM') RETURNING id`,
   )
   weddingId = w.rows[0]!.id
   await pg.query(

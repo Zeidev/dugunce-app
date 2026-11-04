@@ -25,10 +25,14 @@ describe('PATCH null toleransı', () => {
   it('gerçek mobil gövdesiyle kaydeder', async () => {
     let captured: Record<string, unknown> | null = null
     const deps = {
-      findById: async () => ({ id: 'w1' }),
+      // Plan PREMIUM: bu test null toleransını doğruluyor, plan
+      // kapısını değil — GECE premium bir şablon.
+      findById: async () => ({ id: 'w1', plan: 'PREMIUM' }),
       updateWedding: async (_id: string, vals: Record<string, unknown>) => {
         captured = vals
-        return { id: 'w1', coupleNames: 'A', weddingDate: new Date(), plan: 'FREE', status: 'ACTIVE', timezone: 'Europe/Istanbul', ...vals }
+        // Bu testler null toleransını doğruluyor, plan kapısını değil —
+        // premium şablon (GECE) kullandıkları için PREMIUM düğün gerekli.
+        return { id: 'w1', coupleNames: 'A', weddingDate: new Date(), plan: 'PREMIUM', status: 'ACTIVE', timezone: 'Europe/Istanbul', ...vals }
       },
     } as never
     await updateWedding({
