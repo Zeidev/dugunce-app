@@ -355,6 +355,9 @@ function isSoon(d) {
 
 function renderTabs() {
   const nav = $('tabs')
+  // Odak korunur: sekmeler her durum degisiminde yeniden olusturuluyor;
+  // klavye kullanicisi odagini kaybetmesin.
+  const focusedKey = document.activeElement?.dataset?.['filterKey'] ?? null
   nav.textContent = ''
 
   for (const f of FILTERS) {
@@ -375,12 +378,19 @@ function renderTabs() {
     n.textContent = String(count)
     btn.append(n)
 
+    btn.dataset['filterKey'] = f.key
     btn.addEventListener('click', () => {
       state.filter = f.key
       renderTabs()
       renderList()
     })
     nav.append(btn)
+  }
+
+  // Odagi geri ver
+  if (focusedKey) {
+    const again = nav.querySelector(`[data-filter-key="${CSS.escape(focusedKey)}"]`)
+    if (again) again.focus()
   }
 }
 
