@@ -53,6 +53,8 @@
     --t-font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     --t-salutation-style:italic;
     --t-header-band:transparent;
+    /* Konum ikonu (mask) — harici istek yok, currentColor'u izler. */
+    --pin:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z'/%3E%3Ccircle cx='12' cy='10' r='2.6'/%3E%3C/svg%3E");
   }
   body[data-template="ZARIF"]{
     --t-bg:#efece5; --t-card:#fdfcfa; --t-ink:#2d3a2e; --t-muted:#6a6459;
@@ -241,6 +243,75 @@
   dd .sub{display:block;color:var(--t-muted);font-size:13.5px;margin-top:2px}
   a{color:var(--t-accent);text-decoration:none;border-bottom:1px solid currentColor;opacity:.85}
   a:active{opacity:.6}
+
+  /* -------------------------------------------------------------------
+     "Haritada göster" — şablona özel düğme
+
+     Ortak iskelet: dolgulu, çerçeveli, dokunma hedefi ≥44px. Renk,
+     köşe yarıçapı ve çizgi kalınlığı şablonun KENDİ tokenlarından
+     gelir (--t-accent, --t-radius, --t-rule) — böylece 11 şablonun
+     hepsinde kendi diliyle görünür, ayrı ayrı kural yazmak gerekmez.
+     ------------------------------------------------------------------- */
+  dd .sub .map-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    margin-top:8px;padding:10px 16px;
+    min-height:44px;box-sizing:border-box;
+    border:1px solid var(--t-accent);border-radius:calc(var(--t-radius) + 2px);
+    /* METİN rengi `--t-ink`: `--t-accent` bir VURGU rengi, gövde metni
+       olarak 8 şablonda WCAG AA'yı geçmiyor (ZARIF 2.95, MINIMAL 2.53,
+       ZEYTIN 2.85 …). Çerçeve ve ikon vurgu renginde kalır; okunması
+       gereken metin `--t-ink` (8.70–11.96 arası). */
+    color:var(--t-ink);background:transparent;
+    font-family:inherit;font-size:13px;font-weight:600;
+    letter-spacing:.02em;opacity:1;
+  }
+  /* Konum ikonu — CSS maskesi, ek istek yok, currentColor'u izler. */
+  dd .sub .map-btn::before{
+    content:'';width:14px;height:14px;flex:none;
+    background-color:var(--t-accent);
+    -webkit-mask:var(--pin) center/contain no-repeat;
+    mask:var(--pin) center/contain no-repeat;
+  }
+  dd .sub .map-btn:active{opacity:.6}
+  dd .sub .map-btn:focus-visible{outline:2px solid var(--t-accent);outline-offset:2px}
+
+  /* Şablona özel dokunuşlar — ortak iskeletin üstüne. */
+
+  /* GECE ve LUKS koyu zemin: çerçeve yerine dolgu daha okunur. */
+  body[data-template="GECE"] dd .sub .map-btn,
+  body[data-template="LUKS"] dd .sub .map-btn{
+    background:var(--t-accent);color:var(--t-card);border-color:var(--t-accent);
+  }
+  /* Dolgulu hâlde ikon da koyu olmalı — vurgu rengi dolgunun üstünde
+     görünmez. */
+  body[data-template="GECE"] dd .sub .map-btn::before,
+  body[data-template="LUKS"] dd .sub .map-btn::before{
+    background-color:var(--t-card);
+  }
+
+  /* MINIMAL / EDITORYAL / FOTOGRAFLI / TIPOGRAFI: sola yaslı, sade. */
+  body[data-template="MINIMAL"] dd .sub .map-btn,
+  body[data-template="EDITORYAL"] dd .sub .map-btn,
+  body[data-template="FOTOGRAFLI"] dd .sub .map-btn,
+  body[data-template="TIPOGRAFI"] dd .sub .map-btn{
+    border-radius:0;border-width:0 0 1px 0;padding:8px 0;
+    min-height:40px;font-weight:500;
+  }
+
+  /* BOTANIK / ZEYTIN / MONOGRAM: yumuşak köşe, ince çerçeve. */
+  body[data-template="BOTANIK"] dd .sub .map-btn,
+  body[data-template="ZEYTIN"] dd .sub .map-btn,
+  body[data-template="MONOGRAM"] dd .sub .map-btn{
+    border-radius:999px;padding:10px 20px;
+  }
+
+  /* ROMANTIK: daha kalın çerçeve, sıcak. */
+  body[data-template="ROMANTIK"] dd .sub .map-btn{border-width:1.5px}
+
+  /* ZARIF: ince altın çizgi, geniş harf aralığı. */
+  body[data-template="ZARIF"] dd .sub .map-btn{
+    letter-spacing:.08em;text-transform:uppercase;font-size:11.5px;
+  }
 
   .prog{
     margin:24px 0 0;padding:20px 0 0;list-style:none;
@@ -470,6 +541,8 @@
  * KRİTİK: Sayfa yüklenirken ASLA POST atmaz. WhatsApp link önizlemesi
  * GET atar; eğer GET yazsaydı davetli hiç tıklamadan "geliyorum" olurdu.
  */
+import { resolveMapUrl } from './map-link.mjs'
+
 const API = 'https://api.dugunce.com.tr/api/v1'
 const $ = (id) => document.getElementById(id)
 
@@ -578,16 +651,25 @@ function render(data) {
       sub.textContent = data.venueAddress
       dd.append(sub)
     }
-    if (data.mapUrl) {
+    // Haritada göster — her şablonda var.
+    //
+    // Eskiden YALNIZ elle girilen `mapUrl` doluysa çıkıyordu; mobilde o
+    // alan hiç yoktu, yani pratikte hiç görünmüyordu. Artık adresten
+    // otomatik Google Maps araması üretiliyor (`resolveMapUrl`).
+    const mapHref = resolveMapUrl(data)
+    if (mapHref) {
+      const wrap = document.createElement('span')
+      wrap.className = 'sub'
       const a = document.createElement('a')
-      a.href = data.mapUrl
+      a.className = 'map-btn'
+      a.href = mapHref
       a.target = '_blank'
       a.rel = 'noopener noreferrer'
-      a.textContent = 'Haritada aç'
-      const sub = document.createElement('span')
-      sub.className = 'sub'
-      sub.append(a)
-      dd.append(sub)
+      // Şablon başına ikon/çerçeve CSS'te; metin her yerde aynı ki bu
+      // davetli için tek anlamlı eylem.
+      a.textContent = 'Haritada göster'
+      wrap.append(a)
+      dd.append(wrap)
     }
   }
 

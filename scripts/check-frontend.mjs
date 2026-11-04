@@ -19,7 +19,9 @@
  * Çıkış kodu 1 = en az bir ihlal (CI kırmızı).
  */
 
-import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync, existsSync, writeFileSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -67,7 +69,20 @@ for (const file of htmlFiles) {
     if (!body.trim()) continue
     try {
       // `new Function` yalnız sözdizimini kontrol eder, ÇALIŞTIRMAZ.
-      new Function(body)
+      // AMA modül sözdizimini (`import`/`export`) desteklemez —
+      // `<script type="module">` blokları `node --check` ile modül
+      // olarak ayrıştırılır (çalıştırılmaz).
+      if (/^\s*(import|export)\b/m.test(body)) {
+        const tmp = join(tmpdir(), `chk-${process.pid}-${scriptIndex}.mjs`)
+        writeFileSync(tmp, body, 'utf8')
+        try {
+          execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe' })
+        } finally {
+          rmSync(tmp, { force: true })
+        }
+      } else {
+        new Function(body)
+      }
     } catch (e) {
       const startLine = lineOf(src, m.index)
       fail(rel, startLine, `script #${scriptIndex} sözdizimi hatası: ${e.message}`)

@@ -20,11 +20,13 @@ on:
     paths:
       - 'frontend/**'
       - 'scripts/check-frontend.mjs'
+      - 'scripts/tests/**'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
     paths:
       - 'frontend/**'
       - 'scripts/check-frontend.mjs'
+      - 'scripts/tests/**'
       - '.github/workflows/frontend-ci.yml'
   workflow_dispatch:
 
@@ -50,6 +52,12 @@ jobs:
       # `npm ci` gerekmez — frontend'de package.json yok.
       - name: Sağlık kontrolleri
         run: node scripts/check-frontend.mjs
+
+      # Harita bağlantısı üretimi — saf fonksiyon, birim testi var.
+      # Adresten otomatik link üretimi bozulursa davetiye sayfasındaki
+      # "Haritada göster" sessizce kaybolur.
+      - name: Birim testleri
+        run: node --test scripts/tests/
 
       # Fontların gerçekten indirilebilir olduğunu doğrula.
       # Eksik bir .woff2 sessizce fallback fonta düşer ve tasarım bozulur
