@@ -66,6 +66,8 @@ fun SettingsScreen(
     onInviteCoOwner: () -> Unit = {},
     onOpenCards: () -> Unit = {},
     onOpenTemplates: () -> Unit = {},
+    /** Eşinden kod aldı — katılma ekranını aç. */
+    onJoinWithCode: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var editing by remember { mutableStateOf(false) }
@@ -240,6 +242,28 @@ fun SettingsScreen(
                     DugunceButton(
                         "Davet kodu oluştur",
                         onClick = onInviteCoOwner,
+                        variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
+                    )
+
+                    // TERS YÖN: kullanıcı kendisi davet edilen taraf olabilir.
+                    // Önceki hatada kod girişi yalnız giriş ekranındaydı;
+                    // hesabı olan kullanıcı eşinden kod aldığında girecek
+                    // yer bulamıyordu.
+                    Text(
+                        "Eşinden kod aldıysan buradan katıl",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = c.ink,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = Spacing.md),
+                    )
+                    Text(
+                        "7 karakterlik kodu gir, aynı düğünün ikinci sahibi ol.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = c.muted,
+                    )
+                    DugunceButton(
+                        "Davet kodum var",
+                        onClick = onJoinWithCode,
                         variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
                     )
                 }

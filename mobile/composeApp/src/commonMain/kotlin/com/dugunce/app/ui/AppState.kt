@@ -62,6 +62,15 @@ class AppState {
      */
     var pendingInviteCode by mutableStateOf<String?>(null)
 
+    /**
+     * Başlangıç ekranı KATIL modunda açılsın mı?
+     *
+     * Ayarlar'daki "Davet kodum var" düğmesi bunu true yapar; kullanıcı
+     * kodu girmek için önce "Düğün oluştur" sekmesine dokunmak zorunda
+     * kalmaz.
+     */
+    var startInJoinMode by mutableStateOf(false)
+
     /** Global hata bandı (ağ hatası, oturum süresi). */
     var banner by mutableStateOf<BannerMessage?>(null)
 

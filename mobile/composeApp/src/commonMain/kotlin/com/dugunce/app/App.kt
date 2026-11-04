@@ -142,7 +142,9 @@ fun App(
                         // aynı mantığı burada açıkça yazıyoruz.
                         state.resetTo(if (tokens.onboardingDone) Screen.LOGIN else Screen.WELCOME)
                     } else {
-                        state.resetTo(Screen.ACCEPT_INVITE)
+                        // Girişli: kod ekranını doğrudan KATIL modunda aç.
+                        state.pendingInviteCode = initialInviteCode
+                        state.resetTo(Screen.CREATE_WEDDING)
                     }
                     onDeepLinkConsumed()
                 }
@@ -313,7 +315,16 @@ fun App(
                             // Bekleyen davet kodu varsa kullanıcıya göster —
                             // girişten sonra otomatik uygulanacak.
                             pendingInviteCode = state.pendingInviteCode,
-                            onHasInviteCode = { state.go(Screen.ACCEPT_INVITE) },
+                            // Giriş YAPMADAN davet kodu gönderilmez (401 →
+                            // oturum düşer). Kullanıcıyı girişe yönlendir;
+                            // girişten sonra "Davet kodum var" modu açılır.
+                            onHasInviteCode = {
+                                state.showBanner(
+                                    "Önce e-posta ile giriş yap. Girişten sonra " +
+                                        "\"Davet kodum var\" bölümünden kodunu girebilirsin.",
+                                    isError = false,
+                                )
+                            },
                             onLinkSent = { state.go(Screen.LINK_SENT) },
                             onLoggedIn = {
                                 // Kod modu bir sonraki açılışta takılı kalmasın
@@ -417,6 +428,22 @@ fun App(
                                     state.resetTo(startScreen())
                                 }
                             },
+                            pendingInviteCode = state.pendingInviteCode,
+                            startInJoinMode = state.startInJoinMode,
+                            onJoined = {
+                                state.pendingInviteCode = null
+                                state.startInJoinMode = false
+                                scope.launch {
+                                    val weddings = repository.listWeddings().getOrNull()
+                                    val joined = weddings?.firstOrNull()
+                                    if (joined != null) {
+                                        state.wedding = joined
+                                        tokens.selectedWeddingId = joined.id
+                                    }
+                                    state.showBanner("Düğüne katıldın!", isError = false)
+                                    state.resetTo(Screen.DASHBOARD)
+                                }
+                            },
                         )
 
                         Screen.FIRST_EXPENSE -> wedding?.let { w ->
@@ -506,6 +533,10 @@ fun App(
                                 onInviteCoOwner = { state.go(Screen.CO_OWNER_INVITE) },
                                 onOpenCards = { state.go(Screen.CARD_LIST) },
                                 onOpenTemplates = { state.go(Screen.TEMPLATE) },
+                                onJoinWithCode = {
+                                    state.startInJoinMode = true
+                                    state.go(Screen.CREATE_WEDDING)
+                                },
                             )
                         } ?: Unit
 

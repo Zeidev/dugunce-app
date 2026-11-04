@@ -36,6 +36,7 @@ import com.dugunce.app.ui.components.ButtonVariant
 import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.DugunceTextField
 import com.dugunce.app.ui.PlatformBackHandler
+import com.dugunce.app.ui.components.SegmentedPicker
 import com.dugunce.app.ui.components.StepHeader
 import com.dugunce.app.ui.components.TextAction
 import com.dugunce.app.ui.theme.DugunceTheme
@@ -49,6 +50,44 @@ import kotlinx.coroutines.launch
  * İsimler ve tarih zorunlu; mekân alanları atlanabilir.
  * Hedef: 2 dakikada tamamlanır.
  */
+// ===========================================================================
+// Giriş sonrası başlangıç: DÜĞÜN OLUŞTUR veya DAVET KODUYLA KATIL
+//
+// KULLANICI İSTEĞİ: "kullanıcı giriş yapsın ekranda düğün oluştur ve davet
+// kodu gir bölümü olsun; kullanıcı yeniyse düğün oluşturur, eğer daveti
+// varsa davet kodunu girer ve ortak olarak diğer kişiyle aynı ekrana
+// aktarılır."
+//
+// ÖNCEKİ HATA: davet kodu girişi YALNIZCA giriş ekranındaydı. Giriş yapmış
+// (hesabı olan) bir kullanıcı eşinden kod aldığında girecek yer bulamıyordu.
+// ===========================================================================
+
+/** Giriş sonrası iki yol. */
+enum class StartMode {
+    /** Yeni düğün oluştur — ilk kuran kullanıcı. */
+    CREATE,
+
+    /** Eşin düğününe katıl — davet kodu olan kullanıcı. */
+    JOIN,
+}
+
+/**
+ * Ekran hangi modda açılsın?
+ *
+ * Bekleyen davet kodu varsa (kullanıcı kodu girip girişe düşmüşse)
+ * doğrudan KATIL modunda açılır — kodu tekrar aramasın.
+ */
+fun defaultStartMode(pendingInviteCode: String? = null): StartMode =
+    if (hasPendingInviteCode(pendingInviteCode)) StartMode.JOIN else StartMode.CREATE
+
+/** Düğün oluşturma formu gönderilebilir mi? */
+fun canCreateWedding(mode: StartMode, coupleNames: String, dateIso: String?): Boolean =
+    mode == StartMode.CREATE && coupleNames.trim().length >= 2 && dateIso != null
+
+/** Davet kodu gönderilebilir mi? */
+fun canJoinWedding(mode: StartMode, code: String?): Boolean =
+    mode == StartMode.JOIN && hasPendingInviteCode(code)
+
 /**
  * Düğün oluşturma ekranında çıkış yolu var mı?
  *
@@ -74,8 +113,24 @@ fun CreateWeddingScreen(
     onCreated: (WeddingDto) -> Unit,
     /** Çıkış — giriş ekranına döner ve oturumu kapatır. */
     onExit: () -> Unit = {},
+    /** Davet koduyla katılma — başarılıysa düğün açılır. */
+    onJoined: () -> Unit = {},
+    /** Kullanıcı kodu giriş yapmadan girmişse buradan gelir. */
+    pendingInviteCode: String? = null,
+    /** Ayarlar'dan "Davet kodum var" ile gelindi — KATIL modunda aç. */
+    startInJoinMode: Boolean = false,
 ) {
     val c = DugunceTheme.colors
+    // Giriş sonrası İKİ YOL: düğün oluştur veya davet koduyla katıl.
+    // Bekleyen kod varsa doğrudan KATIL modunda açılır.
+    var mode by remember(pendingInviteCode, startInJoinMode) {
+        mutableStateOf(
+            if (startInJoinMode) StartMode.JOIN else defaultStartMode(pendingInviteCode),
+        )
+    }
+    var inviteCode by remember(pendingInviteCode) {
+        mutableStateOf(normalizeInviteCode(pendingInviteCode))
+    }
     var coupleNames by remember { mutableStateOf("") }
     var dateText by remember { mutableStateOf("") }
     var venueName by remember { mutableStateOf("") }
@@ -93,7 +148,11 @@ fun CreateWeddingScreen(
     }
 
     val dateValid = parseTurkishDate(dateText) != null
-    val canContinue = coupleNames.trim().length >= 2 && dateValid
+    val canContinue = canCreateWedding(
+        mode = mode,
+        coupleNames = coupleNames,
+        dateIso = if (dateValid) "ok" else null,
+    )
 
     Column(
         Modifier
@@ -116,15 +175,81 @@ fun CreateWeddingScreen(
             )
         }
         Spacer(Modifier.height(Spacing.xs))
-        StepHeader(step = 3, total = 7, title = "Düğününüzü oluşturalım")
+        StepHeader(
+            step = 3,
+            total = 7,
+            title = if (mode == StartMode.CREATE) "Düğününüzü oluşturalım" else "Düğüne katıl",
+        )
+        Spacer(Modifier.height(Spacing.lg))
+
+        // İKİ YOL — kullanıcı hangisi olduğunu burada seçer.
+        SegmentedPicker(
+            options = listOf(
+                StartMode.CREATE to "Düğün oluştur",
+                StartMode.JOIN to "Davet kodum var",
+            ),
+            selected = mode,
+            onSelect = {
+                if (!loading) {
+                    mode = it
+                    error = null
+                }
+            },
+        )
         Spacer(Modifier.height(Spacing.lg))
 
         Text(
-            "Bu bilgiler davetiyede ve panelde görünecek. Sonra değiştirebilirsin.",
+            if (mode == StartMode.CREATE) {
+                "Bu bilgiler davetiyede ve panelde görünecek. Sonra değiştirebilirsin."
+            } else {
+                "Eşinden gelen 7 karakterlik kodu gir. Bu kod seni aynı düğünün " +
+                    "ikinci sahibi yapar — aynı paneli birlikte yönetirsiniz."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = c.muted,
         )
         Spacer(Modifier.height(Spacing.xl))
+
+        if (mode == StartMode.JOIN) {
+            DugunceTextField(
+                value = inviteCode,
+                onValueChange = {
+                    // Kırpma YOK — 8 karakterlik yanlış kod sessizce
+                    // 7'ye kesilmesin (bildirilen hata).
+                    inviteCode = it.uppercase().filter { ch -> ch.isLetterOrDigit() }
+                    error = null
+                },
+                label = "Davet kodu",
+                placeholder = "ABC2345",
+                helper = "7 karakter — karışan harfler (0/O, 1/I) kullanılmaz",
+                error = error,
+                imeAction = ImeAction.Done,
+                enabled = !loading,
+            )
+            Spacer(Modifier.height(Spacing.lg))
+            DugunceButton(
+                "Düğüne katıl",
+                onClick = {
+                    if (!canJoinWedding(mode, inviteCode) || loading) return@DugunceButton
+                    loading = true
+                    error = null
+                    scope.launch {
+                        repository.acceptInvite(normalizeInviteCode(inviteCode)).fold(
+                            onSuccess = { loading = false; onJoined() },
+                            onFailure = { e ->
+                                loading = false
+                                error = if (e is ApiException) e.message else "Kod kullanılamadı"
+                            },
+                        )
+                    }
+                },
+                enabled = canJoinWedding(mode, inviteCode),
+                loading = loading,
+            )
+            Spacer(Modifier.height(Spacing.xl))
+        }
+
+        if (mode == StartMode.CREATE) {
 
         DugunceTextField(
             value = coupleNames,
@@ -198,6 +323,7 @@ fun CreateWeddingScreen(
             loading = loading,
         )
         Spacer(Modifier.height(Spacing.xl))
+        }  // if (mode == StartMode.CREATE)
     }
 
     // Çıkış onayı — yanlışlıkla çıkmayı önler, ama yol HER ZAMAN açık.
