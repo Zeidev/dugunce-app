@@ -57,7 +57,10 @@ jobs:
       # Adresten otomatik link üretimi bozulursa davetiye sayfasındaki
       # "Haritada göster" sessizce kaybolur.
       - name: Birim testleri
-        run: node --test scripts/tests/
+        # Dizin DEĞİL, dosya deseni: Node 22'de `node --test <dizin>`
+        # dizini test dosyası sanıp düşüyor (yerelde Node 26 çalıştığı
+        # için bu fark yalnız CI'da görünür).
+        run: node --test "scripts/tests/*.test.mjs"
 
       # Fontların gerçekten indirilebilir olduğunu doğrula.
       # Eksik bir .woff2 sessizce fallback fonta düşer ve tasarım bozulur
