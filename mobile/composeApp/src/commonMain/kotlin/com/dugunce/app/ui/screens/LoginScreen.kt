@@ -37,7 +37,6 @@ import com.dugunce.app.api.NetworkException
 import com.dugunce.app.data.Repository
 import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.DugunceTextField
-import com.dugunce.app.ui.components.InfoBanner
 import com.dugunce.app.ui.components.TextAction
 import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Radius
@@ -56,9 +55,7 @@ fun LoginScreen(
     repository: Repository,
     onLinkSent: () -> Unit,
     onLoggedIn: () -> Unit,
-    onHasInviteCode: () -> Unit = {},
-    /** Giriş yapılmadan girilmiş davet kodu — girişten sonra uygulanır. */
-    pendingInviteCode: String? = null,
+
     /**
      * Dışarıdan kod modunda aç.
      *
@@ -241,18 +238,15 @@ fun LoginScreen(
             if (showCode) "E-posta adresini değiştir" else "Kodum var, kodu gireyim",
             onClick = { showCode = !showCode; error = null },
         )
-        Spacer(Modifier.height(Spacing.sm))
-        // İkinci eş: davet koduyla katılma
-        if (pendingInviteCode != null) {
-            // Bekleyen kod — kullanıcı giriş yapınca otomatik uygulanacak.
-            Spacer(Modifier.height(Spacing.sm))
-            InfoBanner(
-                text = "Davet kodun kaydedildi: $pendingInviteCode. " +
-                    "Giriş yaptıktan sonra düğüne otomatik katılacaksın.",
-            )
-        } else {
-            TextAction("Davet kodum var", onClick = onHasInviteCode)
-        }
+        // "Davet kodum var" düğmesi KALDIRILDI.
+        //
+        // Davet kodu `POST /invites/accept` ile kabul edilir ve bu uç
+        // `requireAuth` arkasında — giriş yapmadan çağrılırsa 401 döner,
+        // istemci "oturum düştü" sanıp token'ları siler. Yani buradaki
+        // düğme ÇALIŞMIYORDU.
+        //
+        // Kod girişi artık giriş sonrası başlangıç ekranında
+        // ("Düğün oluştur" / "Davet kodum var" sekmeleri) ve Ayarlar'da.
 
         Spacer(Modifier.height(Spacing.xxl))
 

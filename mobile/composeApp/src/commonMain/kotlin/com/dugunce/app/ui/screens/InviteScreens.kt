@@ -24,10 +24,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import com.dugunce.app.api.ApiException
 import com.dugunce.app.data.Repository
-import com.dugunce.app.ui.components.ButtonVariant
 import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.DugunceTextField
 import com.dugunce.app.ui.components.TopBar
@@ -221,109 +219,16 @@ fun hasPendingInviteCode(code: String?): Boolean =
 fun shouldSubmitInviteNow(isLoggedIn: Boolean, code: String?): Boolean =
     isLoggedIn && normalizeInviteCode(code).length == INVITE_CODE_LENGTH
 
-/**
- * Davet kodu gir — ikinci eşin tarafı.
- *
- * Giriş yaptıktan sonra bu ekrandan kodu girer; düğün üyeliği eklenir.
- */
-@Composable
-fun AcceptInviteScreen(
-    repository: Repository,
-    onBack: () -> Unit,
-    onJoined: () -> Unit,
-    /**
-     * Kullanıcı giriş yapmış mı?
-     *
-     * `false` ise kod GÖNDERİLMEZ (401 → oturum düşer). Kod saklanır
-     * ve girişten sonra otomatik uygulanır.
-     */
-    isLoggedIn: Boolean = true,
-    /** Girişsiz kod girildi — kodu saklayıp girişe yönlendir. */
-    onNeedsLogin: (String) -> Unit = {},
-) {
-    val c = DugunceTheme.colors
-    var code by remember { mutableStateOf("") }
-    var joining by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-
-    val normalized = code.trim().uppercase()
-    val valid = normalized.length == 7
-
-    Column(Modifier.fillMaxSize().background(c.cream)) {
-        TopBar("Davet kodum var", onBack = onBack)
-
-        LazyColumn(
-            Modifier.weight(1f).imePadding(),
-            contentPadding = PaddingValues(horizontal = Spacing.screenH, vertical = Spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            item {
-                Text(
-                    "Eşinden gelen 7 karakterlik kodu gir. Bu kod seni aynı düğünün " +
-                        "ikinci sahibi yapar.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = c.muted,
-                )
-            }
-            item {
-                DugunceTextField(
-                    value = code,
-                    onValueChange = {
-                        code = it.uppercase().filter { ch -> ch.isLetterOrDigit() }.take(7)
-                        error = null
-                    },
-                    label = "Davet kodu",
-                    placeholder = "ABC2345",
-                    helper = "7 karakter — karışan harfler (0/O, 1/I) kullanılmaz",
-                    error = error,
-                    imeAction = ImeAction.Done,
-                    enabled = !joining,
-                    maxLength = 7,
-                )
-            }
-            item { Spacer(Modifier.height(Spacing.xxl)) }
-        }
-
-        Column(Modifier.padding(horizontal = Spacing.screenH, vertical = Spacing.md)) {
-            DugunceButton(
-                "Düğüne katıl",
-                onClick = {
-                    if (!valid || joining) return@DugunceButton
-
-                    // GİRİŞSİZ GÖNDERME YOK.
-                    //
-                    // `POST /invites/accept` `requireAuth` arkasında; tokensız
-                    // istek 401 döner, istemci bunu "oturum düştü" sayıp
-                    // token'ları siler ve kullanıcı kodu bir daha giremez
-                    // (bildirilen hata). Kod saklanır, girişten sonra
-                    // otomatik uygulanır.
-                    if (!shouldSubmitInviteNow(isLoggedIn, normalized)) {
-                        onNeedsLogin(normalized)
-                        return@DugunceButton
-                    }
-
-                    joining = true
-                    error = null
-                    scope.launch {
-                        repository.acceptInvite(normalized).fold(
-                            onSuccess = { joining = false; onJoined() },
-                            onFailure = { e ->
-                                joining = false
-                                error = if (e is ApiException) e.message else "Kod kullanılamadı"
-                            },
-                        )
-                    }
-                },
-                enabled = valid,
-                loading = joining,
-            )
-            Spacer(Modifier.height(Spacing.sm))
-            DugunceButton(
-                "Sonra girerim",
-                onClick = onBack,
-                variant = ButtonVariant.GHOST,
-            )
-        }
-    }
-}
+// ---------------------------------------------------------------------------
+// `AcceptInviteScreen` KALDIRILDI (2026-11-05)
+//
+// Davet kodu girişi artık:
+//   1. Giriş sonrası başlangıç ekranında — `CreateWeddingScreen`,
+//      "Düğün oluştur" / "Davet kodum var" sekmeleri
+//   2. Ayarlar → "Davet kodum var"
+//
+// Ayrı ekran erişilemez kalmıştı (hiçbir rotadan açılmıyordu). Kodu
+// gönderen mantık `CreateWeddingScreen` içinde; yardımcı fonksiyonlar
+// (`normalizeInviteCode`, `hasPendingInviteCode`, `shouldSubmitInviteNow`)
+// yukarıda duruyor.
+// ---------------------------------------------------------------------------

@@ -64,8 +64,9 @@ class ScreenCoverageTest {
 
     @Test
     fun `davet ekranlari onboarding degil`() {
-        // Davet kodu girişi onboarding sonrası da erişilebilir
-        assertFalse(Screen.ACCEPT_INVITE.isOnboarding())
+        // Davet kodu girişi onboarding sonrası da erişilebilir.
+        // `ACCEPT_INVITE` KALDIRILDI — kod girişi artık `CREATE_WEDDING`
+        // ekranının KATIL modunda ve Ayarlar'da.
         assertFalse(Screen.CO_OWNER_INVITE.isOnboarding())
     }
 

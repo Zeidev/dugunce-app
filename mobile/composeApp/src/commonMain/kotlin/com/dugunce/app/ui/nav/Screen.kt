@@ -51,7 +51,8 @@ enum class Screen {
 
     // Davet kodları (2. eş)
     CO_OWNER_INVITE,
-    ACCEPT_INVITE,
+    // ACCEPT_INVITE KALDIRILDI: davet kodu artık giriş sonrası başlangıç
+    // ekranında (`CREATE_WEDDING` → KATIL modu) ve Ayarlar'da girilir.
 
     // Kart yönetimi (spec §6b.5)
     CARD_LIST,
