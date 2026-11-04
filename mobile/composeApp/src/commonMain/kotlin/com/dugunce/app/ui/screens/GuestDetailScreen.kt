@@ -246,15 +246,18 @@ fun GuestDetailScreen(
                                     // Artık wa.me bağlantısı açılır: WhatsApp
                                     // kuruluysa sohbet, değilse tarayıcı.
                                     val waText = buildWhatsAppMessage(g.name, inviteUrl!!)
-                                    val waUrl = "https://wa.me/${normalizePhone(g.phone)}?text=${encodeUrl(waText)}"
+                                    // `whatsapp://` doğrudan sohbeti açar; `wa.me`
+                                    // bazen ana ekranda kalıyordu (bildirilen hata).
+                                    val waUrl = whatsappUrl(g.phone, waText)
+                                    val waFallback = whatsappFallbackUrl(g.phone, waText)
                                     DugunceButton(
                                         "WhatsApp'tan gönder",
                                         onClick = {
-                                            val opened = openUrl(waUrl)
+                                            val opened = openUrl(waUrl) || openUrl(waFallback)
                                             if (!opened) {
                                                 // Açılamadıysa sessiz kalma:
                                                 // bağlantıyı kopyala, elle gönderilebilsin.
-                                                copied = copyToClipboard(waUrl)
+                                                copied = copyToClipboard(waFallback)
                                                 waError = if (copied) {
                                                     "WhatsApp açılamadı — bağlantı kopyalandı, elle gönderebilirsiniz."
                                                 } else {
@@ -275,7 +278,7 @@ fun GuestDetailScreen(
                                         )
                                     }
                                     Text(
-                                        "wa.me bağlantısı: $waUrl",
+                                        "wa.me bağlantısı: $waFallback",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = c.muted,
                                     )
@@ -392,3 +395,39 @@ internal fun encodeUrl(input: String): String {
 }
 
 private const val HEX = "0123456789ABCDEF"
+
+/**
+ * WhatsApp sohbet bağlantısı — kişiye özel.
+ *
+ * `whatsapp://send?phone=...` ŞEMASI KULLANILIR, `wa.me` değil.
+ *
+ * NEDEN: `https://wa.me/<numara>` bazen WhatsApp'ı açıp ANA SOHBET
+ * EKRANINDA kalıyor — kullanıcı kişiyi elle aramak zorunda kalıyordu
+ * (bildirilen hata). `whatsapp://send?phone=` doğrudan o numaranın
+ * sohbetini açar; WhatsApp kurulu değilse çağıran `wa.me`'ye düşer.
+ *
+ * @param phone ham telefon (normalize edilir)
+ * @param text gönderilecek mesaj
+ */
+internal fun whatsappUrl(phone: String?, text: String): String {
+    val num = normalizePhone(phone)
+    val encoded = encodeUrl(text)
+    return if (num.isBlank()) {
+        // Numara yoksa sohbet seçtir (kaçınılmaz).
+        "https://wa.me/?text=$encoded"
+    } else {
+        "whatsapp://send?phone=$num&text=$encoded"
+    }
+}
+
+/**
+ * WhatsApp açılamazsa kullanılacak yedek bağlantı.
+ *
+ * `whatsapp://` şeması cihazda yoksa (uygulama kurulu değil) tarayıcıya
+ * düşmek gerekir; `wa.me` her durumda çalışır.
+ */
+internal fun whatsappFallbackUrl(phone: String?, text: String): String {
+    val num = normalizePhone(phone)
+    val encoded = encodeUrl(text)
+    return "https://wa.me/$num?text=$encoded"
+}

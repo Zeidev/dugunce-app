@@ -38,6 +38,7 @@ import com.dugunce.app.ui.screens.CardListScreen
 import com.dugunce.app.ui.screens.TemplateScreen
 import com.dugunce.app.ui.screens.BudgetIntroScreen
 import com.dugunce.app.ui.screens.BulkGuestScreen
+import com.dugunce.app.ui.screens.BulkSendScreen
 import com.dugunce.app.ui.screens.AcceptInviteScreen
 import com.dugunce.app.ui.screens.CoOwnerInviteScreen
 import com.dugunce.app.ui.screens.CreateWeddingScreen
@@ -326,7 +327,8 @@ fun App(
                                 onAddGuest = { state.editingGuestId = null; state.go(Screen.GUEST_FORM) },
                                 onOpenGuest = { id -> state.editingGuestId = id; state.go(Screen.GUEST_DETAIL) },
                                 onBulkAdd = { state.go(Screen.BULK_GUEST) },
-                            onOpenTemplates = { state.go(Screen.TEMPLATE) },
+                                onOpenTemplates = { state.go(Screen.TEMPLATE) },
+                                onBulkSend = { state.go(Screen.BULK_SEND) },
                             )
                         } ?: Unit
 
@@ -423,6 +425,14 @@ fun App(
                                 weddingId = w.id,
                                 onBack = { state.back() },
                                 onSaved = { state.back() },
+                            )
+                        } ?: Unit
+
+                        Screen.BULK_SEND -> wedding?.let { w ->
+                            BulkSendScreen(
+                                repository = repository,
+                                weddingId = w.id,
+                                onBack = { state.back() },
                             )
                         } ?: Unit
 

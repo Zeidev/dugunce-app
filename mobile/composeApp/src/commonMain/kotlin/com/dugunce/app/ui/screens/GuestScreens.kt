@@ -69,6 +69,8 @@ fun GuestListScreen(
     onOpenGuest: (String) -> Unit,
     onBulkAdd: () -> Unit,
     onOpenTemplates: () -> Unit = {},
+    /** Toplu davetiye gönderimi — her kişiye kendi linki. */
+    onBulkSend: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var loading by remember { mutableStateOf(true) }
@@ -340,6 +342,25 @@ fun GuestListScreen(
                                 if (importing) "Ekleniyor…" else "Rehber",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = if (importing) c.muted else c.sage,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                    }
+                }
+                // Toplu davetiye gönderimi — her kişiye KENDİ linki.
+                // Yalnız davetli varsa anlamlı.
+                if (guests.isNotEmpty()) {
+                    Surface(
+                        onClick = onBulkSend,
+                        shape = RoundedCornerShape(Radius.pill),
+                        color = c.surface,
+                        shadowElevation = 4.dp,
+                    ) {
+                        Box(Modifier.padding(Spacing.md), contentAlignment = Alignment.Center) {
+                            Text(
+                                "Gönder",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = c.sage,
                                 fontWeight = FontWeight.Medium,
                             )
                         }
