@@ -423,13 +423,21 @@ fun App(
                             // Çıkış yolu — bu ekranda kilitli kalmak
                             // bildirilen hataydı.
                             onExit = {
-                                scope.launch {
-                                    repository.logout()
-                                    state.resetTo(startScreen())
+                                if (state.wedding != null) {
+                                    // Mevcut kullanıcı alt ekrandan dönüyor —
+                                    // OTURUMU KAPATMA.
+                                    state.startInJoinMode = false
+                                    state.back()
+                                } else {
+                                    scope.launch {
+                                        repository.logout()
+                                        state.resetTo(startScreen())
+                                    }
                                 }
                             },
                             pendingInviteCode = state.pendingInviteCode,
                             startInJoinMode = state.startInJoinMode,
+                            hasExistingWedding = state.wedding != null,
                             onJoined = {
                                 state.pendingInviteCode = null
                                 state.startInJoinMode = false

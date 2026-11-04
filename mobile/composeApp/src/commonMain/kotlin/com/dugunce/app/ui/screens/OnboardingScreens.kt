@@ -119,6 +119,14 @@ fun CreateWeddingScreen(
     pendingInviteCode: String? = null,
     /** Ayarlar'dan "Davet kodum var" ile gelindi — KATIL modunda aç. */
     startInJoinMode: Boolean = false,
+    /**
+     * Kullanıcının zaten bir düğünü var mı?
+     *
+     * Varsa bu ekran "ilk kurulum" değil, Ayarlar'dan gelen bir alt
+     * ekrandır: "Çıkış" yerine "Geri" gösterilmeli. Aksi hâlde mevcut
+     * kullanıcı sadece kodu girmek isterken oturumunu kapatırdı.
+     */
+    hasExistingWedding: Boolean = false,
 ) {
     val c = DugunceTheme.colors
     // Giriş sonrası İKİ YOL: düğün oluştur veya davet koduyla katıl.
@@ -144,7 +152,9 @@ fun CreateWeddingScreen(
     // İlk kurulumda yığın tek elemanlı olduğu için App.kt'deki genel
     // handler devre dışı; bu ekran kendi yolunu sunmak zorunda.
     PlatformBackHandler(enabled = shouldInterceptBack("CREATE_WEDDING", 1)) {
-        confirmExit = true
+        // Mevcut düğünü olan kullanıcı için bu bir alt ekran — onay
+        // sormadan geri dön.
+        if (hasExistingWedding) onExit() else confirmExit = true
     }
 
     val dateValid = parseTurkishDate(dateText) != null
@@ -170,8 +180,10 @@ fun CreateWeddingScreen(
             horizontalArrangement = Arrangement.End,
         ) {
             TextAction(
-                "Çıkış",
-                onClick = { confirmExit = true },
+                if (hasExistingWedding) "Geri" else "Çıkış",
+                onClick = {
+                    if (hasExistingWedding) onExit() else confirmExit = true
+                },
             )
         }
         Spacer(Modifier.height(Spacing.xs))
