@@ -133,6 +133,13 @@ function resolvePartySize(
 ): number {
   if (params.rsvp === 'DECLINED') return 0
 
+  // Özellik kapalıyken davetiye kişi sayısı SORMAZ ve göndermez.
+  // Burada `partySize`'ı yok sayıp 1 yazıyoruz: aksi hâlde
+  // "Katılım için kişi sayısı gerekli" 422'si döner ve davetli
+  // "Geliyorum"a basamaz — özelliği kapatan çift, davetlilerin
+  // katılım bildirmesini engellemiş olur.
+  if (invitation.wedding.partySizeEnabled === false) return 1
+
   const size = params.partySize
   if (size === undefined || size === null) {
     throw new RsvpError('Katılım için kişi sayısı gerekli')

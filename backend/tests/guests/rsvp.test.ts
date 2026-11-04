@@ -230,3 +230,46 @@ describe('submitRsvp — kapanış', () => {
     expect(r).not.toBeNull()
   })
 })
+
+describe('kisi sayisi ozelligi kapali', () => {
+  it('partySize gonderilmese de ATTENDING kabul edilir', async () => {
+    const d = makeDeps()
+    const row = makeRow()
+    ;(row.wedding as Record<string, unknown>)['partySizeEnabled'] = false
+    d.findByTokenHash.mockResolvedValue(row)
+
+    const r = await submitRsvp({ rawToken: 'tok', rsvp: 'ATTENDING' }, d)
+    expect(r!.confirmedPartySize).toBe(1)
+  })
+
+  it('gonderilen partySize yok sayilir, 1 yazilir', async () => {
+    const d = makeDeps()
+    const row = makeRow()
+    ;(row.wedding as Record<string, unknown>)['partySizeEnabled'] = false
+    d.findByTokenHash.mockResolvedValue(row)
+
+    const r = await submitRsvp({ rawToken: 'tok', rsvp: 'ATTENDING', partySize: 4 }, d)
+    expect(r!.confirmedPartySize).toBe(1)
+  })
+
+  it('ozellik acikken partySize zorunlu kalir', async () => {
+    const d = makeDeps()
+    const row = makeRow()
+    ;(row.wedding as Record<string, unknown>)['partySizeEnabled'] = true
+    d.findByTokenHash.mockResolvedValue(row)
+
+    await expect(submitRsvp({ rawToken: 'tok', rsvp: 'ATTENDING' }, d)).rejects.toThrow(
+      'Katılım için kişi sayısı gerekli',
+    )
+  })
+
+  it('DECLINED her iki durumda da 0 yazar', async () => {
+    const d = makeDeps()
+    const row = makeRow()
+    ;(row.wedding as Record<string, unknown>)['partySizeEnabled'] = false
+    d.findByTokenHash.mockResolvedValue(row)
+
+    const r = await submitRsvp({ rawToken: 'tok', rsvp: 'DECLINED' }, d)
+    expect(r!.confirmedPartySize).toBe(0)
+  })
+})
