@@ -363,6 +363,9 @@ export function drizzleGuestDeps(
             rsvpDeadline: weddings.rsvpDeadline,
             template: weddings.template,
             fontKey: weddings.fontKey,
+            partySizeEnabled: weddings.partySizeEnabled,
+            defaultPartySize: weddings.defaultPartySize,
+            maxPartySize: weddings.maxPartySize,
           },
         })
         .from(guestInvitations)

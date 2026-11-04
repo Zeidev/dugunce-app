@@ -79,6 +79,12 @@ export interface InvitationRow {
     template?: string | null
     /** Seçilen font — boş dize "şablonun önerileni" demektir. */
     fontKey?: string | null
+    /** Kişi sayısı özelliği açık mı. */
+    partySizeEnabled?: boolean | null
+    /** Yeni davetiyenin başlangıç izni. */
+    defaultPartySize?: number | null
+    /** Çiftin izin verdiği üst sınır. */
+    maxPartySize?: number | null
   }
 }
 
@@ -230,4 +236,18 @@ export async function revokeInvitation(
   deps: Pick<InvitationDeps, 'revokeByGuestId'>,
 ): Promise<number> {
   return deps.revokeByGuestId(params.guestId)
+}
+
+/**
+ * Davetlinin ETKİN azami kişi sayısı.
+ *
+ * `min` alınır çünkü düğünün azamisi bir ÜST SINIR'dır: çift azamiyi
+ * 10'dan 4'e düşürdüğünde daha önce 10 izinli davetli de 4'e inmeli,
+ * aksi hâlde ayar yalan söyler. Davetlinin kendi izni düğün
+ * varsayılanından küçükse o korunur (çift bilinçli olarak dar izin
+ * vermiştir).
+ */
+export function effectiveAllowedPartySize(row: InvitationRow): number {
+  const weddingMax = row.wedding.maxPartySize ?? MAX_PARTY_SIZE
+  return Math.max(MIN_PARTY_SIZE, Math.min(row.allowedPartySize, weddingMax))
 }

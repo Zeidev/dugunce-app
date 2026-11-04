@@ -33,6 +33,9 @@ function makeRow(overrides: Record<string, unknown> = {}) {
       rsvpDeadline: new Date('2026-09-01T00:00:00Z'),
       template: 'GECE',
       fontKey: 'BODONI',
+      partySizeEnabled: true,
+      defaultPartySize: 2,
+      maxPartySize: 10,
     },
     ...overrides,
   }
@@ -181,5 +184,48 @@ describe('toPublicInvitation — şablon ve font', () => {
   it('şablon alanları beyaz listede', () => {
     expect(PUBLIC_FIELDS).toContain('template')
     expect(PUBLIC_FIELDS).toContain('fontKey')
+  })
+})
+
+describe('kisi sayisi — etkin azami', () => {
+  it('uc ayar alani beyaz listede doner', () => {
+    const v = toPublicInvitation(makeRow() as never)!
+    expect(v.partySizeEnabled).toBe(true)
+    expect(v.defaultPartySize).toBe(2)
+    expect(v.maxPartySize).toBe(10)
+  })
+
+  it('davetlinin izni dugunun azamisini asamaz', () => {
+    const row = makeRow({ allowedPartySize: 10 })
+    ;(row.wedding as Record<string, unknown>)['maxPartySize'] = 4
+    const v = toPublicInvitation(row as never)!
+    expect(v.allowedPartySize).toBe(4)
+  })
+
+  it('davetlinin izni azamiden kucukse korunur', () => {
+    const row = makeRow({ allowedPartySize: 2 })
+    ;(row.wedding as Record<string, unknown>)['maxPartySize'] = 10
+    const v = toPublicInvitation(row as never)!
+    expect(v.allowedPartySize).toBe(2)
+  })
+
+  it('eski dugun satirinda alanlar yoksa varsayilanlar kullanilir', () => {
+    const row = makeRow()
+    delete (row.wedding as Record<string, unknown>)['partySizeEnabled']
+    delete (row.wedding as Record<string, unknown>)['defaultPartySize']
+    delete (row.wedding as Record<string, unknown>)['maxPartySize']
+    const v = toPublicInvitation(row as never)!
+    expect(v.partySizeEnabled).toBe(true)
+    expect(v.defaultPartySize).toBe(2)
+    expect(v.maxPartySize).toBe(10)
+  })
+
+  it('PUBLIC_FIELDS tam kumeyi listeler', () => {
+    expect([...PUBLIC_FIELDS].sort()).toEqual([
+      'allowedPartySize', 'confirmedPartySize', 'coupleNames', 'defaultPartySize',
+      'fontKey', 'giftNote', 'guestName', 'isOpen', 'mapUrl', 'maxPartySize',
+      'partySizeEnabled', 'program', 'rsvp', 'rsvpDeadline', 'template',
+      'timezone', 'venueAddress', 'venueName', 'weddingDate',
+    ])
   })
 })

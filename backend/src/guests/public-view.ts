@@ -1,4 +1,9 @@
-import type { InvitationRow } from './invitation.js'
+import {
+  effectiveAllowedPartySize,
+  MAX_PARTY_SIZE,
+  DEFAULT_PARTY_SIZE,
+  type InvitationRow,
+} from './invitation.js'
 import { normalizeTemplate, normalizeFont } from '../weddings/templates.js'
 
 /**
@@ -25,6 +30,9 @@ export const PUBLIC_FIELDS = [
   'program',
   'giftNote',
   'guestName',
+  'partySizeEnabled',
+  'defaultPartySize',
+  'maxPartySize',
   'allowedPartySize',
   'confirmedPartySize',
   'rsvp',
@@ -51,7 +59,13 @@ export interface PublicInvitation {
   program: PublicProgramItem[] | null
   giftNote: string | null
   guestName: string
-  /** Çiftin izin verdiği azami kişi sayısı. */
+  /** Davetliye "kaç kişi" sorusu sorulsun mu. */
+  partySizeEnabled: boolean
+  /** Yeni davetiyenin başlangıç izni. */
+  defaultPartySize: number
+  /** Çiftin izin verdiği üst sınır. */
+  maxPartySize: number
+  /** Çiftin izin verdiği azami kişi sayısı (etkin: min(davetli, düğün)). */
   allowedPartySize: number
   /** Davetlinin bildirdiği sayı; henüz yanıt yoksa null. */
   confirmedPartySize: number | null
@@ -105,7 +119,10 @@ export function toPublicInvitation(row: InvitationRow | null): PublicInvitation 
     program: parseProgram(w.program),
     giftNote: w.giftNote ?? null,
     guestName: row.guest.name,
-    allowedPartySize: row.allowedPartySize,
+    partySizeEnabled: w.partySizeEnabled ?? true,
+    defaultPartySize: w.defaultPartySize ?? DEFAULT_PARTY_SIZE,
+    maxPartySize: w.maxPartySize ?? MAX_PARTY_SIZE,
+    allowedPartySize: effectiveAllowedPartySize(row),
     confirmedPartySize: row.confirmedPartySize,
     rsvp: row.guest.rsvp,
     rsvpDeadline: deadline ? deadline.toISOString() : null,
