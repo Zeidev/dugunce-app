@@ -652,6 +652,13 @@ async function changeStatus(taskId, status) {
   const task = state.tasks.find((t) => t.id === taskId)
   if (!task) return
 
+  // YARIŞ KORUMASI: kullanıcı hızlıca iki farklı duruma basarsa,
+  // ilk isteğin geç dönen hatası ikinci seçimi ezip yanlış duruma
+  // döndürürdü. Görev başına tek uçuşta istek.
+  if (state.statusInFlight?.[taskId]) return
+  state.statusInFlight = state.statusInFlight ?? {}
+  state.statusInFlight[taskId] = true
+
   const previous = task.status
   task.status = status
 
@@ -682,6 +689,8 @@ async function changeStatus(taskId, status) {
       b.setAttribute('aria-pressed', String(b.textContent === STATUS_LABELS[previous]))
     }
     toast('Durum değiştirilemedi', true)
+  } finally {
+    delete state.statusInFlight[taskId]
   }
 }
 
