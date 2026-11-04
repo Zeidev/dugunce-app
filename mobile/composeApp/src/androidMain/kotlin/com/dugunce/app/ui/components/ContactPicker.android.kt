@@ -76,15 +76,20 @@ actual fun rememberContactPicker(
  */
 private fun readContact(context: Context, uri: Uri): PickedContact? {
     val projection = arrayOf(
+        ContactsContract.Contacts._ID,
         ContactsContract.Contacts.DISPLAY_NAME,
         ContactsContract.Contacts.HAS_PHONE_NUMBER,
     )
 
+    var contactId = ""
     var name = ""
     var hasPhone = false
+
     val ok = runCatching {
         context.contentResolver.query(uri, projection, null, null, null)?.use { c ->
             if (c.moveToFirst()) {
+                contactId = c.getString(c.getColumnIndexOrThrow(ContactsContract.Contacts._ID))
+                    ?.trim().orEmpty()
                 name = c.getString(c.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME))
                     ?.trim().orEmpty()
                 hasPhone =
@@ -96,22 +101,51 @@ private fun readContact(context: Context, uri: Uri): PickedContact? {
 
     if (!ok) return null
 
-    val phone = if (hasPhone) firstPhoneNumber(context, uri) else ""
-    // Adı da numarası da yoksa ekleme anlamsız.
+    // `_ID` URI'den okunamadıysa son çare olarak yol parçasını dene.
+    //
+    // ÖNCE yalnız `uri.lastPathSegment` kullanılıyordu. `ACTION_PICK`
+    // bazı cihaz/sürümlerde
+    //   content://…/contacts/lookup/<lookupKey>
+    // biçiminde döner; burada son parça KAYIT ID'si değil LOOKUP
+    // anahtarıdır. `CONTACT_ID = <lookupKey>` sorgusu boş döner ve
+    // telefon SESSİZCE boş kalır — rehberden eklenen kişiye davetiye
+    // gönderilemiyordu (bildirilen hata).
+    if (contactId.isBlank()) {
+        val seg = uri.lastPathSegment?.trim().orEmpty()
+        // Saf rakamsa ID olabilir; lookup anahtarı harf içerir.
+        if (seg.isNotEmpty() && seg.all { it.isDigit() }) contactId = seg
+    }
+
+    // Telefonu HER ZAMAN dene — `HAS_PHONE_NUMBER` bazı sağlayıcılarda
+    // güvenilmez, sorgu zaten ucuz.
+    val phone = firstPhoneNumber(context, contactId)
+
     val finalName = name.ifBlank { phone }
     if (finalName.isBlank()) return null
     return PickedContact(name = finalName, phone = phone)
 }
 
-private fun firstPhoneNumber(context: Context, contactUri: Uri): String {
-    val id = contactUri.lastPathSegment ?: return ""
+/**
+ * Kişinin telefon numarasını döndürür.
+ *
+ * `CONTACT_ID` ile `Phone` tablosu sorgulanır. Bu, Android'in resmî
+ * yoludur ve `ACTION_PICK`'in döndürdüğü URI biçiminden bağımsızdır.
+ *
+ * `HAS_PHONE_NUMBER` kolonuna GÜVENİLMEZ (bazı sağlayıcılar yanlış
+ * değer döner) — sorgu zaten ucuz, doğrudan denenir.
+ *
+ * Birden çok numara varsa birincil (varsayılan) tercih edilir.
+ * Numara yoksa boş dize döner; çağıran kişiyi isimle ekler.
+ */
+private fun firstPhoneNumber(context: Context, contactId: String): String {
+    if (contactId.isBlank()) return ""
     return runCatching {
         context.contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
             arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
             "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-            arrayOf(id),
-            null,
+            arrayOf(contactId),
+            "${ContactsContract.CommonDataKinds.Phone.IS_PRIMARY} DESC",
         )?.use { c ->
             if (c.moveToFirst()) c.getString(0)?.trim().orEmpty() else ""
         }.orEmpty()

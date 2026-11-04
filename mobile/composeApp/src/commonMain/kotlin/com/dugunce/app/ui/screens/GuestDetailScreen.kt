@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -27,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.GuestDto
 import com.dugunce.app.data.Repository
@@ -36,6 +39,8 @@ import com.dugunce.app.ui.components.ErrorState
 import com.dugunce.app.ui.components.LoadingState
 import com.dugunce.app.ui.components.SectionHeader
 import com.dugunce.app.ui.components.StatusChip
+import com.dugunce.app.ui.components.DugunceTextField
+import com.dugunce.app.ui.components.TextAction
 import com.dugunce.app.ui.components.StatusTone
 import com.dugunce.app.ui.components.TopBar
 import com.dugunce.app.ui.theme.DugunceTheme
@@ -73,6 +78,12 @@ fun GuestDetailScreen(
     var copied by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableStateOf(0) }
+    // Telefonu olmayan davetliye numara ekleyebilmek için (rehberden
+    // eklenen kişide numara gelmemiş olabilir; o zaman davetiye
+    // gönderilemiyordu).
+    var editingPhone by remember { mutableStateOf(false) }
+    var phoneText by remember { mutableStateOf("") }
+    var savingPhone by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(guestId, reloadKey) {
@@ -122,13 +133,88 @@ fun GuestDetailScreen(
                                     StatusChip(sideLabel(g.side), StatusTone.NEUTRAL)
                                     StatusChip(rsvpLabel(g.rsvp), rsvpTone(g.rsvp), rsvpIcon(g.rsvp))
                                 }
-                                if (!g.phone.isNullOrBlank()) {
-                                    Spacer(Modifier.height(Spacing.sm))
-                                    Text(
-                                        g.phone,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = c.muted,
+                                Spacer(Modifier.height(Spacing.sm))
+                                if (editingPhone) {
+                                    DugunceTextField(
+                                        value = phoneText,
+                                        onValueChange = { phoneText = it },
+                                        label = "Telefon",
+                                        placeholder = "0532 123 45 67",
+                                        keyboard = KeyboardType.Phone,
+                                        imeAction = ImeAction.Done,
+                                        enabled = !savingPhone,
                                     )
+                                    Spacer(Modifier.height(Spacing.xs))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                        DugunceButton(
+                                            label = "Kaydet",
+                                            loading = savingPhone,
+                                            fullWidth = false,
+                                            onClick = {
+                                                savingPhone = true
+                                                scope.launch {
+                                                    repository.updateGuest(
+                                                        weddingId,
+                                                        g.id,
+                                                        com.dugunce.app.data.GuestPatchRequest(
+                                                            phone = phoneText.trim(),
+                                                        ),
+                                                    ).fold(
+                                                        onSuccess = {
+                                                            savingPhone = false
+                                                            editingPhone = false
+                                                            reloadKey++
+                                                        },
+                                                        onFailure = { e ->
+                                                            savingPhone = false
+                                                            error = e.message
+                                                        },
+                                                    )
+                                                }
+                                            },
+                                        )
+                                        DugunceButton(
+                                            label = "Vazgeç",
+                                            variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
+                                            fullWidth = false,
+                                            enabled = !savingPhone,
+                                            onClick = { editingPhone = false },
+                                        )
+                                    }
+                                } else if (!g.phone.isNullOrBlank()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            g.phone,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = c.muted,
+                                        )
+                                        Spacer(Modifier.width(Spacing.xs))
+                                        TextAction(
+                                            "Düzenle",
+                                            onClick = {
+                                                phoneText = g.phone
+                                                editingPhone = true
+                                            },
+                                        )
+                                    }
+                                } else {
+                                    // Telefon YOK — davetiye gönderilemez.
+                                    // Kullanıcı buradan ekleyebilmeli.
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Telefon yok — davetiye gönderilemez",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = c.danger,
+                                        )
+                                        Spacer(Modifier.width(Spacing.xs))
+                                        TextAction(
+                                            "Ekle",
+                                            onClick = {
+                                                phoneText = ""
+                                                editingPhone = true
+                                            },
+                                        )
+                                    }
                                 }
                                 if (!g.note.isNullOrBlank()) {
                                     Spacer(Modifier.height(Spacing.sm))
