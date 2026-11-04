@@ -32,6 +32,19 @@ class Repository(
     private val json = api.json
     private val cache = OfflineCache(tokens, json)
 
+    /**
+     * Oturum düştüğünde çağrılacak işleyiciyi bağlar.
+     *
+     * `App` bunu kullanıcıya bildirim göstermek ve girişe dönmek için
+     * bağlar. Bağlanmazsa oturum sessizce düşer ve sonraki açılış
+     * siyah ekrana düşer.
+     */
+    fun installSessionExpiredHandler(handler: () -> Unit) {
+        onSessionExpiredHandler = handler
+    }
+
+    private var onSessionExpiredHandler: (() -> Unit)? = null
+
     init {
         // 401 → token yenile → istek bir kez tekrar denenir (tek nokta).
         api.installAuthRetry { refresh().isSuccess }
@@ -126,6 +139,15 @@ class Repository(
         }
         list
     }
+
+    /**
+     * Önbellekteki son düğün — çevrimdışı açılış için.
+     *
+     * Ağ yokken `listWeddings()` başarısız olur; `wedding` null kalırsa
+     * panel hiç çizilmez (siyah ekran). Bu metot son bilinen düğünü
+     * döndürür ki ekran açılabilsin.
+     */
+    fun cachedWedding(): WeddingDto? = cache.lastWedding(tokens.selectedWeddingId)
 
     /** Önbellekteki düğünler — açılışta ağ yoksa (spec §11). */
     fun cachedWeddings(): List<WeddingDto>? =
@@ -565,7 +587,21 @@ class Repository(
      */
     private suspend fun ensureSuccess(res: HttpResponse) {
         if (res.status.isSuccess()) return
-        if (res.status.value == 401) onSessionExpired()
+        if (res.status.value == 401) {
+            // Oturum gerçekten düştü: yenileme de başarısız oldu.
+            //
+            // KRİTİK: token'lar TEMİZLENMELİ. Aksi halde `isLoggedIn`
+            // true kalır, sonraki açılış `listWeddings`'e gider, o da
+            // 401 alır, `onFailure` panele düşer ama `wedding` null
+            // olduğu için HİÇBİR ŞEY çizilmez — siyah ekran ve çıkış
+            // yolu yok (bildirilen hata).
+            //
+            // Temizlenince kullanıcı onboarding'e düşer ve yeniden
+            // giriş yapabilir.
+            tokens.clear()
+            onSessionExpired()
+            onSessionExpiredHandler?.invoke()
+        }
         throw res.toApiException()
     }
 

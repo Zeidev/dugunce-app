@@ -130,6 +130,22 @@ fun App(
             }
         }
 
+        // Oturum düştüğünde kullanıcıya bildir ve girişe düş.
+        //
+        // `Repository.onSessionExpired` varsayılan olarak boş lambda;
+        // bağlanmazsa token düşer, kullanıcı hiçbir şey görmez, sonraki
+        // açılış siyah ekrana düşer (bildirilen hata).
+        LaunchedEffect(Unit) {
+            repository.installSessionExpiredHandler {
+                state.wedding = null
+                state.showBanner(
+                    "Oturumunuz sona erdi. Lütfen yeniden giriş yapın.",
+                    isError = true,
+                )
+                state.resetTo(Screen.WELCOME)
+            }
+        }
+
         // Açılış: oturum varsa düğünü yükle, yoksa onboarding
         LaunchedEffect(Unit) {
             if (!tokens.isLoggedIn) {
@@ -152,8 +168,31 @@ fun App(
                     }
                 },
                 onFailure = {
-                    // Ağ yoksa oturum varsa panele düş, ekran kendi hatasını gösterir
-                    state.resetTo(if (tokens.isLoggedIn) Screen.DASHBOARD else Screen.WELCOME)
+                    // DİKKAT: `wedding` hâlâ null. Panele düşersek
+                    // `Screen.DASHBOARD -> wedding?.let { … } ?: Unit`
+                    // HİÇBİR ŞEY çizmez = SİYAH EKRAN (bildirilen hata).
+                    //
+                    // Oturum düştüyse (token'lar temizlendiyse) kullanıcı
+                    // onboarding'e düşer ve yeniden giriş yapabilir.
+                    // Oturum duruyorsa (ağ hatası) panele düşeriz; o
+                    // zaman önbellekteki düğünü yükleyip ekranı çizeriz.
+                    if (!tokens.isLoggedIn) {
+                        state.wedding = null
+                        state.resetTo(Screen.WELCOME)
+                        return@fold
+                    }
+                    val cached = repository.cachedWedding()
+                    if (cached != null) {
+                        state.wedding = cached
+                        state.resetTo(Screen.DASHBOARD)
+                    } else {
+                        // Hiçbir veri yok — kullanıcıya sebep göster.
+                        state.showBanner(
+                            "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+                            isError = true,
+                        )
+                        state.resetTo(Screen.WELCOME)
+                    }
                 },
             )
             bootstrapping = false

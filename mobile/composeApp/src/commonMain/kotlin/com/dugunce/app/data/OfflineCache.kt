@@ -53,6 +53,24 @@ class OfflineCache(
                 ?.let { json.decodeFromString(ListSerializer(serializer), it) }
         }.getOrNull()
 
+    /**
+     * Önbellekteki düğünü döndürür — çevrimdışı açılış için.
+     *
+     * NEDEN: Ağ yokken `listWeddings()` başarısız oluyor, `wedding`
+     * null kalıyor ve panel hiç çizilmiyordu (siyah ekran). Son bilinen
+     * düğün önbellekten okunup ekran açılabilir.
+     *
+     * @param preferredId kullanıcının son seçtiği düğün (varsa)
+     */
+    fun lastWedding(preferredId: String?): com.dugunce.app.data.WeddingDto? {
+        val list = getList(WEDDINGS, "all", com.dugunce.app.data.WeddingDto.serializer())
+            ?: return null
+        if (preferredId != null) {
+            list.find { it.id == preferredId }?.let { return it }
+        }
+        return list.firstOrNull()
+    }
+
     companion object {
         const val WEDDINGS = "weddings"
         const val GUESTS = "guests"
