@@ -223,9 +223,9 @@ describe('kisi sayisi — etkin azami', () => {
   it('PUBLIC_FIELDS tam kumeyi listeler', () => {
     expect([...PUBLIC_FIELDS].sort()).toEqual([
       'allowedPartySize', 'confirmedPartySize', 'coupleNames', 'defaultPartySize',
-      'fontKey', 'giftNote', 'guestName', 'isOpen', 'mapUrl', 'maxPartySize',
-      'partySizeEnabled', 'program', 'rsvp', 'rsvpDeadline', 'template',
-      'timezone', 'venueAddress', 'venueName', 'weddingDate',
+      'fontKey', 'giftNote', 'guestName', 'invitationMessage', 'isOpen', 'mapUrl',
+      'maxPartySize', 'partySizeEnabled', 'program', 'rsvp', 'rsvpDeadline',
+      'template', 'timezone', 'venueAddress', 'venueName', 'weddingDate',
     ])
   })
 })

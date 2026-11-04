@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { TEMPLATES, FONTS } from './templates.js'
 import { AppError } from '../lib/errors.js'
+import { MAX_GREETING_LENGTH } from '../guests/greeting.js'
 import {
   DEFAULT_PARTY_SIZE,
   MAX_PARTY_SIZE,
@@ -86,6 +87,24 @@ export const weddingInputSchema = z.object({
     .min(1, 'Kişi sayısı 1-10 arasında olmalı')
     .max(10, 'Kişi sayısı 1-10 arasında olmalı')
     .optional(),
+  /**
+   * Davetiye karşılama metni — PREMIUM özellik.
+   *
+   * Boş dize "varsayılanı kullan" demektir; `undefined`'a çevrilir
+   * (`fontKey` ile aynı desen). Premium kapısı `resolveGreeting`
+   * içinde, sunucuda.
+   */
+  invitationMessage: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z
+      .string()
+      .trim()
+      .max(
+        MAX_GREETING_LENGTH,
+        `En fazla ${MAX_GREETING_LENGTH} karakter`,
+      )
+      .optional(),
+  ),
 })
 
 export type WeddingInput = z.input<typeof weddingInputSchema>

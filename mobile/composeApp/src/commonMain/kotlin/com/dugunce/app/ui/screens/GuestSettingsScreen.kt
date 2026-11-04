@@ -33,9 +33,12 @@ import com.dugunce.app.data.WeddingPatchRequest
 import com.dugunce.app.ui.PlatformBackHandler
 import com.dugunce.app.ui.components.CheckRow
 import com.dugunce.app.ui.components.DugunceButton
+import com.dugunce.app.ui.components.DugunceTextField
 import com.dugunce.app.ui.components.InfoBanner
 import com.dugunce.app.ui.components.ButtonVariant
 import com.dugunce.app.ui.components.SectionHeader
+import com.dugunce.app.ui.components.StatusChip
+import com.dugunce.app.ui.components.StatusTone
 import com.dugunce.app.ui.components.TextAction
 import com.dugunce.app.ui.components.TopBar
 import com.dugunce.app.ui.theme.DugunceTheme
@@ -79,13 +82,19 @@ fun GuestSettingsScreen(
     var maxSize by remember(wedding.id) {
         mutableStateOf(wedding.maxPartySize.coerceIn(MIN_PARTY, MAX_PARTY))
     }
+    // Karşılama metni — PREMIUM. Ücretsizde alan kilitli görünür.
+    val isPremium = wedding.plan == "PREMIUM"
+    var greeting by remember(wedding.id) {
+        mutableStateOf(wedding.invitationMessage ?: "")
+    }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var confirmDiscard by remember { mutableStateOf(false) }
 
     val dirty = enabled != wedding.partySizeEnabled ||
         defaultSize != wedding.defaultPartySize ||
-        maxSize != wedding.maxPartySize
+        maxSize != wedding.maxPartySize ||
+        greeting.trim() != (wedding.invitationMessage ?: "").trim()
 
     fun save(thenBack: Boolean) {
         if (saving) return
@@ -104,6 +113,9 @@ fun GuestSettingsScreen(
                     partySizeEnabled = enabled,
                     defaultPartySize = safeDefault,
                     maxPartySize = maxSize,
+                    // Premium değilse gönderme — sunucu zaten yok sayar
+                    // ama gereksiz alan taşımamak sözleşmeyi net tutar.
+                    invitationMessage = if (isPremium) greeting.trim() else null,
                 ),
             ).fold(
                 onSuccess = {
@@ -183,6 +195,60 @@ fun GuestSettingsScreen(
                             )
                         }
                         Text("›", style = MaterialTheme.typography.titleLarge, color = c.sage)
+                    }
+                }
+            }
+
+            // Karşılama metni — PREMIUM.
+            item {
+                Surface(
+                    shape = RoundedCornerShape(Radius.lg),
+                    color = c.surface,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        Modifier.padding(Spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                "Davetiye mesajı",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isPremium) c.ink else c.muted,
+                            )
+                            if (!isPremium) {
+                                StatusChip("PREMIUM", StatusTone.WARNING)
+                            }
+                        }
+                        Text(
+                            if (isPremium) {
+                                "Davetlilerin göreceği karşılama metni. Boş bırakırsan " +
+                                    "varsayılan mesaj kullanılır."
+                            } else {
+                                "Premium'a geçince davetiyenin metnini kendin yazabilirsin."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = c.muted,
+                        )
+                        DugunceTextField(
+                            value = greeting,
+                            onValueChange = { if (it.length <= 300) greeting = it },
+                            label = "Karşılama metni",
+                            placeholder = "Sizi düğünümüzde görmek isteriz.",
+                            singleLine = false,
+                            minLines = 2,
+                            enabled = isPremium && !saving,
+                        )
+                        Text(
+                            "${greeting.length}/300",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = c.muted,
+                        )
                     }
                 }
             }

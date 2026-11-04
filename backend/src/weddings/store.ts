@@ -57,6 +57,7 @@ export function drizzleWeddingDeps(dbOverride?: Db): WeddingDeps {
           partySizeEnabled: weddings.partySizeEnabled,
           defaultPartySize: weddings.defaultPartySize,
           maxPartySize: weddings.maxPartySize,
+          invitationMessage: weddings.invitationMessage,
           createdAt: weddings.createdAt,
           role: weddingMembers.role,
         })
@@ -94,6 +95,7 @@ export function drizzleWeddingDeps(dbOverride?: Db): WeddingDeps {
           partySizeEnabled: weddings.partySizeEnabled,
           defaultPartySize: weddings.defaultPartySize,
           maxPartySize: weddings.maxPartySize,
+          invitationMessage: weddings.invitationMessage,
           createdAt: weddings.createdAt,
           updatedAt: weddings.updatedAt,
           role: weddingMembers.role,

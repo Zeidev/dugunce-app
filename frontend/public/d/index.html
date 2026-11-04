@@ -469,7 +469,11 @@
       <p class="brand">Düğünce · Davetiye</p>
       <h1 id="coupleNames"></h1>
       <div class="divider"></div>
-      <p class="hello">Sayın <strong id="guestName"></strong>, sizi düğünümüzde görmek isteriz.</p>
+      <!-- Davetlinin ADI gösterilmiyor (kullanıcı kararı): isim yanlış
+           yazılırsa davetiye mahcup ediyor ve tek link birden çok kişiye
+           iletilebiliyor. Ücretsizde sabit mesaj, premium'da çiftin
+           kendi metni — sunucu karar verir (`invitationMessage`). -->
+      <p class="hello" id="greeting"></p>
 
       <dl>
         <div class="row">
@@ -628,7 +632,8 @@ function render(data) {
   document.body.dataset.font = normalizeFont(data.template, data.fontKey)
 
   $('coupleNames').textContent = data.coupleNames
-  $('guestName').textContent = data.guestName
+  // Karşılama metni — sunucudan çözülmüş gelir (isim YOK).
+  $('greeting').textContent = data.invitationMessage || 'Sizi düğünümüzde görmek isteriz.'
   $('dateText').textContent = formatDate(data.weddingDate, data.timezone)
 
   // Monogram: isimlerin baş harfleri ("Ayşe & Burak" → "AB")

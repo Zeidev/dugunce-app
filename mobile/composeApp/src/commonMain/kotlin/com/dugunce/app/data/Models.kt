@@ -88,6 +88,8 @@ data class WeddingDto(
     val defaultPartySize: Int = 2,
     /** Çiftin izin verdiği üst sınır. */
     val maxPartySize: Int = 10,
+    /** Davetiye karşılama metni — PREMIUM özellik; boşsa varsayılan. */
+    val invitationMessage: String? = null,
 )
 
 @Serializable
@@ -140,6 +142,7 @@ data class WeddingPatchRequest(
     val partySizeEnabled: Boolean? = null,
     val defaultPartySize: Int? = null,
     val maxPartySize: Int? = null,
+    val invitationMessage: String? = null,
 )
 
 // --- Bütçe ---

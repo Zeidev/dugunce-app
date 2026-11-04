@@ -1,3 +1,4 @@
+import { resolveGreeting } from './greeting.js'
 import {
   effectiveAllowedPartySize,
   MAX_PARTY_SIZE,
@@ -33,6 +34,7 @@ export const PUBLIC_FIELDS = [
   'partySizeEnabled',
   'defaultPartySize',
   'maxPartySize',
+  'invitationMessage',
   'allowedPartySize',
   'confirmedPartySize',
   'rsvp',
@@ -59,6 +61,15 @@ export interface PublicInvitation {
   program: PublicProgramItem[] | null
   giftNote: string | null
   guestName: string
+  /**
+   * Karşılama metni.
+   *
+   * Davetlinin ADI artık gösterilmiyor (kullanıcı kararı): isim yanlış
+   * yazılırsa davetiye mahcup ediyor ve tek link birden çok kişiye
+   * iletilebiliyor. Ücretsizde sabit genel mesaj, premium'da çiftin
+   * kendi metni.
+   */
+  invitationMessage: string
   /** Davetliye "kaç kişi" sorusu sorulsun mu. */
   partySizeEnabled: boolean
   /** Yeni davetiyenin başlangıç izni. */
@@ -119,6 +130,7 @@ export function toPublicInvitation(row: InvitationRow | null): PublicInvitation 
     program: parseProgram(w.program),
     giftNote: w.giftNote ?? null,
     guestName: row.guest.name,
+    invitationMessage: resolveGreeting(w.plan, w.invitationMessage),
     partySizeEnabled: w.partySizeEnabled ?? true,
     defaultPartySize: w.defaultPartySize ?? DEFAULT_PARTY_SIZE,
     maxPartySize: w.maxPartySize ?? MAX_PARTY_SIZE,

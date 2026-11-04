@@ -132,6 +132,14 @@ export const weddings = pgTable(
     defaultPartySize: integer('default_party_size').notNull().default(2),
     /** Çiftin izin verdiği üst sınır — davetlinin iznini de sınırlar. */
     maxPartySize: integer('max_party_size').notNull().default(10),
+    /**
+     * Davetiye karşılama metni — PREMIUM özellik.
+     *
+     * Boş/NULL ise `DEFAULT_GREETING` kullanılır. Ücretsiz düğünde bu
+     * alan dolu olsa bile genel mesaj gösterilir (kapı `resolveGreeting`
+     * içinde, sunucuda).
+     */
+    invitationMessage: text('invitation_message'),
     purchasedAt: timestamp('purchased_at', { withTimezone: true }),
     purchaseToken: text('purchase_token'),
     purchasePlatform: text('purchase_platform'),

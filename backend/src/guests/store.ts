@@ -375,6 +375,8 @@ export function drizzleGuestDeps(
             partySizeEnabled: weddings.partySizeEnabled,
             defaultPartySize: weddings.defaultPartySize,
             maxPartySize: weddings.maxPartySize,
+            plan: weddings.plan,
+            invitationMessage: weddings.invitationMessage,
           },
         })
         .from(guestInvitations)

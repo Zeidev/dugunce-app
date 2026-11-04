@@ -89,6 +89,10 @@ export interface InvitationRow {
     defaultPartySize?: number | null
     /** Çiftin izin verdiği üst sınır. */
     maxPartySize?: number | null
+    /** Düğün planı — premium özellik kapısı. */
+    plan?: string | null
+    /** Davetiye karşılama metni (premium). */
+    invitationMessage?: string | null
   }
 }
 
