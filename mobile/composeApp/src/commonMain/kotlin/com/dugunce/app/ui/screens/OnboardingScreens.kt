@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,7 +35,9 @@ import com.dugunce.app.data.WeddingDto
 import com.dugunce.app.ui.components.ButtonVariant
 import com.dugunce.app.ui.components.DugunceButton
 import com.dugunce.app.ui.components.DugunceTextField
+import com.dugunce.app.ui.PlatformBackHandler
 import com.dugunce.app.ui.components.StepHeader
+import com.dugunce.app.ui.components.TextAction
 import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Radius
 import com.dugunce.app.ui.theme.Spacing
@@ -46,10 +49,31 @@ import kotlinx.coroutines.launch
  * İsimler ve tarih zorunlu; mekân alanları atlanabilir.
  * Hedef: 2 dakikada tamamlanır.
  */
+/**
+ * Düğün oluşturma ekranında çıkış yolu var mı?
+ *
+ * HER ZAMAN true. İlk kurulumda yığın tek elemanlıdır ve
+ * `PlatformBackHandler` devre dışı kalır — o yüzden ekranın KENDİ çıkış
+ * yolunu sunması zorunlu. Aksi hâlde kullanıcı ya düğün oluşturmak ya
+ * uygulamayı kapatmak zorunda kalır (bildirilen hata).
+ */
+fun canEscapeCreateWedding(stackSize: Int): Boolean = true
+
+/**
+ * Sistem geri tuşu yakalanmalı mı?
+ *
+ * Yalnız düğün oluşturma ekranında: orada geri tuşu uygulamayı
+ * kapatmak yerine çıkış seçeneği göstermeli.
+ */
+fun shouldInterceptBack(screenName: String, stackSize: Int): Boolean =
+    screenName == "CREATE_WEDDING"
+
 @Composable
 fun CreateWeddingScreen(
     repository: Repository,
     onCreated: (WeddingDto) -> Unit,
+    /** Çıkış — giriş ekranına döner ve oturumu kapatır. */
+    onExit: () -> Unit = {},
 ) {
     val c = DugunceTheme.colors
     var coupleNames by remember { mutableStateOf("") }
@@ -58,7 +82,15 @@ fun CreateWeddingScreen(
     var venueAddress by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var confirmExit by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    // Sistem geri tuşu uygulamayı KAPATMASIN — çıkış seçeneği göstersin.
+    // İlk kurulumda yığın tek elemanlı olduğu için App.kt'deki genel
+    // handler devre dışı; bu ekran kendi yolunu sunmak zorunda.
+    PlatformBackHandler(enabled = shouldInterceptBack("CREATE_WEDDING", 1)) {
+        confirmExit = true
+    }
 
     val dateValid = parseTurkishDate(dateText) != null
     val canContinue = coupleNames.trim().length >= 2 && dateValid
@@ -71,7 +103,19 @@ fun CreateWeddingScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = Spacing.screenH),
     ) {
-        Spacer(Modifier.height(Spacing.lg))
+        Spacer(Modifier.height(Spacing.sm))
+        // ÇIKIŞ YOLU — her zaman görünür (bildirilen hata: bu ekrandan
+        // ne geri gidilebiliyor ne de hesaptan çıkılabiliyordu).
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextAction(
+                "Çıkış",
+                onClick = { confirmExit = true },
+            )
+        }
+        Spacer(Modifier.height(Spacing.xs))
         StepHeader(step = 3, total = 7, title = "Düğününüzü oluşturalım")
         Spacer(Modifier.height(Spacing.lg))
 
@@ -154,6 +198,32 @@ fun CreateWeddingScreen(
             loading = loading,
         )
         Spacer(Modifier.height(Spacing.xl))
+    }
+
+    // Çıkış onayı — yanlışlıkla çıkmayı önler, ama yol HER ZAMAN açık.
+    if (confirmExit) {
+        AlertDialog(
+            onDismissRequest = { confirmExit = false },
+            title = { Text("Çıkış yapılsın mı?") },
+            text = {
+                Text(
+                    "Düğün bilgilerin kaydedilmedi. Çıkarsan hesabına tekrar " +
+                        "giriş yapman gerekir.",
+                )
+            },
+            confirmButton = {
+                TextAction(
+                    "Çıkış yap",
+                    onClick = {
+                        confirmExit = false
+                        onExit()
+                    },
+                )
+            },
+            dismissButton = {
+                TextAction("Vazgeç", onClick = { confirmExit = false })
+            },
+        )
     }
 }
 

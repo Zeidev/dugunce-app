@@ -353,6 +353,14 @@ fun App(
                                 tokens.selectedWeddingId = w.id
                                 state.resetTo(Screen.FIRST_EXPENSE)
                             },
+                            // Çıkış yolu — bu ekranda kilitli kalmak
+                            // bildirilen hataydı.
+                            onExit = {
+                                scope.launch {
+                                    repository.logout()
+                                    state.resetTo(startScreen())
+                                }
+                            },
                         )
 
                         Screen.FIRST_EXPENSE -> wedding?.let { w ->
