@@ -54,6 +54,11 @@ jobs:
       - name: Kotlin import kontrolü
         run: node scripts/check-kotlin-imports.mjs
 
+      # `onClick = { }` — tıklanabilir ama işlevsiz butonlar.
+      # Kullanıcı "bastım, bir şey olmadı" der; derleme ve testler geçer.
+      - name: Ölü buton kontrolü
+        run: node scripts/check-dead-buttons.mjs
+
       - name: Unit tests (commonTest)
         working-directory: mobile
         run: ./gradlew :composeApp:allTests --no-daemon --stacktrace

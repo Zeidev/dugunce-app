@@ -292,7 +292,11 @@ fun SettingsScreen(
                         )
                         DugunceButton(
                             "Premium'a geç",
+                            // Satın alma henüz yok. Tıklanabilir bırakmak
+                            // "bastım, bir şey olmadı" hissi veriyordu;
+                            // devre dışı bırakmak dürüst.
                             onClick = { },
+                            enabled = false,
                             variant = com.dugunce.app.ui.components.ButtonVariant.SECONDARY,
                         )
                         Text(

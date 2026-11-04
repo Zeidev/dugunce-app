@@ -27,6 +27,22 @@ actual fun shareText(text: String, subject: String): Boolean {
     return true
 }
 
+/**
+ * URL'yi sistemde açar (`wa.me` → WhatsApp veya tarayıcı).
+ *
+ * https şemaları için `LSApplicationQueriesSchemes` gerekmez;
+ * `openURL` doğrudan çalışır. Yine de URL kurulamazsa `false` döneriz.
+ */
+actual fun openUrl(url: String): Boolean {
+    val nsUrl = platform.Foundation.NSURL.URLWithString(url) ?: return false
+    UIApplication.sharedApplication.openURL(
+        nsUrl,
+        options = emptyMap<Any?, Any>(),
+        completionHandler = null,
+    )
+    return true
+}
+
 private fun rootViewController(): UIViewController? {
     val window = UIApplication.sharedApplication.keyWindow ?: return null
     var controller = window.rootViewController

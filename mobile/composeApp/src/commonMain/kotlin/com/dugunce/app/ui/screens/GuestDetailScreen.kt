@@ -41,6 +41,8 @@ import com.dugunce.app.ui.components.TopBar
 import com.dugunce.app.ui.theme.DugunceTheme
 import com.dugunce.app.ui.theme.Radius
 import com.dugunce.app.ui.theme.Spacing
+import com.dugunce.app.util.copyToClipboard
+import com.dugunce.app.util.openUrl
 import kotlinx.coroutines.launch
 
 /**
@@ -66,6 +68,9 @@ fun GuestDetailScreen(
     var guest by remember { mutableStateOf<GuestDto?>(null) }
     var inviteUrl by remember { mutableStateOf<String?>(null) }
     var generating by remember { mutableStateOf(false) }
+    // WhatsApp açılamazsa gösterilecek mesaj (sessiz kalmasın).
+    var waError by remember { mutableStateOf<String?>(null) }
+    var copied by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
@@ -234,14 +239,41 @@ fun GuestDetailScreen(
                                         color = c.inkSoft,
                                     )
                                     Spacer(Modifier.height(Spacing.xs))
-                                    // WhatsApp — kullanıcı kendi hesabından gönderir
+                                    // WhatsApp — kullanıcı kendi hesabından gönderir.
+                                    //
+                                    // ÖNCE: `onClick = { }` idi — buton hiçbir
+                                    // şey yapmıyordu ("bastım, bir şey olmadı").
+                                    // Artık wa.me bağlantısı açılır: WhatsApp
+                                    // kuruluysa sohbet, değilse tarayıcı.
                                     val waText = buildWhatsAppMessage(g.name, inviteUrl!!)
                                     val waUrl = "https://wa.me/${normalizePhone(g.phone)}?text=${encodeUrl(waText)}"
                                     DugunceButton(
                                         "WhatsApp'tan gönder",
-                                        onClick = { },
+                                        onClick = {
+                                            val opened = openUrl(waUrl)
+                                            if (!opened) {
+                                                // Açılamadıysa sessiz kalma:
+                                                // bağlantıyı kopyala, elle gönderilebilsin.
+                                                copied = copyToClipboard(waUrl)
+                                                waError = if (copied) {
+                                                    "WhatsApp açılamadı — bağlantı kopyalandı, elle gönderebilirsiniz."
+                                                } else {
+                                                    "WhatsApp açılamadı. Aşağıdaki bağlantıyı seçip kopyalayın."
+                                                }
+                                            } else {
+                                                waError = null
+                                            }
+                                        },
                                         icon = AppIcons.Whatsapp,
                                     )
+                                    waError?.let { msg ->
+                                        Spacer(Modifier.height(Spacing.xs))
+                                        Text(
+                                            msg,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = c.danger,
+                                        )
+                                    }
                                     Text(
                                         "wa.me bağlantısı: $waUrl",
                                         style = MaterialTheme.typography.labelSmall,

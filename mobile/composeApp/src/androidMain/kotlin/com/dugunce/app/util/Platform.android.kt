@@ -59,6 +59,27 @@ actual fun shareText(text: String, subject: String): Boolean {
 }
 
 /**
+ * URL'yi sistemde açar.
+ *
+ * `wa.me` bağlantısı WhatsApp kuruluysa doğrudan uygulamayı açar;
+ * değilse tarayıcıya düşer (WhatsApp Web).
+ */
+actual fun openUrl(url: String): Boolean {
+    val ctx = AppContextHolder.activity ?: AppContextHolder.context ?: return false
+
+    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+    if (ctx !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    return try {
+        ctx.startActivity(intent)
+        true
+    } catch (e: Exception) {
+        Log.w("Dugunce", "Bağlantı açılamadı: $url", e)
+        false
+    }
+}
+
+/**
  * Uygulama bağlamları.
  *
  * `context` = `applicationContext` (pano, dosya vb. için yeterli).
