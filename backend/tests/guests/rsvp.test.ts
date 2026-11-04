@@ -263,6 +263,18 @@ describe('kisi sayisi ozelligi kapali', () => {
     )
   })
 
+  it('onceden bildirilmis sayi korunur, 1 e ezilmez', async () => {
+    // Davetli 3 kişi bildirmişti; çift özelliği kapattı. Davetli tekrar
+    // "Geliyorum"a basınca 3 → 1'e düşmemeli; geçmiş veri silinmez.
+    const d = makeDeps()
+    const row = makeRow({ confirmedPartySize: 3 })
+    ;(row.wedding as Record<string, unknown>)['partySizeEnabled'] = false
+    d.findByTokenHash.mockResolvedValue(row)
+
+    const r = await submitRsvp({ rawToken: 'tok', rsvp: 'ATTENDING' }, d)
+    expect(r!.confirmedPartySize).toBe(3)
+  })
+
   it('DECLINED her iki durumda da 0 yazar', async () => {
     const d = makeDeps()
     const row = makeRow()
@@ -271,5 +283,32 @@ describe('kisi sayisi ozelligi kapali', () => {
 
     const r = await submitRsvp({ rawToken: 'tok', rsvp: 'DECLINED' }, d)
     expect(r!.confirmedPartySize).toBe(0)
+  })
+})
+
+describe('dugun azamisi RSVP yazma yolunda da gecerli', () => {
+  it('davetlinin izni genis olsa da dugunun azamisi uygulanir', async () => {
+    const d = makeDeps()
+    const row = makeRow({ allowedPartySize: 10 })
+    ;(row.wedding as Record<string, unknown>)['partySizeEnabled'] = true
+    ;(row.wedding as Record<string, unknown>)['maxPartySize'] = 4
+    d.findByTokenHash.mockResolvedValue(row)
+
+    // Davetli sayfası "en fazla 4" gösteriyor; 10 gönderen bir istek
+    // (eski sekme, kıvrımlı istemci) kabul edilmemeli.
+    await expect(
+      submitRsvp({ rawToken: 'tok', rsvp: 'ATTENDING', partySize: 10 }, d),
+    ).rejects.toThrow('En fazla 4 kişi bildirebilirsiniz')
+  })
+
+  it('dugun azamisi icinde kalan deger kabul edilir', async () => {
+    const d = makeDeps()
+    const row = makeRow({ allowedPartySize: 10 })
+    ;(row.wedding as Record<string, unknown>)['partySizeEnabled'] = true
+    ;(row.wedding as Record<string, unknown>)['maxPartySize'] = 4
+    d.findByTokenHash.mockResolvedValue(row)
+
+    const r = await submitRsvp({ rawToken: 'tok', rsvp: 'ATTENDING', partySize: 4 }, d)
+    expect(r!.confirmedPartySize).toBe(4)
   })
 })

@@ -784,7 +784,11 @@ function showConfirmed() {
   const line = $('confirmedLine')
   const pill = $('confirmedPill')
   if (state.choice === 'ATTENDING') {
-    const n = state.data.confirmedPartySize
+    // Etkin azami ile sınırla: çift azamiyi düşürdüğünde onay pill'i
+    // stepper'dan farklı bir sayı göstermemeli.
+    const max = Math.max(1, state.data.allowedPartySize || 1)
+    const raw = state.data.confirmedPartySize
+    const n = state.data.partySizeEnabled === false ? 1 : Math.min(raw || 1, max)
     pill.textContent = n && n > 1 ? `Geliyorum · ${n} kişi` : 'Geliyorum'
     line.hidden = false
   } else if (state.choice === 'DECLINED') {

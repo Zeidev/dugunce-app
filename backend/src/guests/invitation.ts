@@ -45,6 +45,10 @@ export interface InvitationGuest {
   weddingId: string
   name: string
   deletedAt: Date | null
+  /** Düğünün varsayılan kişi sayısı — açıkça değer verilmezse bu kullanılır. */
+  defaultPartySize?: number | null
+  /** Düğünün azamisi — varsayılanı da sınırlar. */
+  maxPartySize?: number | null
 }
 
 export interface InvitationRow {
@@ -137,18 +141,6 @@ export async function createInvitation(
     'findGuestForInvitation' | 'insertInvitation' | 'revokeByGuestId' | 'transaction' | 'markInviteSent'
   >,
 ): Promise<CreatedInvitation | null> {
-  const allowedPartySize = params.allowedPartySize ?? DEFAULT_PARTY_SIZE
-
-  if (
-    !Number.isInteger(allowedPartySize) ||
-    allowedPartySize < MIN_PARTY_SIZE ||
-    allowedPartySize > MAX_PARTY_SIZE
-  ) {
-    throw new PartySizeError(
-      `Kişi sayısı ${MIN_PARTY_SIZE}-${MAX_PARTY_SIZE} arasında olmalı`,
-    )
-  }
-
   const guest = await deps.findGuestForInvitation(
     params.guestId,
     params.weddingId,
@@ -158,6 +150,25 @@ export async function createInvitation(
 
   if (guest.deletedAt) {
     throw new Error('Silinmiş davetliye davetiye üretilemez')
+  }
+
+  // Açıkça değer verilmediyse DÜĞÜNÜN varsayılanı kullanılır — sabit 2
+  // değil. Aksi hâlde ayarlar sayfasındaki "Yeni davetliler bu sayıyla
+  // başlar" yalan olurdu (toplu gönderim `allowedPartySize` göndermiyor).
+  // Düğünün azamisi varsayılanı da sınırlar.
+  const weddingDefault = guest.defaultPartySize ?? DEFAULT_PARTY_SIZE
+  const weddingMax = guest.maxPartySize ?? MAX_PARTY_SIZE
+  const allowedPartySize =
+    params.allowedPartySize ?? Math.max(MIN_PARTY_SIZE, Math.min(weddingDefault, weddingMax))
+
+  if (
+    !Number.isInteger(allowedPartySize) ||
+    allowedPartySize < MIN_PARTY_SIZE ||
+    allowedPartySize > MAX_PARTY_SIZE
+  ) {
+    throw new PartySizeError(
+      `Kişi sayısı ${MIN_PARTY_SIZE}-${MAX_PARTY_SIZE} arasında olmalı`,
+    )
   }
 
   const token = generateToken() // 256 bit

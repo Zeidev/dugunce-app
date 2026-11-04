@@ -300,9 +300,14 @@ export function drizzleGuestDeps(
           weddingId: guests.weddingId,
           name: guests.name,
           deletedAt: guests.deletedAt,
+          // Düğünün kişi sayısı ayarları — davetiye üretiminde varsayılan
+          // ve üst sınır bunlardan gelir.
+          defaultPartySize: weddings.defaultPartySize,
+          maxPartySize: weddings.maxPartySize,
         })
         .from(guests)
         .innerJoin(weddingMembers, memberJoin(weddingId, userId))
+        .innerJoin(weddings, eq(weddings.id, guests.weddingId))
         .where(and(eq(guests.id, guestId), eq(guests.weddingId, weddingId)))
         .limit(1)
       return rows[0] ?? null

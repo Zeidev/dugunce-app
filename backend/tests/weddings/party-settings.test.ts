@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { updateWedding, weddingInputSchema } from '../../src/weddings/service.js'
+import { createWedding, updateWedding, weddingInputSchema } from '../../src/weddings/service.js'
 
 function makeDeps(existing: Record<string, unknown> = {}) {
   const record = {
@@ -102,5 +102,67 @@ describe('kisi sayisi ayarlari — dogrulama', () => {
         defaultPartySize: 2.5,
       }),
     ).toThrow()
+  })
+})
+
+describe('olusturmada kisi sayisi ayarlari', () => {
+  it('verilen degerler INSERT e yazilir, sessizce dusurulmez', async () => {
+    const insertWedding = vi.fn(async (values: Record<string, unknown>) => ({
+      id: 'w9', ...values,
+    }))
+    const d = {
+      transaction: vi.fn(async (fn: any) => fn({})),
+      insertWedding,
+      insertMember: vi.fn().mockResolvedValue(undefined),
+      listByUser: vi.fn(),
+      findById: vi.fn(),
+      updateWedding: vi.fn(),
+    } as any
+
+    await createWedding(
+      {
+        userId: 'u1',
+        input: {
+          coupleNames: 'A & B',
+          weddingDate: '2026-09-12',
+          partySizeEnabled: false,
+          defaultPartySize: 3,
+          maxPartySize: 6,
+        },
+      },
+      d,
+    )
+
+    const values = insertWedding.mock.calls[0][0] as Record<string, unknown>
+    expect(values['partySizeEnabled']).toBe(false)
+    expect(values['defaultPartySize']).toBe(3)
+    expect(values['maxPartySize']).toBe(6)
+  })
+
+  it('olusturmada da default > max reddedilir', async () => {
+    const d = {
+      transaction: vi.fn(async (fn: any) => fn({})),
+      insertWedding: vi.fn(),
+      insertMember: vi.fn(),
+      listByUser: vi.fn(),
+      findById: vi.fn(),
+      updateWedding: vi.fn(),
+    } as any
+
+    await expect(
+      createWedding(
+        {
+          userId: 'u1',
+          input: {
+            coupleNames: 'A & B',
+            weddingDate: '2026-09-12',
+            defaultPartySize: 8,
+            maxPartySize: 4,
+          },
+        },
+        d,
+      ),
+    ).rejects.toMatchObject({ code: 'PARTY_SIZE_INCONSISTENT' })
+    expect(d.insertWedding).not.toHaveBeenCalled()
   })
 })

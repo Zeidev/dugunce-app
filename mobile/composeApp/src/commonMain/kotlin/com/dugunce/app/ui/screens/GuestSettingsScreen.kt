@@ -93,9 +93,10 @@ fun GuestSettingsScreen(
         error = null
         scope.launch {
             // Azami düşürülürken varsayılan da AYNI istekte iner — sunucu
-            // `default > max` görüp 400 dönmesin.
+            // `default > max` görüp 400 dönmesin. Yerel değer BURADA
+            // değiştirilmez: istek başarısız olursa kullanıcının girdisi
+            // kaybolurdu. Yalnız gönderilen değer düzeltilir.
             val safeDefault = minOf(defaultSize, maxSize)
-            if (safeDefault != defaultSize) defaultSize = safeDefault
 
             repository.patchWedding(
                 wedding.id,
@@ -119,12 +120,21 @@ fun GuestSettingsScreen(
     }
 
     // Kaydedilmemiş değişiklikle çıkış — sessiz kayıp olmasın.
-    PlatformBackHandler(enabled = dirty && !saving) { confirmDiscard = true }
+    // `saving` sırasında geri tuşu YUTULUR: navigasyon coroutine scope'u
+    // iptal eder ve istek sessizce düşerdi.
+    PlatformBackHandler(enabled = (dirty || saving)) {
+        if (!saving) confirmDiscard = true
+    }
 
     Column(Modifier.fillMaxSize().background(c.cream)) {
         TopBar(
             "Davetli ayarları",
-            onBack = { if (dirty && !saving) confirmDiscard = true else onBack() },
+            onBack = {
+                // Kaydetme sürerken çıkmak isteği iptal eder — engelle.
+                if (!saving) {
+                    if (dirty) confirmDiscard = true else onBack()
+                }
+            },
             actionLabel = "Kaydet",
             actionEnabled = dirty && !saving,
             onAction = { save(false) },

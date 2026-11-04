@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import { TEMPLATES, FONTS } from './templates.js'
 import { AppError } from '../lib/errors.js'
+import {
+  DEFAULT_PARTY_SIZE,
+  MAX_PARTY_SIZE,
+  MIN_PARTY_SIZE,
+} from '../guests/invitation.js'
 
 /**
  * Düğün iş mantığı.
@@ -148,6 +153,16 @@ export async function createWedding(
 ): Promise<WeddingRecord> {
   const input = validateWeddingInput(params.input)
 
+  // Çapraz kural oluşturmada da geçerli — PATCH'te olduğu gibi.
+  const createdDefault = input.defaultPartySize ?? DEFAULT_PARTY_SIZE
+  const createdMax = input.maxPartySize ?? MAX_PARTY_SIZE
+  if (createdDefault > createdMax) {
+    throw AppError.badRequest(
+      'Varsayılan kişi sayısı azamiyi geçemez',
+      'PARTY_SIZE_INCONSISTENT',
+    )
+  }
+
   return deps.transaction(async () => {
     const wedding = await deps.insertWedding({
       coupleNames: input.coupleNames,
@@ -158,6 +173,18 @@ export async function createWedding(
       mapUrl: input.mapUrl ?? null,
       giftNote: input.giftNote ?? null,
       rsvpDeadline: input.rsvpDeadline ? new Date(input.rsvpDeadline) : null,
+      // Kişi sayısı ayarları — verilmezse DB varsayılanları geçerli.
+      // Bunları DÜŞÜRMEK, istemcinin gönderdiği değeri sessizce yok
+      // saymak olurdu.
+      ...(input.partySizeEnabled !== undefined
+        ? { partySizeEnabled: input.partySizeEnabled }
+        : {}),
+      ...(input.defaultPartySize !== undefined
+        ? { defaultPartySize: input.defaultPartySize }
+        : {}),
+      ...(input.maxPartySize !== undefined
+        ? { maxPartySize: input.maxPartySize }
+        : {}),
       plan: 'FREE',
       status: 'ACTIVE',
     })

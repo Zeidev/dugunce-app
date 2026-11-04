@@ -41,3 +41,48 @@ describe('kisi sayisi (party size)', () => {
     expect(call['allowedPartySize']).toBe(1)
   })
 })
+
+describe('davetiye uretiminde dugun varsayilani', () => {
+  it('acikca verilmezse dugunun defaultPartySize i kullanilir', async () => {
+    const d = makeDeps({
+      findGuestForInvitation: vi.fn().mockResolvedValue({
+        id: 'g1', weddingId: 'w1', name: 'Ayşe', deletedAt: null,
+        defaultPartySize: 5, maxPartySize: 8,
+      }),
+    })
+    await createInvitation({ weddingId: 'w1', userId: 'u1', guestId: 'g1' }, d)
+
+    const call = d.insertInvitation.mock.calls[0][0] as Record<string, unknown>
+    // Sabit 2 değil, düğünün ayarı.
+    expect(call['allowedPartySize']).toBe(5)
+  })
+
+  it('dugunun azamisi varsayilani sinirlar', async () => {
+    const d = makeDeps({
+      findGuestForInvitation: vi.fn().mockResolvedValue({
+        id: 'g1', weddingId: 'w1', name: 'Ayşe', deletedAt: null,
+        defaultPartySize: 9, maxPartySize: 4,
+      }),
+    })
+    await createInvitation({ weddingId: 'w1', userId: 'u1', guestId: 'g1' }, d)
+
+    const call = d.insertInvitation.mock.calls[0][0] as Record<string, unknown>
+    expect(call['allowedPartySize']).toBe(4)
+  })
+
+  it('acikca verilen deger dugun ayarini ezer', async () => {
+    const d = makeDeps({
+      findGuestForInvitation: vi.fn().mockResolvedValue({
+        id: 'g1', weddingId: 'w1', name: 'Ayşe', deletedAt: null,
+        defaultPartySize: 5, maxPartySize: 8,
+      }),
+    })
+    await createInvitation(
+      { weddingId: 'w1', userId: 'u1', guestId: 'g1', allowedPartySize: 2 },
+      d,
+    )
+
+    const call = d.insertInvitation.mock.calls[0][0] as Record<string, unknown>
+    expect(call['allowedPartySize']).toBe(2)
+  })
+})

@@ -1,4 +1,8 @@
-import { resolveInvitation, type InvitationRow } from './invitation.js'
+import {
+  resolveInvitation,
+  effectiveAllowedPartySize,
+  type InvitationRow,
+} from './invitation.js'
 
 /**
  * RSVP işleme.
@@ -138,7 +142,11 @@ function resolvePartySize(
   // "Katılım için kişi sayısı gerekli" 422'si döner ve davetli
   // "Geliyorum"a basamaz — özelliği kapatan çift, davetlilerin
   // katılım bildirmesini engellemiş olur.
-  if (invitation.wedding.partySizeEnabled === false) return 1
+  // Önceden bildirilmiş sayı KORUNUR: davetli 3 kişi bildirmişse ve çift
+  // özelliği kapatmışsa tekrar "Geliyorum"a basmak geçmişi silmemeli.
+  if (invitation.wedding.partySizeEnabled === false) {
+    return Math.max(1, invitation.confirmedPartySize ?? 1)
+  }
 
   const size = params.partySize
   if (size === undefined || size === null) {
@@ -150,10 +158,13 @@ function resolvePartySize(
   if (size < 1) {
     throw new RsvpError('Kişi sayısı en az 1 olmalı')
   }
-  if (size > invitation.allowedPartySize) {
-    throw new RsvpError(
-      `En fazla ${invitation.allowedPartySize} kişi bildirebilirsiniz`,
-    )
+  // ETKİN azami: `min(davetlinin izni, düğünün max)`. Yalnız davetlinin
+  // iznine bakmak, davetli sayfası "en fazla 4" derken eski bir sekmenin
+  // 10 göndermesini kabul ederdi — ve çift tarafı `min` uyguladığı için
+  // iki yüzey aynı davetiye hakkında farklı gerçek söylerdi.
+  const max = effectiveAllowedPartySize(invitation)
+  if (size > max) {
+    throw new RsvpError(`En fazla ${max} kişi bildirebilirsiniz`)
   }
   return size
 }
