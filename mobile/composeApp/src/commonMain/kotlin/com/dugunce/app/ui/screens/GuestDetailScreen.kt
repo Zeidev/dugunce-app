@@ -87,8 +87,13 @@ fun GuestDetailScreen(
     // gönderilemiyordu).
     // Aralık düğün ayarlarından: varsayılan değerle başla, düğünün
     // azamisini geçme. Sabit 2/10 yazmak ayarı yalan söyler hâle getirirdi.
+    //
+    // `coerceIn(1, maxPartySize)` TEK BAŞINA YETMEZ: `maxPartySize < 1`
+    // ise (bozuk/eski kayıt) Kotlin `IllegalArgumentException` fırlatır ve
+    // EKRAN ÇÖKER. Önce güvenli aralık kurulur.
     var partySize by remember(guestId, defaultPartySize, maxPartySize) {
-        mutableStateOf(defaultPartySize.coerceIn(1, maxPartySize))
+        val safeMax = maxPartySize.coerceAtLeast(1)
+        mutableStateOf(defaultPartySize.coerceIn(1, safeMax))
     }
     var editingPhone by remember { mutableStateOf(false) }
     var phoneText by remember { mutableStateOf("") }

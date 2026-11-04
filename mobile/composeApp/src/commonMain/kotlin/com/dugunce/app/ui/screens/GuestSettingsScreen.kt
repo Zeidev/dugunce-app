@@ -76,11 +76,17 @@ fun GuestSettingsScreen(
 
     // Yerel taslak — Kaydet'e basılana kadar sunucuya gitmez.
     var enabled by remember(wedding.id) { mutableStateOf(wedding.partySizeEnabled) }
-    var defaultSize by remember(wedding.id) {
-        mutableStateOf(wedding.defaultPartySize.coerceIn(MIN_PARTY, MAX_PARTY))
-    }
+    // Bozuk/eski veriye karşı: önce azami, sonra varsayılan onun
+    // İÇİNE kısılır. Aksi hâlde `default > max` başlangıç durumu
+    // "+"/"−" mantığını kilitler (varsayılan stepper'ın max'ı azaminin
+    // altında kalır ve hiçbir değer geçerli olmaz).
     var maxSize by remember(wedding.id) {
         mutableStateOf(wedding.maxPartySize.coerceIn(MIN_PARTY, MAX_PARTY))
+    }
+    var defaultSize by remember(wedding.id) {
+        mutableStateOf(
+            wedding.defaultPartySize.coerceIn(MIN_PARTY, wedding.maxPartySize.coerceIn(MIN_PARTY, MAX_PARTY)),
+        )
     }
     // Karşılama metni — PREMIUM. Ücretsizde alan kilitli görünür.
     val isPremium = wedding.plan == "PREMIUM"
@@ -94,7 +100,11 @@ fun GuestSettingsScreen(
     val dirty = enabled != wedding.partySizeEnabled ||
         defaultSize != wedding.defaultPartySize ||
         maxSize != wedding.maxPartySize ||
-        greeting.trim() != (wedding.invitationMessage ?: "").trim()
+        // Karşılama metni yalnız PREMIUM'da düzenlenebilir. Ücretsiz
+        // kullanıcıda alan kilitli — `dirty` hesabına katmak, kayıtlı
+        // metni olan (premium'dan düşmüş) bir düğünde "kaydedilemez
+        // değişiklik" gösterirdi.
+        (isPremium && greeting.trim() != (wedding.invitationMessage ?: "").trim())
 
     fun save(thenBack: Boolean) {
         if (saving) return

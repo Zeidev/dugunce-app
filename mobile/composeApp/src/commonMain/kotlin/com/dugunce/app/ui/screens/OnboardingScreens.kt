@@ -187,11 +187,17 @@ fun CreateWeddingScreen(
             )
         }
         Spacer(Modifier.height(Spacing.xs))
-        StepHeader(
-            step = 3,
-            total = 7,
-            title = if (mode == StartMode.CREATE) "Düğününüzü oluşturalım" else "Düğüne katıl",
-        )
+        // Adım göstergesi YALNIZ oluşturma modunda. Katılan kullanıcı
+        // onboarding'in 3. adımında değil — "3/7" yanıltıcı olurdu.
+        if (mode == StartMode.CREATE) {
+            StepHeader(step = 3, total = 7, title = "Düğününüzü oluşturalım")
+        } else {
+            Text(
+                "Düğüne katıl",
+                style = MaterialTheme.typography.headlineLarge,
+                color = c.ink,
+            )
+        }
         Spacer(Modifier.height(Spacing.lg))
 
         // İKİ YOL — kullanıcı hangisi olduğunu burada seçer.

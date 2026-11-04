@@ -33,6 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.dugunce.app.data.Repository
 import com.dugunce.app.data.WeddingPatchRequest
@@ -337,6 +342,18 @@ private fun TemplateCard(
 
     Column(
         modifier
+            // Erişilebilirlik: kilitli kart ekran okuyucuda "PREMIUM,
+            // kilitli" olarak duyurulmalı — yalnız görsel rozet yetmez
+            // (durum asla tek başına renkle/rozetle anlatılmaz).
+            .semantics {
+                role = Role.Button
+                contentDescription = if (locked) {
+                    "${templateLabel(key)}, PREMIUM, kilitli"
+                } else {
+                    templateLabel(key)
+                }
+                if (selected) stateDescription = "seçili"
+            }
             .clickable(onClick = onClick)
             .border(
                 width = if (selected) 2.dp else 1.dp,
