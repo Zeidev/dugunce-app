@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express'
 import { AppError } from '../lib/errors.js'
-import { createInvite, acceptInvite } from '../auth/invite.js'
+import { createInvite, acceptInvite, InviteError } from '../auth/invite.js'
 import { drizzleInviteDeps } from '../auth/invite-store.js'
 
 /**
@@ -12,8 +12,10 @@ import { drizzleInviteDeps } from '../auth/invite-store.js'
 export function createInvitesRouter(deps: {
   requireAuth: import('express').RequestHandler
   requireMember: (roles?: ('OWNER' | 'CO_OWNER')[]) => import('express').RequestHandler
+  /** Test enjeksiyonu — verilmezse gerçek DB. */
+  inviteStore?: import('../auth/invite.js').InviteDeps
 }): { weddingInvites: Router; publicInvites: Router } {
-  const store = drizzleInviteDeps()
+  const store = deps.inviteStore ?? drizzleInviteDeps()
 
   // --- Düğün altında kod üretimi ---
   const weddingInvites = Router({ mergeParams: true })
@@ -73,6 +75,12 @@ export function createInvitesRouter(deps: {
         const result = await acceptInvite({ code: body.code, userId }, store)
         res.json({ ok: true, weddingId: result.weddingId, role: result.role })
       } catch (err) {
+        // Davet hatası → anlamlı 4xx. Düz `Error` 500'e düşerdi ve
+        // istemci sebebi gösteremezdi.
+        if (err instanceof InviteError) {
+          next(new AppError(err.statusCode, 'INVITE_ERROR', err.message))
+          return
+        }
         next(err)
       }
     },

@@ -37,12 +37,22 @@ export interface InviteDeps {
     expiresAt: Date | null
     usedAt: Date | null
   } | null>
-  markInviteUsed: (id: string) => Promise<boolean>
-  insertMember: (row: {
-    weddingId: string
-    userId: string
-    role: string
-  }) => Promise<unknown>
+  /**
+   * Kodu tüketir.
+   *
+   * `tx` ZORUNLU: `acceptInvite` bunu transaction içinde çağırır.
+   * `tx` yok sayılırsa transaction atomik olmaz — kod tüketilip üyelik
+   * yazılamazsa kod yanar ve kullanıcı bir daha katılamaz.
+   */
+  markInviteUsed: (id: string, tx?: unknown) => Promise<boolean>
+  insertMember: (
+    row: {
+      weddingId: string
+      userId: string
+      role: string
+    },
+    tx?: unknown,
+  ) => Promise<unknown>
   transaction: <T>(fn: (tx: unknown) => Promise<T>) => Promise<T>
 }
 
@@ -103,6 +113,23 @@ export interface AcceptInviteResult {
  *
  * Kod tüketimi üyelikten ÖNCE — yarış koşulunda ikinci istek üye ekleyemez.
  */
+/**
+ * Davet kodu hatası — 4xx'e eşlenir.
+ *
+ * NEDEN: servis düz `Error` fırlatınca `errorHandler` 500 dönüyordu.
+ * İstemci 500'ü "sunucu bozuk" sayar; kullanıcı sebebi göremez. Dahası
+ * 401 ile karıştırılırsa oturum gereksiz kapanır (bildirilen hata:
+ * "davet kodunu girince oturum sonlandırıldı uyarısı").
+ */
+export class InviteError extends Error {
+  readonly statusCode: number
+  constructor(message: string, statusCode = 400) {
+    super(message)
+    this.name = 'InviteError'
+    this.statusCode = statusCode
+  }
+}
+
 export async function acceptInvite(
   params: AcceptInviteParams,
   deps: InviteDeps,
@@ -111,34 +138,37 @@ export async function acceptInvite(
 
   const invite = await deps.findByCode(code)
   if (!invite) {
-    throw new Error('Davet kodu bulunamadı')
+    throw new InviteError('Davet kodu bulunamadı', 404)
   }
 
   if (invite.usedAt !== null) {
-    throw new Error('Bu davet kodu kullanılmış')
+    throw new InviteError('Bu davet kodu kullanılmış', 410)
   }
 
   if (!invite.expiresAt || invite.expiresAt.getTime() <= Date.now()) {
-    throw new Error('Davet kodunun süresi dolmuş')
+    throw new InviteError('Davet kodunun süresi dolmuş', 410)
   }
 
-  return deps.transaction(async () => {
+  return deps.transaction(async (tx) => {
     // Koşullu tüketim — aynı kod iki kez kabul edilemez
-    const consumed = await deps.markInviteUsed(invite.id)
+    const consumed = await deps.markInviteUsed(invite.id, tx)
     if (!consumed) {
-      throw new Error('Bu davet kodu kullanılmış')
+      throw new InviteError('Bu davet kodu kullanılmış', 410)
     }
 
     try {
-      await deps.insertMember({
-        weddingId: invite.weddingId,
-        userId: params.userId,
-        role: invite.role,
-      })
+      await deps.insertMember(
+        {
+          weddingId: invite.weddingId,
+          userId: params.userId,
+          role: invite.role,
+        },
+        tx,
+      )
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (/unique|duplicate/i.test(message)) {
-        throw new Error('Bu düğüne zaten üyesiniz')
+        throw new InviteError('Bu düğüne zaten üyesiniz', 409)
       }
       throw err
     }

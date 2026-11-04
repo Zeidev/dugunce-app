@@ -299,12 +299,35 @@ fun App(
                                 state.showCodeEntry = false
                                 scope.launch {
                                     val result = repository.listWeddings()
-                                    val existing = result.getOrNull()?.firstOrNull()
+
+                                    // HATA ile BOŞ LİSTE aynı şey değil.
+                                    //
+                                    // Bildirilen hata: "mail ile giriş
+                                    // yaptığımda yeni bir düğün oluşturma
+                                    // ekranı geliyor." Sebep: `getOrNull()`
+                                    // hata durumunda da null dönüyordu, kod
+                                    // bunu "düğünü yok" sanıp CREATE_WEDDING'e
+                                    // düşürüyordu. Kullanıcının düğünü VARDI.
+                                    val weddings = result.getOrNull()
+                                    if (weddings == null) {
+                                        // Ağ/oturum hatası — kullanıcıyı yanlış
+                                        // ekrana gönderme, girişte tut.
+                                        state.showBanner(
+                                            "Düğünlerin yüklenemedi. Bağlantını kontrol edip " +
+                                                "tekrar giriş yap.",
+                                            isError = true,
+                                        )
+                                        state.resetTo(Screen.LOGIN)
+                                        return@launch
+                                    }
+
+                                    val existing = weddings.firstOrNull()
                                     if (existing != null) {
                                         state.wedding = existing
                                         tokens.selectedWeddingId = existing.id
                                         state.resetTo(Screen.DASHBOARD)
                                     } else {
+                                        // Gerçekten düğünü yok — ilk kurulum.
                                         state.resetTo(Screen.CREATE_WEDDING)
                                     }
                                 }

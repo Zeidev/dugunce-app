@@ -77,11 +77,13 @@ describe('acceptInvite', () => {
 
     expect(r.weddingId).toBe('w1')
     expect(r.role).toBe('CO_OWNER')
-    expect(d.insertMember).toHaveBeenCalledWith({
-      weddingId: 'w1',
-      userId: 'u2',
-      role: 'CO_OWNER',
-    })
+    // İkinci argüman `tx` — transaction içinde çağrıldığının kanıtı.
+    // `tx` geçirilmezse üyelik transaction DIŞINDA yazılır ve kod
+    // tüketilip üyelik başarısız olursa kod yanar.
+    expect(d.insertMember).toHaveBeenCalledWith(
+      { weddingId: 'w1', userId: 'u2', role: 'CO_OWNER' },
+      expect.anything(),
+    )
   })
 
   it('kod büyük harfe normalize edilir (kullanıcı küçük yazsa da)', async () => {

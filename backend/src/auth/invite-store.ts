@@ -6,8 +6,10 @@ import type { InviteDeps } from './invite.js'
 /**
  * Davet kodu deposunun Drizzle implementasyonu.
  */
-export function drizzleInviteDeps(): InviteDeps {
-  const db = getDb()
+export function drizzleInviteDeps(
+  dbOverride?: ReturnType<typeof getDb>,
+): InviteDeps {
+  const db = dbOverride ?? getDb()
 
   return {
     async transaction(fn) {
@@ -63,8 +65,9 @@ export function drizzleInviteDeps(): InviteDeps {
      * `WHERE used_at IS NULL` sayesinde iki eşzamanlı istekten yalnızca
      * biri `true` alır.
      */
-    async markInviteUsed(id) {
-      const rows = await db
+    async markInviteUsed(id, tx) {
+      const client = (tx as typeof db | undefined) ?? db
+      const rows = await client
         .update(invites)
         .set({ usedAt: new Date() })
         .where(and(eq(invites.id, id), isNull(invites.usedAt)))
@@ -72,8 +75,9 @@ export function drizzleInviteDeps(): InviteDeps {
       return rows.length > 0
     },
 
-    async insertMember(row) {
-      await db.insert(weddingMembers).values(row)
+    async insertMember(row, tx) {
+      const client = (tx as typeof db | undefined) ?? db
+      await client.insert(weddingMembers).values(row)
     },
   }
 }

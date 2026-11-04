@@ -44,6 +44,8 @@ export interface CreateAppOptions {
    * testlerde enjekte edilir.
    */
   healthCheckDb?: () => Promise<boolean>
+  /** Test enjeksiyonu — verilmezse gerçek DB. */
+  inviteStore?: import('./auth/invite.js').InviteDeps
   helperStore?: ReturnType<typeof import('./helpers/store.js').drizzleHelperDeps>
   taskStore?: ReturnType<typeof import('./tasks/store.js').drizzleTaskDeps>
   messageStore?: ReturnType<typeof import('./messages/store.js').drizzleMessageDeps>
@@ -144,7 +146,11 @@ export function createApp(options: CreateAppOptions = {}): Express {
   )
 
   // Davet kodları iki yerde: düğün altında üretim, kökte kabul
-  const invites = createInvitesRouter({ requireAuth, requireMember })
+  const invites = createInvitesRouter({
+    requireAuth,
+    requireMember,
+    ...(options.inviteStore ? { inviteStore: options.inviteStore } : {}),
+  })
   app.use('/api/v1/weddings/:weddingId/invites', invites.weddingInvites)
   app.use('/api/v1/invites', invites.publicInvites)
 
