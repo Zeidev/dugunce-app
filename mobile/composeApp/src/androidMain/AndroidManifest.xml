@@ -4,11 +4,19 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
-      Rehberden kişi seçimi (Android 11+ paket görünürlüğü).
-      ACTION_PICK ile sistem rehber seçicisi açılır; READ_CONTACTS izni
-      GEREKMEZ — seçici kendi yetkisiyle çalışır ve uygulamaya yalnız
-      seçilen kişilerin URI'si döner.
+      Rehberden kişi seçimi.
+
+      READ_CONTACTS GEREKLİ. `ACTION_PICK` seçiciyi izinsiz açar AMA
+      dönen URI'yi `contentResolver.query` ile okumak bu izni ister.
+      İzin yoksa sorgu `SecurityException` fırlatır; bizim
+      `runCatching` onu sessizce yutuyordu ve telefon boş kalıyordu
+      ("rehberde numara var, uygulamada yok" belirtisi).
+
+      Kullanım: yalnız kullanıcının seçtiği kişiler okunur, rehberin
+      tamamı taranmaz.
     -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <queries>
         <intent>
             <action android:name="android.intent.action.PICK" />
