@@ -127,7 +127,23 @@ fun App(
                     onDeepLinkConsumed()
                 }
                 initialInviteCode != null -> {
-                    state.resetTo(Screen.ACCEPT_INVITE)
+                    // Deep link ile gelen davet kodu. Giriş yapılmamışsa
+                    // kodu SAKLA ve girişe yönlendir — ACCEPT_INVITE
+                    // ekranı girişsiz gönderim yapmaz ama kullanıcıyı
+                    // doğrudan oraya düşürmek de yanıltıcı olurdu.
+                    if (!tokens.isLoggedIn) {
+                        state.pendingInviteCode = initialInviteCode
+                        state.showBanner(
+                            "Düğüne katılmak için önce e-posta ile giriş yap. " +
+                                "Davet kodun kaydedildi.",
+                            isError = false,
+                        )
+                        // `startScreen()` bu bloktan sonra tanımlı —
+                        // aynı mantığı burada açıkça yazıyoruz.
+                        state.resetTo(if (tokens.onboardingDone) Screen.LOGIN else Screen.WELCOME)
+                    } else {
+                        state.resetTo(Screen.ACCEPT_INVITE)
+                    }
                     onDeepLinkConsumed()
                 }
             }
