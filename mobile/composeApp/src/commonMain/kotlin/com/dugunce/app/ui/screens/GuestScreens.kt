@@ -464,6 +464,13 @@ private fun GuestRow(guest: GuestDto, onClick: () -> Unit) {
                         rsvpTone(guest.rsvp),
                         rsvpIcon(guest.rsvp),
                     )
+                    // Davetiye gönderildi mi? Kullanıcı "kime gönderdim,
+                    // kime göndermedim" ayrımını tek bakışta görsün.
+                    if (guest.inviteStatus == "SENT") {
+                        StatusChip("Gönderildi", StatusTone.SUCCESS)
+                    } else {
+                        StatusChip("Gönderilmedi", StatusTone.NEUTRAL)
+                    }
                 }
             }
         }

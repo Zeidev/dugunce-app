@@ -71,6 +71,12 @@ beforeAll(async () => {
   )
   token = inv!.token
 
+  // `createInvitation` artık `inviteStatus = SENT` yapıyor (davetiye
+  // üretildi = gönderilmeye hazır). Bu testin konusu GET'in YAN ETKİSİ
+  // olduğu için başlangıç durumunu `NOT_SENT`'e çekiyoruz; aksi halde
+  // "GET değiştirmedi" iddiası kurulum yüzünden anlamsız kalırdı.
+  await pg.query(`UPDATE guests SET invite_status = 'NOT_SENT' WHERE id = $1`, [guestId])
+
   app = createApp({ guestStore: store })
 }, 60_000)
 

@@ -169,21 +169,32 @@ export async function createExpense(
       createdBy: params.userId,
     })
 
-    const plan = buildInstallmentPlan({
-      totalKurus: input.amountKurus,
-      count: input.installmentCount,
-      firstMonth: input.firstInstallmentMonth,
-    })
+    // Taksit kaydı YALNIZ gerçek taksitte (count > 1) oluşturulur.
+    //
+    // ÖNCE: `buildInstallmentPlan` her zaman çağrılıyordu; `count=1` için
+    // TEK satırlık bir "taksit" üretiyordu. Takvim bu tablodan beslendiği
+    // için peşin (veya nakit) harcama da takvimde taksit gibi görünüyordu
+    // — kullanıcının bildirdiği hata.
+    //
+    // Peşin harcamanın takvimde işi yok: ödeme tarihi `purchaseDate` ve
+    // durumu `paymentStatus` ile zaten takip ediliyor.
+    if (input.installmentCount > 1) {
+      const plan = buildInstallmentPlan({
+        totalKurus: input.amountKurus,
+        count: input.installmentCount,
+        firstMonth: input.firstInstallmentMonth,
+      })
 
-    await deps.insertInstallments(
-      plan.map((row) => ({
-        weddingId: params.weddingId,
-        expenseId: expense.id,
-        number: row.number,
-        amountKurus: row.amountKurus,
-        dueMonth: row.dueMonth,
-      })),
-    )
+      await deps.insertInstallments(
+        plan.map((row) => ({
+          weddingId: params.weddingId,
+          expenseId: expense.id,
+          number: row.number,
+          amountKurus: row.amountKurus,
+          dueMonth: row.dueMonth,
+        })),
+      )
+    }
 
     return expense
   })
@@ -300,21 +311,25 @@ export async function updateExpense(
 
       await deps.deleteInstallments(params.expenseId)
 
-      const plan = buildInstallmentPlan({
-        totalKurus: amountKurus,
-        count,
-        firstMonth,
-      })
+      // Peşin (count=1) ise taksit kaydı ÜRETİLMEZ — takvimde görünmesin.
+      // (Aynı kural oluşturmada da geçerli; bkz. createExpense.)
+      if (count > 1) {
+        const plan = buildInstallmentPlan({
+          totalKurus: amountKurus,
+          count,
+          firstMonth,
+        })
 
-      await deps.insertInstallments(
-        plan.map((row) => ({
-          weddingId: params.weddingId,
-          expenseId: params.expenseId,
-          number: row.number,
-          amountKurus: row.amountKurus,
-          dueMonth: row.dueMonth,
-        })),
-      )
+        await deps.insertInstallments(
+          plan.map((row) => ({
+            weddingId: params.weddingId,
+            expenseId: params.expenseId,
+            number: row.number,
+            amountKurus: row.amountKurus,
+            dueMonth: row.dueMonth,
+          })),
+        )
+      }
     }
 
     if (Object.keys(dbPatch).length === 0) {

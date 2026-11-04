@@ -315,6 +315,21 @@ export function drizzleGuestDeps(
       return row
     },
 
+    /**
+     * Davetliye davetiye gönderildiğini işaretler (`inviteStatus = SENT`).
+     *
+     * NEDEN: `inviteStatus` alanı vardı ama HİÇ güncellenmiyordu — tüm
+     * davetliler sonsuza kadar `NOT_SENT` kalıyordu. Kullanıcı "kime
+     * gönderdim, kime göndermedim" ayrımını göremiyordu.
+     */
+    async markInviteSent(guestId, tx) {
+      const client = (tx as Db | undefined) ?? db
+      await client
+        .update(guests)
+        .set({ inviteStatus: 'SENT' })
+        .where(eq(guests.id, guestId))
+    },
+
     // --- Davetli tarafı (token yetkisi) ---
     async findByTokenHash(tokenHash) {
       const rows = await db

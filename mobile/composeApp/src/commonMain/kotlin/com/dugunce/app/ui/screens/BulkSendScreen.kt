@@ -88,7 +88,13 @@ fun BulkSendScreen(
         loading = true
         error = null
         repository.listGuests(weddingId).fold(
-            onSuccess = { guests = it; loading = false },
+            onSuccess = {
+                guests = it
+                // Sunucudaki "gönderildi" işaretini devral — ekran
+                // yenilenince ilerleme kaybolmasın.
+                sent = it.filter { g -> g.inviteStatus == "SENT" }.map { g -> g.id }.toSet()
+                loading = false
+            },
             onFailure = { error = it.message ?: "Davetliler yüklenemedi"; loading = false },
         )
     }

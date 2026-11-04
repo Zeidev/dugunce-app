@@ -24,6 +24,7 @@ function makeDeps(overrides: Record<string, unknown> = {}) {
     insertInvitation: vi.fn().mockResolvedValue({ id: 'i1' }),
     findByTokenHash: vi.fn().mockResolvedValue(null),
     revokeByGuestId: vi.fn().mockResolvedValue(1),
+    markInviteSent: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
 }

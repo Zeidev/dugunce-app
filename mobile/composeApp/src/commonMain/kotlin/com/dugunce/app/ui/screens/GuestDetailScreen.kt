@@ -371,23 +371,34 @@ internal fun normalizePhone(phone: String?): String {
     }
 }
 
-/** URL encode — yalnızca gerekli karakterler. */
+/**
+ * URL encode (RFC 3986) — emoji ve Türkçe karakterler dahil.
+ *
+ * KRİTİK: Dönüşüm TÜM STRING üzerinden yapılır, karakter karakter değil.
+ *
+ * ÖNCE: her `char` ayrı ayrı `encodeToByteArray()` ile kodlanıyordu.
+ * Kotlin `String` UTF-16'dır; emoji (ör. 🌸 = U+1F338) İKİ `char`'dan
+ * (surrogate pair) oluşur. Her yarı tek başına çevrilince geçersiz
+ * UTF-8 çıkıyor ve WhatsApp'ta "??" görünüyordu (bildirilen hata).
+ *
+ * DOĞRU: `encodeToByteArray()` bir kere çağrılır; surrogate çifti
+ * bütün olarak tek kod noktasına çevrilir.
+ */
 internal fun encodeUrl(input: String): String {
     val sb = StringBuilder()
-    for (ch in input) {
+    // Tek seferde UTF-8 byte dizisi — surrogate pair'ler bütün kalır.
+    for (b in input.encodeToByteArray()) {
+        val v = b.toInt() and 0xFF
+        val ch = v.toChar()
         when {
-            // YALNIZCA ASCII harf/rakam korunur. `isLetterOrDigit()` Türkçe
-            // 'ş', 'ğ', 'ı' için de true döner ve onları kodlamadan bırakır —
-            // WhatsApp linkinde bozuk karaktere yol açar.
+            // YALNIZCA ASCII harf/rakam ve güvenli işaretler korunur.
+            // `isLetterOrDigit()` Türkçe 'ş', 'ğ', 'ı' için de true döner
+            // ve onları kodlamadan bırakır — WhatsApp'ta bozuk görünür.
             (ch in 'a'..'z') || (ch in 'A'..'Z') || (ch in '0'..'9') || ch in "-_.~" -> sb.append(ch)
-            ch == ' ' -> sb.append("%20")
             else -> {
-                val bytes = ch.toString().encodeToByteArray()
-                for (b in bytes) {
-                    sb.append('%')
-                    sb.append(HEX[(b.toInt() shr 4) and 0xF])
-                    sb.append(HEX[b.toInt() and 0xF])
-                }
+                sb.append('%')
+                sb.append(HEX[(v shr 4) and 0xF])
+                sb.append(HEX[v and 0xF])
             }
         }
     }
