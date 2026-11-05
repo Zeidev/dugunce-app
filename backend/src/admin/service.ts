@@ -196,6 +196,14 @@ export interface AdminAccountRow {
   failedAttempts: number
   lockedUntil: Date | null
   lastLoginAt: Date | null
+  /**
+   * Ardışık kilit sayısı — üstel kilit süresi için (`nextFailedState`).
+   *
+   * Task 3'ün üstel kilit düzeltmesinde `loginAdmin` bu alanı okuyor
+   * (`row.lockoutCount ?? 0`) ama tipe eklenmemişti; sonuç: `tsc --noEmit`
+   * kırık kalıyordu. Yalnızca TİP düzeltmesi — davranış değişmedi.
+   */
+  lockoutCount?: number
   passwordHash: string
   /** v1'de kullanılmaz — 2FA sonraki tur. Okunmaz, sızdırılmaz. */
   totpSecret?: string | null
