@@ -101,6 +101,26 @@ export function Layout(): React.JSX.Element {
             <span className="sidebar__brand-sub">Admin</span>
           </span>
           {/*
+            DERLEME KİMLİĞİ — menünün altında, gözle görülür.
+
+            NEDEN BURADA (canlıda YAŞANDI): Cloudflare Pages SPA'yı hiç
+            derlemediği hâlde `/spa/` 200 dönüyordu (catch-all kök
+            `index.html`e düşüyordu). "Deploy çalıştı mı?" sorusunu
+            yanıtlamanın yolu yoktu: sayfa boş, HTTP 200, konsolda hata
+            yok. Operatör dakikalarca boşuna bekledi.
+
+            Artık yayındaki sayfada hangi commit'in çalıştığı YAZIYOR.
+            `__BUILD_ID__` derlemede gömülür (`vite.config.ts` → `define`);
+            Cloudflare'de kısa commit SHA, yerelde `dev`.
+
+            NEDEN `<span title>` + kısa metin: operatörün ihtiyacı tam SHA
+            değil, "yeni sürüm geldi mi" sorusu. Tam değer ipucunda durur.
+          */}
+          <span className="sidebar__build" title={`Derleme: ${__BUILD_ID__}`}>
+            sürüm {__BUILD_ID__}
+          </span>
+
+          {/*
             Mobil kapatma butonu. NEDEN GEREKLİ: menü mobilde sabit
             overlay olarak açılıyor ve üst çubuktaki hamburger butonunun
             ÜZERİNİ örtüyor — buton olmadan kullanıcı menüyü kapatamıyordu

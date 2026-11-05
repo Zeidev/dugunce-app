@@ -14,3 +14,15 @@
  */
 
 /// <reference types="vite/client" />
+
+/**
+ * Derleme kimliği — `vite.config.ts` içindeki `define` ile gömülür.
+ *
+ * NEDEN: yayındaki panelin hangi commit'ten derlendiği GÖRÜNSÜN. Cloudflare
+ * Pages SPA'yı derlemediğinde `/spa/` yine 200 dönüyordu (catch-all kök
+ * `index.html`e düşüyordu) ve "deploy oldu mu?" sorusunun yanıtı yoktu.
+ * Bu değer altbilgide yazılır.
+ *
+ * `dev` = yerel geliştirme (Cloudflare'de `CF_PAGES_COMMIT_SHA` tanımlıdır).
+ */
+declare const __BUILD_ID__: string

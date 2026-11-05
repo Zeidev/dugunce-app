@@ -1073,3 +1073,20 @@ a {
     max-width: none;
   }
 }
+
+/* Derleme kimliği — menünün altında, gözle görülür.
+ *
+ * NEDEN GÖRÜNÜR: "deploy oldu mu?" sorusunun tarayıcıdan yanıtlanabilmesi
+ * için. Sessiz/çok soluk yapmak işlevi bozar; ama dikkat dağıtmasın diye
+ * küçük ve --muted. */
+.sidebar__build {
+  display: block;
+  margin-top: var(--s-3);
+  padding: 0 var(--s-5);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 242, 238, 0.42);
+  font-family: var(--font-body);
+  user-select: text;
+}

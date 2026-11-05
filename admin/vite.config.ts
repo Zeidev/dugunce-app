@@ -16,6 +16,26 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/spa/',
   plugins: [react(), spaTrailingSlash()],
+  /**
+   * Derleme kimliği — panelin altbilgisinde gösterilir.
+   *
+   * NEDEN GEREKLİ (canlıda YAŞANDI): Cloudflare Pages, SPA'yı hiç
+   * derlemediği hâlde `/spa/` 200 dönüyordu (catch-all kök `index.html`e
+   * düşüyordu). "Deploy çalıştı mı?" sorusunu yanıtlamanın hiçbir yolu
+   * yoktu — sayfa boştu, konsolda hata yoktu, HTTP 200'dü. Operatör
+   * dakikalarca "deploy neden olmuyor" diye baktı.
+   *
+   * Artık her derleme kendi kimliğini taşır: yayındaki sayfada hangi
+   * commit'in çalıştığı GÖRÜNÜR. Ayrıca bu kimlik içeriğe girdiği için
+   * JS hash'i her deploy'da DEĞİŞİR — yanlış MIME ile önbelleğe girmiş
+   * eski bir kayıt (yaşanan arıza) kendiliğinden etkisiz kalır.
+   *
+   * `CF_PAGES_COMMIT_SHA` Cloudflare Pages'te otomatik tanımlıdır;
+   * yerelde yoktur, bu yüzden `dev`e düşer.
+   */
+  define: {
+    __BUILD_ID__: JSON.stringify(readBuildId()),
+  },
   build: {
     outDir: '../frontend/public/spa',
     // Her derlemede temizle: eski hash'li varlıklar birikirse Pages
@@ -34,6 +54,31 @@ export default defineConfig({
     },
   },
 })
+
+/**
+ * Derleme kimliğini ortamdan okur (kısa commit SHA).
+ *
+ * NEDEN `process` DOĞRUDAN KULLANILMIYOR: `admin/` projesinde `@types/node`
+ * YOK ve bilinçli olarak eklenmiyor (2 MB'lık bağımlılık, tek satır için).
+ * `process.env` yazmak `tsc --noEmit`'i kırar: "Cannot find name 'process'".
+ *
+ * `readRequestUrl` (aşağıda) aynı sorunu `in` ile daraltarak çözmüştü;
+ * burada da aynı desen kullanılıyor — `as`/`any` YOK.
+ *
+ * Cloudflare Pages `CF_PAGES_COMMIT_SHA`'yı otomatik tanımlar; yerelde
+ * yoktur, `dev`e düşer.
+ */
+function readBuildId(): string {
+  const env: unknown = Reflect.get(globalThis, 'process')
+  if (typeof env !== 'object' || env === null) return 'dev'
+  if (!('env' in env)) return 'dev'
+  const vars: unknown = env.env
+  if (typeof vars !== 'object' || vars === null) return 'dev'
+  if (!('CF_PAGES_COMMIT_SHA' in vars)) return 'dev'
+  const sha: unknown = vars.CF_PAGES_COMMIT_SHA
+  if (typeof sha !== 'string' || sha === '') return 'dev'
+  return sha.slice(0, 7)
+}
 
 /**
  * `/spa` → `/spa/` yönlendirmesi — YALNIZ geliştirme sunucusunda.

@@ -39,6 +39,36 @@
 # SIRA: pass-through kuralları ÖNCE, catch-all EN SONDA.
 # Cloudflare'de İLK eşleşen kural uygulanır.
 
+# NOT — EKSİK VARLIK HTML DÖNMEZ (canlıda ÖLÇÜLDÜ, gerçek olay):
+#
+# Bu dosyada eskiden "eksik varlık HTML döner, kabul edilebilir" yazıyordu.
+# Bu YANLIŞTI ve üretimde zarar verdi:
+#
+#   1. SPA henüz deploy edilmemişken `/spa/assets/index-abc.js` istendi,
+#   2. dosya yoktu → pass-through hedefi bulunamadı → kök `index.html`e
+#      varsayılan geri dönüş → HTML,
+#   3. `/spa/assets/*` başlık kuralı bu HTML'e
+#      `Cache-Control: immutable, max-age=31536000` ekledi,
+#   4. HTML yanıtı BİR YIL "immutable" olarak Cloudflare kenarında kaldı.
+#
+# Sonuç: SPA deploy edildikten SONRA bile `.js` yerine önbellekteki HTML
+# döndü ve panel beyaz ekran verdi (canlıda `content-type: text/html`,
+# `cf-cache-status: HIT`, `age: 7000+` ile ölçüldü).
+#
+# DÜZELTME: `_redirects` 404 DÖNEMEZ — geçerli kodlar yalnız
+# 200/301/302/303/307/308 (wrangler doğrulaması: "Valid status codes are
+# 200, 301, 302, 303, 307, or 308. Got 404"). Bu yüzden "eksik varlık"
+# durumu burada kapatılamaz.
+#
+# KALICI KORUMA `_headers`'ta: `/spa/assets/*` için `immutable` KALDIRILDI.
+# Hash'li varlıklar zaten içerik değişince ad değiştirdiği için uzun
+# önbellek teorik olarak güvenli; ama yanlış MIME ile bir yıl önbelleğe
+# giren tek bir kayıt "deploy çalışmıyor" gibi görünen bir arıza üretiyor.
+# Kısa `max-age` + `must-revalidate` bu sınıf hatayı KALICI olarak kapatır.
+#
+# SIRA: pass-through kuralları ÖNCE, catch-all EN SONDA.
+# Cloudflare'de İLK eşleşen kural uygulanır.
+
 /spa/assets/*  /spa/assets/:splat  200
 /spa/*.js      /spa/:splat.js      200
 /spa/*.css     /spa/:splat.css     200
@@ -49,12 +79,5 @@
 /spa/*.webmanifest  /spa/:splat.webmanifest  200
 
 # Catch-all EN SONDA: yalnız yukarıdakilere uymayan yollar SPA kabuğunu alır
-# (/spa/users, /spa/weddings/<id>).
-#
-# NOT: Eksik bir varlık (`/spa/assets/yok.js`) bu catch-all'a DÜŞMEZ
-# (pass-through önce eşleşir) ama yine de HTML döner — çünkü hedef dosya
-# yoksa Cloudflare kök `index.html`e varsayılan SPA geri dönüşü yapar.
-# Bu kabul edilebilir: hash'li varlık adları derleme başına değişir,
-# "eksik varlık" normalde yalnız eski bir sekmenin yeni derlemeden sonra
-# parça istemesiyle olur ve kullanıcı yenilediğinde düzelir.
+# (/spa/users, /spa/weddings/<id>, /spa/login …).
 /spa/*  /spa/  200

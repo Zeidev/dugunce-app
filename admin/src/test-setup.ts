@@ -75,3 +75,20 @@ Object.defineProperty(globalThis, 'jest', {
   // sayar ve gerçek `setTimeout` ile devam eder.
   get: (): JestShim | undefined => (vi.isFakeTimers() ? jestShim : undefined),
 })
+
+/**
+ * `__BUILD_ID__` — `vite.config.ts` içindeki `define` ile gömülür.
+ *
+ * SORUN: Vitest `vite.config.ts`'i KULLANMIYOR (ayrı `vitest.config.ts` var,
+ * çünkü üretim yapılandırması test aracına bağımlı olmamalı). Bu yüzden
+ * `define` uygulanmıyor ve `Layout` render edilirken
+ * `ReferenceError: __BUILD_ID__ is not defined` fırlıyor.
+ *
+ * ÇÖZÜM: testte sabit bir değer tanımla. Değerin kendisi önemli değil —
+ * testler yalnız "görünür bir sürüm etiketi var mı" sorusunu soruyor.
+ */
+Object.defineProperty(globalThis, '__BUILD_ID__', {
+  configurable: true,
+  writable: true,
+  value: 'test',
+})
