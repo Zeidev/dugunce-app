@@ -61,6 +61,7 @@ Detay: [`docs/superpowers/specs/2026-11-02-dugunce-design.md`](../docs/superpowe
 | `npm run typecheck` | Tip kontrolü |
 | `npm run db:generate` | Şema değişikliğinden migration üretir |
 | `npm run db:migrate` | Migration'ları çalıştırır |
+| `npm run admin:create` | İlk `SUPER_ADMIN` hesabını oluşturur (aşağıya bakın) |
 
 ---
 
@@ -123,6 +124,48 @@ npm run db:migrate -- --force   # üretim (bilinçli)
 ```
 
 Migration'lar **idempotenttir** — tekrar çalıştırmak zarar vermez.
+
+---
+
+## Admin hesabı oluşturma (ilk `SUPER_ADMIN`)
+
+**Web'den admin oluşturma ucu YOKTUR** ve bilinçli olarak eklenmez: herkese
+açık bir "yetki yükseltme" yüzeyi, tek korunması gereken şey olsa bile yanlış
+middleware sırası ya da eksik CSRF kontrolüyle panel ele geçirilebilir demektir.
+İlk hesap yalnız sunucuya erişimi olan operatör tarafından, komut satırından
+açılır.
+
+```bash
+cd backend
+
+# Geliştirme (tsx gerekir)
+npm run admin:create
+npx tsx scripts/create-admin.ts --email owner@dugunce.com.tr --name "Ürün Sahibi"
+
+# ÜRETİM — sunucuda `tsx` YOKTUR (`npm ci --omit=dev`), derlenmiş dosya kullanılır:
+node dist/admin/provision-cli.js --email owner@dugunce.com.tr --name "Ürün Sorumlusu"
+
+# Otomasyon (parola süreç argümanında GÖRÜNMEZ):
+pass show dugunce/admin | node dist/admin/provision-cli.js \
+  --email owner@dugunce.com.tr --name "Ürün Sorumlusu" --password-stdin
+```
+
+`--password-stdin` kullanırken `--email` ve `--name` **zorunludur**: STDIN
+parolaya ayrılmıştır, oradan soru sorulamaz (aksi hâlde parola "e-posta"
+olarak okunup ekrana basılırdı).
+
+- Parola terminalde **görünmez** (echo kapalı, ham mod) ve **hiçbir yere
+  log'lanmaz** — audit `metadata`'sına bile yazılmaz.
+- `--password <değer>` **desteklenmez**: `ps aux`, shell geçmişi ve
+  `journalctl` çıktısında görünür. Otomasyon için `--password-stdin` var.
+- Parola en az **16 karakter**, en az bir **harf** ve bir **rakam** içermeli.
+- Aynı e-posta ile hesap **zaten varsa REDDEDİLİR** — üzerine yazılmaz.
+  (Bu CLI bir parola sıfırlama aracı değildir.)
+- E-posta **yazarken girişle aynı zincirle** normalize edilir
+  (`.trim().toLowerCase().normalize('NFC')`); `Owner@X.com` ile açılan hesap
+  `owner@x.com` ile giriş yapabilir.
+- Oluşturma `ADMIN_CREATED` denetim kaydı yazar (`actorType: SYSTEM`,
+  `actorId: null`).
 
 ---
 

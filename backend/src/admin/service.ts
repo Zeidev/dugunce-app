@@ -489,6 +489,148 @@ export async function loginAdmin(
 }
 
 // ---------------------------------------------------------------------------
+// CLI provizyonu — ilk SUPER_ADMIN
+// ---------------------------------------------------------------------------
+
+/**
+ * E-posta normalizasyonu — YAZMA ve OKUMA için TEK kaynak.
+ *
+ * `loginAdmin` bu zinciri zaten uyguluyor (`.trim().toLowerCase().normalize('NFC')`).
+ * Provizyon yolu FARKLI bir zincir kullansaydı `Owner@X.com` ile açılan
+ * hesap `owner@x.com` ile ASLA bulunamazdı: giriş "hesap yok" derdi ve
+ * hata giriş akışında değil, sessizce ortaya çıkardı (parola sıfırlama
+ * akışı da yok — hesap kilitlenirdi).
+ *
+ * `normalize('NFC')` Türkçe için hayati: "Ş" tek kod noktası (U+015E)
+ * veya "S" + birleşik çengel (U+0053 U+0327) olarak yazılabilir; ekranda
+ * aynı, baytlarda farklı.
+ */
+export function normalizeAdminEmail(email: string): string {
+  return email.trim().toLowerCase().normalize('NFC')
+}
+
+/**
+ * Provizyonun veri erişim bağımlılıkları — DAR arayüz.
+ *
+ * NEDEN `extends AdminDeps` DEĞİL: `AdminDeps` giriş/oturum sözleşmesidir
+ * (Task 3'te donduruldu) ve hesap AÇMA yetkisi o sözleşmeye ait değil.
+ * Genişletseydik her çağıran (bu dosyanın testleri ve CLI) kullanmadığı
+ * on bir metodu da sahtelemek zorunda kalırdı — ve daha kötüsü, `AdminDeps`
+ * `insertAdminAccount` taşısaydı hesap açma yetkisi oturum middleware'ini
+ * tüketen her yere yayılmış görünürdü.
+ *
+ * `findAdminByEmail` / `writeAudit` ise `Pick` ile alınıyor: imzalar TEK
+ * kaynaktan gelsin, audit ve okuma sözleşmeleri iki yerde ayrışmasın.
+ *
+ * `drizzleCreateAdminDeps()` bu arayüzü YAPISAL olarak karşılar.
+ */
+export type CreateAdminDeps = Pick<AdminDeps, 'findAdminByEmail' | 'writeAudit'> & {
+  /**
+   * Hesabı YAZAR. Mevcut e-postayı GÜNCELLEMEZ — `ON CONFLICT` yoktur.
+   * Çağıran önce `findAdminByEmail` ile çakışmayı kontrol eder; eşzamanlı
+   * iki CLI çalışırsa DB'deki UNIQUE kısıtı ikinciyi reddeder (store bunu
+   * `ADMIN_EMAIL_EXISTS` hatasına çevirir), yani yarış durumunda da hesap
+   * EZİLMEZ.
+   */
+  insertAdminAccount(values: {
+    email: string
+    displayName: string
+    passwordHash: string
+  }): Promise<{ id: string }>
+}
+
+/**
+ * Kaba e-posta biçim denetimi.
+ *
+ * `zod`'un `.email()`'i kadar katı değil ama yeterli: amaç RFC uyumu
+ * değil, "boşluk/`@` eksik" gibi bariz hataların DB'ye ulaşmasını
+ * engellemek. Gerçek doğrulama zaten giriş akışında yapılıyor; burada
+ * hesap AÇILIRKEN yakalanması, açıldıktan sonra giriş yapılamamasından
+ * çok daha ucuz.
+ */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * CLI'dan yeni bir yönetici hesabı oluşturur (spec §6.1, Task 8).
+ *
+ * SIRA ÖNEMLİ — her adım bir öncekinin ön koşulu:
+ *
+ * 1. Girdi doğrulaması (e-posta biçimi, görünen ad). Yazmadan önce:
+ *    bozuk bir e-posta DB'ye girseydi o hesapla giriş yapılamaz ve
+ *    operatör "hesap açıldı" sanırdı.
+ * 2. Parola güçlülüğü `validatePasswordStrength` ile — 16+ karakter,
+ *    harf, rakam. Kural TEK yerde tanımlı; burada kopyalanmaz.
+ * 3. E-posta NORMALİZE edilir ve çakışma kontrol edilir. AYNI e-posta
+ *    varsa REDDEDİLİR — üzerine YAZILMAZ. Yazsaydık bu CLI bir parola
+ *    sıfırlama ucu gibi çalışırdı: sunucuya erişen biri mevcut hesabın
+ *    parolasını değiştirip paneli ele geçirirdi.
+ * 4. Parola Argon2id ile hash'lenir (`hashPassword` — NFC normalizasyonu
+ *    dahil). Düz metin bu fonksiyondan SONRA hiçbir yerde görünmez.
+ * 5. Hesap yazılır, ardından `ADMIN_CREATED` audit'i yazılır.
+ *    `actorType = 'SYSTEM'`, `actorId = null`: hesabı bir admin değil,
+ *    sunucudaki operatör açtı. Audit `metadata`'sı yalnız e-posta ve
+ *    görünen ad taşır — PAROLA ve HASH ASLA (Review Focus #4).
+ *
+ * @throws {AppError} 400 — e-posta biçimi / görünen ad / parola güçlülüğü.
+ * @throws {AppError} 409 — aynı e-posta ile hesap zaten var.
+ */
+export async function createAdminAccount(
+  params: { email: string; displayName: string; password: string },
+  deps: CreateAdminDeps,
+): Promise<{ id: string }> {
+  // 1. Girdi doğrulaması.
+  const email = normalizeAdminEmail(params.email)
+  if (!EMAIL_PATTERN.test(email)) {
+    // Mesaj girdiyi AYNEN yansıtmaz (parola/e-posta log'a düşmesin diye
+    // yalnız kural söylenir); operatör zaten ne yazdığını biliyor.
+    throw AppError.badRequest('Geçerli bir e-posta adresi girin', 'INVALID_EMAIL')
+  }
+
+  const displayName = params.displayName.trim()
+  if (displayName === '') {
+    throw AppError.badRequest('Görünen ad boş olamaz', 'INVALID_DISPLAY_NAME')
+  }
+
+  // 2. Parola güçlülüğü — hash'lemeden ÖNCE (boşa argon2 maliyeti yok).
+  //    `reason` parolayı İÇERMEZ, doğrudan kullanıcıya gösterilebilir.
+  const strength = validatePasswordStrength(params.password)
+  if (!strength.ok) {
+    throw AppError.badRequest(strength.reason, 'WEAK_PASSWORD')
+  }
+
+  // 3. Çakışma kontrolü — ÖNCE OKU, SONRA YAZ. Sıra tersine dönseydi
+  //    UNIQUE kısıtı ham bir PostgreSQL hatası fırlatır ve operatör
+  //    "neden oluşmadı" sorusunun yanıtını görmezdi.
+  const existing = await deps.findAdminByEmail(email)
+  if (existing) {
+    throw AppError.conflict(
+      'Bu e-posta ile bir yönetici hesabı zaten var. Mevcut hesap korunur.',
+      'ADMIN_EMAIL_EXISTS',
+    )
+  }
+
+  // 4. Hash — düz metin buradan sonra YOK.
+  const passwordHash = await hashPassword(params.password)
+
+  // 5. Yaz + audit. Audit yazması patlarsa hata YUTULMAZ (hesap yine de
+  //    açılmış olur; operatör tekrar denerse "zaten var" görür ve durumun
+  //    farkına varır — sessizce denetimsiz hesap bırakmaktan iyidir).
+  const created = await deps.insertAdminAccount({ email, displayName, passwordHash })
+
+  await deps.writeAudit({
+    action: 'ADMIN_CREATED',
+    actorType: 'SYSTEM',
+    actorId: null,
+    targetType: 'ADMIN',
+    targetId: created.id,
+    // YALNIZ e-posta + görünen ad. Parola, hash, TOTP secret YOK.
+    metadata: { email, displayName },
+  })
+
+  return { id: created.id }
+}
+
+// ---------------------------------------------------------------------------
 // Plan değiştirme — spec §6.4
 // ---------------------------------------------------------------------------
 
