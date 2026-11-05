@@ -16,7 +16,7 @@ import { errorHandler } from '../../src/middleware/error-handler.js'
 function tokens(): DeviceTokenDeps {
   return {
     upsertDeviceToken: vi.fn(async () => undefined),
-    deleteDeviceToken: vi.fn(async () => undefined),
+    deleteDeviceToken: vi.fn(async () => true),
     deleteAllForUser: vi.fn(async () => undefined),
     listTokensForUser: vi.fn(async () => []),
     listTokensForWeddingMembers: vi.fn(async () => []),
@@ -108,12 +108,36 @@ describe('DELETE /device', () => {
       .send({ token: 'tok' })
 
     expect(res.status).toBe(204)
-    expect(t.deleteDeviceToken).toHaveBeenCalledWith('tok')
+    expect(t.deleteDeviceToken).toHaveBeenCalledWith('tok', 'u1')
   })
 
   it('boş token → 400', async () => {
     const res = await request(app()).delete('/api/v1/notifications/device').send({})
     expect(res.status).toBe(400)
+  })
+})
+
+describe('DELETE /device — SAHİPLİK kontrolü', () => {
+  /*
+    GÜVENLİK: token gövdeyle geliyor. Sahiplik kontrolü YOKSA bir
+    kullanıcı, başkasının FCM token'ını bilirse (log sızıntısı, cihaz
+    paylaşımı) onun bildirimlerini KESEBİLİR — yetkisiz müdahale.
+
+    Store `deleteDeviceToken(token, userId)` ile sahiplik doğrulamalı;
+    eşleşmezse SESSİZCE hiçbir şey silmemeli (204 döner, bilgi sızdırmaz:
+    403 dönmek "bu token var ama senin değil" bilgisini verirdi).
+  */
+  it('başka kullanıcının tokenı silinmez', async () => {
+    const t = tokens()
+    // Store, sahiplik eşleşmediği için silmez.
+    t.deleteDeviceToken = vi.fn(async () => false)
+    const res = await request(app(t))
+      .delete('/api/v1/notifications/device')
+      .send({ token: 'baskasinin-tokeni' })
+
+    // 204: token'ın var olup olmadığını SIZDIRMA.
+    expect(res.status).toBe(204)
+    expect(t.deleteDeviceToken).toHaveBeenCalledWith('baskasinin-tokeni', 'u1')
   })
 })
 

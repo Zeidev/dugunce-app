@@ -124,8 +124,12 @@ export async function notifyWeddingMembers(
 
       if (!result.ok) {
         if (result.unregistered) {
-          // Ölü token: temizle. Aksi hâlde her bildirimde boşa istek.
-          await deps.tokens.deleteDeviceToken(recipient.token)
+          /*
+            Ölü token: temizle. Aksi hâlde her bildirimde boşa istek.
+            Sahibi `recipient.userId` — sahiplik kontrolü burada da geçerli
+            (token arada el değiştirdiyse yanlış satır silinmesin).
+          */
+          await deps.tokens.deleteDeviceToken(recipient.token, recipient.userId)
         } else {
           logger.warn({ reason: result.reason }, 'push gönderilemedi')
         }

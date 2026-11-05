@@ -19,7 +19,8 @@ import { errorHandler } from '../../src/middleware/error-handler.js'
 function deviceDeps(): DeviceTokenDeps {
   return {
     upsertDeviceToken: vi.fn(async () => undefined),
-    deleteDeviceToken: vi.fn(async () => undefined),
+    deleteDeviceToken: vi.fn(async () => true),
+    deleteDeviceTokenAnyOwner: vi.fn(async () => undefined),
     deleteAllForUser: vi.fn(async () => undefined),
     listTokensForUser: vi.fn(async () => []),
     listTokensForWeddingMembers: vi.fn(async () => []),
@@ -59,7 +60,7 @@ describe('POST /auth/logout — push token temizliği', () => {
       .send({ refreshToken: 'r1', deviceToken: 'fcm-tok' })
 
     expect(res.status).toBe(200)
-    expect(tokens.deleteDeviceToken).toHaveBeenCalledWith('fcm-tok')
+    expect(tokens.deleteDeviceTokenAnyOwner).toHaveBeenCalledWith('fcm-tok')
   })
 
   it('token yoksa silme ÇAĞRILMAZ (gereksiz iş yok)', async () => {
@@ -69,7 +70,7 @@ describe('POST /auth/logout — push token temizliği', () => {
       .send({ refreshToken: 'r1' })
 
     expect(res.status).toBe(200)
-    expect(tokens.deleteDeviceToken).not.toHaveBeenCalled()
+    expect(tokens.deleteDeviceTokenAnyOwner).not.toHaveBeenCalled()
   })
 
   it('deviceToken string değilse yok sayılır (tip zorlaması)', async () => {
@@ -78,12 +79,12 @@ describe('POST /auth/logout — push token temizliği', () => {
       .post('/api/v1/auth/logout')
       .send({ refreshToken: 'r1', deviceToken: 12345 })
 
-    expect(tokens.deleteDeviceToken).not.toHaveBeenCalled()
+    expect(tokens.deleteDeviceTokenAnyOwner).not.toHaveBeenCalled()
   })
 
   it('token silme HATA VERSE bile çıkış başarılı sayılır', async () => {
     const tokens = deviceDeps()
-    tokens.deleteDeviceToken = vi.fn(async () => {
+    tokens.deleteDeviceTokenAnyOwner = vi.fn(async () => {
       throw new Error('DB hatası')
     })
     const res = await request(app(tokens))

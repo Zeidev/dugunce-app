@@ -79,7 +79,7 @@ export function createNotificationsRouter(deps: {
     deps.requireAuth,
     async (req: Request, res: Response, next: NextFunction) => {
       try {
-        requireUserId(req)
+        const userId = requireUserId(req)
         const body = (req.body ?? {}) as Record<string, unknown>
         const rawToken = body['token']
 
@@ -88,7 +88,12 @@ export function createNotificationsRouter(deps: {
           return
         }
 
-        await deps.tokens.deleteDeviceToken(rawToken.trim())
+        /*
+          SAHİPLİK: yalnız kullanıcının KENDİ token'ı silinir.
+          Sonuç 204 (token bulunamasa veya başkasının olsa da): 403/404
+          dönmek "bu token var ama senin değil" bilgisini sızdırırdı.
+        */
+        await deps.tokens.deleteDeviceToken(rawToken.trim(), userId)
         res.status(204).end()
       } catch (err) {
         next(err)

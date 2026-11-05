@@ -12,7 +12,8 @@ import type { DeviceTokenDeps, DeviceTokenRow } from '../../src/notifications/st
 function tokensDeps(rows: DeviceTokenRow[]): DeviceTokenDeps {
   return {
     upsertDeviceToken: vi.fn(async () => undefined),
-    deleteDeviceToken: vi.fn(async () => undefined),
+    deleteDeviceToken: vi.fn(async () => true),
+    deleteDeviceTokenAnyOwner: vi.fn(async () => undefined),
     deleteAllForUser: vi.fn(async () => undefined),
     listTokensForUser: vi.fn(async () => []),
     listTokensForWeddingMembers: vi.fn(async () => rows),
@@ -115,7 +116,7 @@ describe('notifyWeddingMembers', () => {
       { weddingId: 'w1', event: 'RSVP_RECEIVED', actorUserId: null, now: DAYTIME },
     )
     // Ölü token silinmezse her bildirimde boşa istek atılır.
-    expect(tokens.deleteDeviceToken).toHaveBeenCalledWith('olu')
+    expect(tokens.deleteDeviceToken).toHaveBeenCalledWith('olu', 'u-olu')
   })
 
   it('bir token hata verse DİĞERLERİNE gönderim devam eder', async () => {

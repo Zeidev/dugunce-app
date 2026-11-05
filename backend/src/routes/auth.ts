@@ -25,7 +25,7 @@ export function createAuthRouter(deps: {
    * Opsiyonel: verilmezse çıkış yalnız refresh token'ı iptal eder
    * (mevcut davranış). Testler push kurmadan çalışabilir.
    */
-  deviceTokenDeps?: Pick<DeviceTokenDeps, 'deleteDeviceToken' | 'deleteAllForUser'>
+  deviceTokenDeps?: Pick<DeviceTokenDeps, 'deleteDeviceTokenAnyOwner' | 'deleteAllForUser'>
   /**
    * Test enjeksiyonu: verilmezse gerçek DB'ye bağlanır.
    *
@@ -172,7 +172,15 @@ export function createAuthRouter(deps: {
           body.deviceToken !== ''
         ) {
           try {
-            await deps.deviceTokenDeps.deleteDeviceToken(body.deviceToken)
+            /*
+              Çıkışta kullanıcı kimliği YOK (bu uç requireAuth'suz).
+              Bu yüzden sahiplik kontrolsüz silme yerine ayrı bir metot
+              kullanılıyor: `deleteDeviceTokenAnyOwner`. Risk kabul
+              edilebilir çünkü token'ı bilmek zaten cihazın kendisini
+              ele geçirmeyi gerektirir; ayrıca yalnız push kaydı silinir
+              (oturum değil).
+            */
+            await deps.deviceTokenDeps.deleteDeviceTokenAnyOwner(body.deviceToken)
           } catch {
             // Sessizce yut — çıkış başarılı sayılır.
           }

@@ -25,7 +25,26 @@ export interface UpsertDeviceTokenInput {
 
 export interface DeviceTokenDeps {
   upsertDeviceToken(input: UpsertDeviceTokenInput): Promise<void>
-  deleteDeviceToken(token: string): Promise<void>
+  /**
+   * Token'ı YALNIZ sahibi silerse siler.
+   *
+   * @returns `true` = silindi, `false` = token yok VEYA başka kullanıcının
+   *
+   * NEDEN `userId` ZORUNLU: token gövdeyle geliyor. Sahiplik kontrolü
+   * olmadan bir kullanıcı başkasının token'ını bilirse onun
+   * bildirimlerini kesebilirdi (yetkisiz müdahale).
+   */
+  deleteDeviceToken(token: string, userId: string): Promise<boolean>
+  /**
+   * Sahiplik kontrolü YAPMADAN siler — yalnız `/auth/logout` için.
+   *
+   * NEDEN AYRI METOT: çıkış ucu kimlik doğrulaması istemiyor (yalnız
+   * refresh token iptali), dolayısıyla `userId` bilinmiyor. Sahiplik
+   * kontrolü yapılamaz; bu yüzden niyeti ADIYLA belli olan ayrı bir
+   * metot kullanılıyor — normal silme yolunda yanlışlıkla
+   * kullanılmasın.
+   */
+  deleteDeviceTokenAnyOwner(token: string): Promise<void>
   deleteAllForUser(userId: string): Promise<void>
   listTokensForUser(userId: string): Promise<DeviceTokenRow[]>
   /**
@@ -68,7 +87,19 @@ export function drizzleDeviceTokenDeps(db: DrizzleClient): DeviceTokenDeps {
         })
     },
 
-    async deleteDeviceToken(token) {
+    async deleteDeviceToken(token, userId) {
+      /*
+        `and` ile İKİ koşul: token eşleşmeli VE sahibi bu kullanıcı
+        olmalı. Yalnız token ile silmek yetkilendirme açığıydı.
+      */
+      const deleted = await db
+        .delete(deviceTokens)
+        .where(and(eq(deviceTokens.token, token), eq(deviceTokens.userId, userId)))
+        .returning({ id: deviceTokens.id })
+      return deleted.length > 0
+    },
+
+    async deleteDeviceTokenAnyOwner(token) {
       await db.delete(deviceTokens).where(eq(deviceTokens.token, token))
     },
 

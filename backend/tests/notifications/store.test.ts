@@ -80,10 +80,26 @@ describe('device token store', () => {
     await deps.upsertDeviceToken({ userId: a, token: 't1', platform: 'ANDROID' })
     await deps.upsertDeviceToken({ userId: a, token: 't2', platform: 'ANDROID' })
 
-    await deps.deleteDeviceToken('t1')
+    // Sahiplik kontrolü: doğru kullanıcı → silinir.
+    const deleted = await deps.deleteDeviceToken('t1', a)
+    expect(deleted).toBe(true)
 
     const left = await deps.listTokensForUser(a)
     expect(left.map((r) => r.token)).toEqual(['t2'])
+  })
+
+  it('deleteDeviceToken BAŞKA kullanıcının tokenını SİLMEZ (güvenlik)', async () => {
+    const { pg, deps } = await setup()
+    const a = await makeUser(pg, 'a@t.local')
+    const b = await makeUser(pg, 'b@t.local')
+    await deps.upsertDeviceToken({ userId: a, token: 'a-tok', platform: 'ANDROID' })
+
+    // `b` kullanıcısı `a`nın token'ını silmeye çalışıyor.
+    const deleted = await deps.deleteDeviceToken('a-tok', b)
+    expect(deleted).toBe(false)
+
+    // Token HÂLÂ orada — sahibi bildirim almaya devam etmeli.
+    expect(await deps.listTokensForUser(a)).toHaveLength(1)
   })
 
   it('deleteAllForUser çıkışta hepsini siler', async () => {
