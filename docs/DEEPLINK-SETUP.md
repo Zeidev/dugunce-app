@@ -206,6 +206,16 @@ adb shell am start -a android.intent.action.VIEW \
 paket adıyla Android hiçbir zaman uygulamayı açmaz — link sessizce tarayıcıda
 kalırdı. Düzeltildi.
 
+### Paket adı değişikliği (2026-11-05)
+
+`applicationId` **`com.dugunce.app` → `com.lumibyte.dugunce`** olarak
+değiştirildi (kullanıcı kararı; Play Store'da yayınlanmamış olduğu için
+mümkündü — yayınlanmış bir paket adı DEĞİŞTİRİLEMEZ).
+
+`assetlinks.json` `package_name`'i de güncellendi; ikisi eşleşmezse App Links
+doğrulanmaz ve linkler tarayıcıda kalır. **Firebase konsolunda Android
+uygulaması eklenirken de bu ad birebir yazılmalı.**
+
 **Parmak izi neden hâlâ placeholder:** release keystore henüz yok. Debug
 keystore her CI koşusunda yeniden üretildiği için parmak izi sabit değil;
 onu yazmak işe yaramaz. Sıra:

@@ -81,11 +81,11 @@ kotlin {
 }
 
 android {
-    namespace = "com.dugunce.app"
+    namespace = "com.lumibyte.dugunce"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.dugunce.app"
+        applicationId = "com.lumibyte.dugunce"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

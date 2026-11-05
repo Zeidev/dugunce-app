@@ -21,7 +21,7 @@ Xcode'un beklediği yapıyı bozar.
 
 1. Xcode → File → New → Project → iOS App
    - Product name: `iosApp`
-   - Bundle identifier: `com.dugunce.app`
+   - Bundle identifier: `com.lumibyte.dugunce`
    - Interface: SwiftUI, Language: Swift
 2. `iosApp/` klasöründeki 4 dosyayı projeye ekle (varsayılanları değiştir)
 3. Build Settings → **User Script Sandboxing: No**
