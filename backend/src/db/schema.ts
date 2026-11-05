@@ -680,6 +680,8 @@ export const adminSessions = pgTable(
       foreignColumns: [adminAccounts.id],
     }).onDelete('cascade'),
     expiresIdx: index('admin_sessions_expires_idx').on(table.expiresAt),
+    /** Admin silindiğinde CASCADE taraması bu index'i kullanır. */
+    adminIdIdx: index('admin_sessions_admin_id_idx').on(table.adminId),
   }),
 )
 

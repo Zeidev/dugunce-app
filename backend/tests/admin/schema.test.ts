@@ -114,3 +114,82 @@ describe('admin tablolari', () => {
     expect(r.rows[0]).toMatchObject({ status: 'ACTIVE', role: 'SUPER_ADMIN', failed_attempts: 0 })
   })
 })
+
+describe('audit_logs degistirilemez (spec §5.3)', () => {
+  it('UPDATE engellenir', async () => {
+    await pg.query(`INSERT INTO audit_logs (actor_type, action) VALUES ('ADMIN','TEST')`)
+    await expect(
+      pg.query(`UPDATE audit_logs SET action = 'DEGISTI' WHERE action = 'TEST'`),
+    ).rejects.toThrow(/değiştirilemez/)
+  })
+
+  it('DELETE engellenir', async () => {
+    await pg.query(`INSERT INTO audit_logs (actor_type, action) VALUES ('ADMIN','TEST2')`)
+    await expect(
+      pg.query(`DELETE FROM audit_logs WHERE action = 'TEST2'`),
+    ).rejects.toThrow(/değiştirilemez/)
+  })
+
+  it('kayit yerinde durur', async () => {
+    const r = await pg.query<{ c: number }>(
+      `SELECT count(*)::int AS c FROM audit_logs WHERE action IN ('TEST','TEST2')`,
+    )
+    expect(r.rows[0]!.c).toBe(2)
+  })
+
+  it('INSERT serbest — denetim kaydi yazilabilir', async () => {
+    await pg.query(`INSERT INTO audit_logs (actor_type, action) VALUES ('ADMIN','TEST3')`)
+    const r = await pg.query<{ c: number }>(
+      `SELECT count(*)::int AS c FROM audit_logs WHERE action = 'TEST3'`,
+    )
+    expect(r.rows[0]!.c).toBe(1)
+  })
+})
+
+describe('constraint isimleri schema ile ayni (drift yok)', () => {
+  it('email UNIQUE adi admin_accounts_email_unique', async () => {
+    const r = await pg.query<{ conname: string }>(
+      `SELECT conname FROM pg_constraint
+       WHERE conrelid = 'admin_accounts'::regclass AND contype = 'u'`,
+    )
+    expect(r.rows.map((x) => x.conname)).toContain('admin_accounts_email_unique')
+  })
+
+  it('session_hash UNIQUE adi admin_sessions_session_hash_unique', async () => {
+    const r = await pg.query<{ conname: string }>(
+      `SELECT conname FROM pg_constraint
+       WHERE conrelid = 'admin_sessions'::regclass AND contype = 'u'`,
+    )
+    expect(r.rows.map((x) => x.conname)).toContain('admin_sessions_session_hash_unique')
+  })
+
+  it('admin_id index var (CASCADE taramasi icin)', async () => {
+    const r = await pg.query<{ indexname: string }>(
+      `SELECT indexname FROM pg_indexes
+       WHERE tablename = 'admin_sessions'`,
+    )
+    expect(r.rows.map((x) => x.indexname)).toContain('admin_sessions_admin_id_idx')
+  })
+
+  it('NOT NULL: csrf_hash ve expires_at zorunlu', async () => {
+    const a = await pg.query<{ id: string }>(
+      `INSERT INTO admin_accounts (email, password_hash, display_name)
+       VALUES ('nn@t.local','h','N') RETURNING id`,
+    )
+    const future = new Date(Date.now() + 3_600_000).toISOString()
+    await expect(
+      pg.query(
+        `INSERT INTO admin_sessions (admin_id, session_hash, csrf_hash, expires_at)
+         VALUES ($1,'nn1',NULL,$2)`,
+        [a.rows[0]!.id, future],
+      ),
+    ).rejects.toThrow()
+    await expect(
+      pg.query(
+        `INSERT INTO admin_sessions (admin_id, session_hash, csrf_hash, expires_at)
+         VALUES ($1,'nn2','c',NULL)`,
+        [a.rows[0]!.id],
+      ),
+    ).rejects.toThrow()
+  })
+})
