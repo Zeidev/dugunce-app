@@ -10,6 +10,7 @@
  */
 
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2'
+import { logger } from '../lib/logger.js'
 
 /** Yönetim parolası için asgari uzunluk — kullanıcı parolasından daha katı. */
 export const MIN_ADMIN_PASSWORD_LENGTH = 16
@@ -25,7 +26,13 @@ export const LOCK_DURATION_MS = 15 * 60 * 1000
  * Düz metin ASLA saklanmaz, loglanmaz (Review Focus #4).
  */
 export function hashPassword(plain: string): Promise<string> {
-  return argon2Hash(plain)
+  // NFC NORMALİZASYONU ZORUNLU — Türkçe için hayati.
+  //
+  // "ş" tek kod noktası (U+015F) veya "s" + birleşik çengel (U+0073
+  // U+0327) olarak yazılabilir. İkisi EKRANDA AYNI görünür ama farklı
+  // baytlardır; normalize edilmezse doğru parola reddedilir.
+  // Farklı işletim sistemi / klavye / IME girdileri bu farkı üretir.
+  return argon2Hash(plain.normalize('NFC'))
 }
 
 /**
@@ -36,8 +43,15 @@ export function hashPassword(plain: string): Promise<string> {
  */
 export async function verifyPassword(hash: string, plain: string): Promise<boolean> {
   try {
-    return await argon2Verify(hash, plain)
-  } catch {
+    // `hashPassword` ile AYNI normalizasyon — aksi hâlde yazım ile
+    // doğrulama farklı baytları karşılaştırır.
+    return await argon2Verify(hash, plain.normalize('NFC'))
+  } catch (err) {
+    // Bozuk hash / argon2 hatası ile "yanlış parola" AYNI sonucu döner
+    // (hata tipi sızmasın), ama LOG'A yazılır: aksi hâlde bozuk bir
+    // kayıt sessizce sayaç artırır ve hesabı kalıcı kilitler.
+    // Parola ASLA log'lanmaz.
+    logger.error({ err }, 'admin parola doğrulaması başarısız (altyapı hatası)')
     return false
   }
 }
@@ -83,15 +97,27 @@ export function computeLockState(
 /**
  * Bir sonraki başarısız giriş denemesinin durumu.
  *
- * Sayaç `MAX_FAILED_ATTEMPTS`'e ulaştığında `lockedUntil` doldurulur.
- * Sayaç kilit sonrası da artmaya devam eder (bilgi kaybı olmasın); kilit
- * kararı yalnızca `lockedUntil` üzerinden verilir.
+ * SAYAÇ KİLİT DOLUNCA SIFIRLANIR. Aksi hâlde şu ölümcül döngü oluşur:
+ *
+ *   1. 5 hatalı deneme → kilit (15 dk), `failedAttempts = 5`
+ *   2. Kilit dolar, sayaç hâlâ 5 (yalnız `lockedUntil` geçmişte)
+ *   3. TEK bir hatalı deneme → sayaç 6 → YENİDEN 15 dk kilit
+ *
+ * Yani saldırgan 15 dakikada bir istek atarak TEK admin hesabını kalıcı
+ * olarak kilitleyebilir — parola sıfırlama akışı da yok. Kullanıcı
+ * doğrulandı: bu senaryo gerçekti.
+ *
+ * Çözüm: `current` zaten `MAX_FAILED_ATTEMPTS` veya üzerindeyse (yani
+ * önceki kilit dolmuş ve sayaç temizlenmemişse) sayaç 1'den başlar.
+ * Kilit kararı yine `lockedUntil` üzerinden verilir.
  */
 export function nextFailedState(
   current: number,
   now: Date = new Date(),
 ): { failedAttempts: number; lockedUntil: Date | null } {
-  const failedAttempts = current + 1
+  // Önceki kilit dönemi bittiyse sayaç YENİDEN başlar.
+  const base = current >= MAX_FAILED_ATTEMPTS ? 0 : current
+  const failedAttempts = base + 1
   const lockedUntil =
     failedAttempts >= MAX_FAILED_ATTEMPTS
       ? new Date(now.getTime() + LOCK_DURATION_MS)

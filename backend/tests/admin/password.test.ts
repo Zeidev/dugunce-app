@@ -76,3 +76,42 @@ describe('hesap kilidi', () => {
     expect(delta).toBeLessThanOrEqual(LOCK_DURATION_MS)
   })
 })
+
+describe('Turkce karakter normalizasyonu (gercek hata)', () => {
+  it('NFC ve NFD yazilmis AYNI parola dogrulanir', async () => {
+    // "şifre" iki şekilde yazılabilir: tek kod noktası (U+015F) veya
+    // "s" + birleşik çengel. Ekranda aynı, baytlarda farklı.
+    const nfc = 'şifre-parola-123'
+    const nfd = 's\u0327ifre-parola-123'
+    expect(nfc).not.toBe(nfd)          // gerçekten farklı baytlar
+    expect(nfc.normalize('NFC')).toBe(nfd.normalize('NFC'))
+
+    const hash = await hashPassword(nfc)
+    expect(await verifyPassword(hash, nfd)).toBe(true)
+    expect(await verifyPassword(hash, nfc)).toBe(true)
+  })
+})
+
+describe('kilit sonrasi kalici kilitlenme (gercek hata)', () => {
+  it('kilit dolduktan sonra TEK hata sayaci sifirlar, yeniden kilitlemez', () => {
+    // 1. Kilit doldu, sayaç 5'te kaldı
+    const afterLockExpired = 5
+    // 2. Tek hatalı deneme
+    const next = nextFailedState(afterLockExpired)
+    // 3. Sayaç 1'e dönmeli, kilit YOK
+    expect(next.failedAttempts).toBe(1)
+    expect(next.lockedUntil).toBeNull()
+  })
+
+  it('kilit dolmadan sayac normal artar', () => {
+    expect(nextFailedState(0)).toMatchObject({ failedAttempts: 1, lockedUntil: null })
+    expect(nextFailedState(1)).toMatchObject({ failedAttempts: 2, lockedUntil: null })
+    expect(nextFailedState(3)).toMatchObject({ failedAttempts: 4, lockedUntil: null })
+  })
+
+  it('besinci hatada hala kilitlenir', () => {
+    const r = nextFailedState(4)
+    expect(r.failedAttempts).toBe(5)
+    expect(r.lockedUntil).not.toBeNull()
+  })
+})
