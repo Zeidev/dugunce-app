@@ -2,7 +2,7 @@ package com.lumibyte.dugunce.push
 
 import android.Manifest
 import android.os.Build
-import com.dugunce.app.util.AppContextHolder
+import com.lumibyte.dugunce.util.AppContextHolder
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine

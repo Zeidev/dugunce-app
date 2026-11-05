@@ -151,6 +151,82 @@ for (const file of walk(SRC)) {
   }
 }
 
+/*
+  KURAL — PROJE İÇİ IMPORT YOLU GERÇEKTEN VAR MI?
+
+  NEDEN (canlıda YAŞANDI, CI kırmızı): paket adı
+  `com.dugunce.app` → `com.lumibyte.dugunce` olarak değiştiğinde bir
+  dosyada `import com.dugunce.app.util.AppContextHolder` kaldı. Yukarıdaki
+  sembol kontrolleri bunu YAKALAMADI çünkü `AppContextHolder` onların
+  listesinde değil — script yalnız 6 sabit sembolü tanıyor.
+
+  Sonuç: `mobile-ci` "Unresolved reference 'dugunce'" ile düştü. Bu kural
+  o kör noktayı kapatıyor: proje kök paketine ait HER import, gerçekten
+  var olan bir kaynak pakete işaret etmeli.
+
+  Yalnız KÖK PAKET taranıyor (`com.lumibyte.dugunce.*`): `androidx.*`,
+  `kotlinx.*` gibi dış paketler için dosya sistemi kontrolü anlamsız.
+*/
+const SOURCE_SETS = ['commonMain', 'androidMain', 'iosMain', 'commonTest']
+const knownPackages = new Set()
+for (const set of SOURCE_SETS) {
+  let files = []
+  try {
+    files = walk(join(process.cwd(), 'mobile/composeApp/src', set, 'kotlin'))
+  } catch {
+    continue
+  }
+  for (const file of files) {
+    const m = readFileSync(file, 'utf8').match(/^package\s+([\w.]+)/m)
+    if (m) knownPackages.add(m[1])
+  }
+}
+
+for (const set of SOURCE_SETS) {
+  let files = []
+  try {
+    files = walk(join(process.cwd(), 'mobile/composeApp/src', set, 'kotlin'))
+  } catch {
+    continue
+  }
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8')
+    const rel = file.replace(process.cwd() + '/', '')
+    const re = /^import\s+(com\.lumibyte\.dugunce[\w.]*)$/gm
+    let m
+    while ((m = re.exec(src)) !== null) {
+      const full = m[1]
+      if (knownPackages.has(full)) continue
+      const parent = full.slice(0, full.lastIndexOf('.'))
+      if (knownPackages.has(parent)) continue
+      console.error(`❌ ${rel}`)
+      console.error(`   "import ${full}" — böyle bir paket YOK (paket adı değişmiş olabilir)`)
+      failures++
+    }
+
+    /*
+      ESKİ KÖK PAKET KALINTISI — asıl kör nokta buydu.
+
+      Yukarıdaki kontrol yalnız `com.lumibyte.dugunce.*` yollarını
+      geziyor; eski `com.dugunce.app.*` import'u hiç EŞLEŞMİYOR ve
+      sessizce geçiyordu (ölçüldü: bozuk import ile script YEŞİL kaldı).
+      Oysa CI tam bu yüzden kırmızı verdi.
+
+      Kök paketi `build.gradle.kts`'ten okuyup onun DIŞINDAKİ proje içi
+      paketleri de reddediyoruz.
+    */
+    const stale = /^import\s+(com\.dugunce\.[\w.]*)$/gm
+    let sm
+    while ((sm = stale.exec(src)) !== null) {
+      console.error(`❌ ${rel}`)
+      console.error(
+        `   "import ${sm[1]}" — ESKİ paket adı. Kök paket "${ROOT_PACKAGE}" (build.gradle.kts).`,
+      )
+      failures++
+    }
+  }
+}
+
 if (failures === 0) {
   console.log('✅ Kotlin import kontrolü temiz')
   process.exit(0)
