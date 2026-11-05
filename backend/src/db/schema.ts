@@ -29,6 +29,22 @@ export const users = pgTable(
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+
+    /**
+     * Mobil push tercihi — varsayılan AÇIK.
+     *
+     * Kullanıcı istemeden kapatılmış olmamalı: bildirim bu ürünün
+     * değerinin parçası (RSVP anında haber). Kapatmak tek anahtar.
+     */
+    notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+
+    /**
+     * Sessiz saat (22:00–09:00) istisnası — kullanıcı tercihi.
+     *
+     * Varsayılan KAPALI. Düğün öncesi hafta istisnası ayrı ve otomatik
+     * (`quiet-hours.ts`); bu alan kullanıcının kendi seçimi.
+     */
+    quietHoursOverride: boolean('quiet_hours_override').notNull().default(false),
   },
   (table) => ({
     statusIdx: index('users_status_idx').on(table.status),
@@ -711,5 +727,38 @@ export const auditLogs = pgTable(
   (table) => ({
     createdAtIdx: index('audit_logs_created_at_idx').on(table.createdAt),
     actionIdx: index('audit_logs_action_idx').on(table.action),
+  }),
+)
+
+/**
+ * device_tokens — mobil push kayıt token'ları.
+ *
+ * NEDEN AYRI TABLO, `users.device_token` DEĞİL: bir kullanıcının birden
+ * çok cihazı olabilir (telefon + tablet). Tek sütun ikincisini ezer ve
+ * kullanıcı yalnız son giriş yaptığı cihazda bildirim alır.
+ *
+ * `token` UNIQUE: aynı cihaz başka kullanıcıyla giriş yaparsa satırın
+ * SAHİBİ değişir (upsert). Aksi hâlde eski kullanıcıya bildirim giderdi.
+ *
+ * `ON DELETE CASCADE`: kullanıcı silinince token da gider — ölü token
+ * birikmesi her bildirimde boşa FCM isteği demek.
+ */
+export const deviceTokens = pgTable(
+  'device_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** FCM registration token. Sır değil ama tahmin edilemez. */
+    token: text('token').notNull().unique(),
+    /** 'ANDROID' — iOS sonraki iş (spec §0). */
+    platform: text('platform').notNull().default('ANDROID'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Her uygulama açılışında tazelenir — ölü token ayıklamak için. */
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdx: index('device_tokens_user_idx').on(table.userId),
   }),
 )
