@@ -22,6 +22,7 @@ import { loadEnv } from './config/env.js'
 import { corsForInvitations } from './middleware/cors.js'
 import { createCategoriesRouter } from './routes/categories.js'
 import { createCardsRouter } from './routes/cards.js'
+import { createAdminRouter } from './routes/admin.js'
 
 /**
  * Express uygulamasını oluşturur.
@@ -54,6 +55,16 @@ export interface CreateAppOptions {
   helperRateLimit?: boolean
   categoryStore?: ReturnType<typeof import('./expenses/categories.js').drizzleCategoryDeps>
   cardStore?: ReturnType<typeof import('./expenses/cards.js').drizzleCardDeps>
+  /**
+   * Admin paneli deposu (test enjeksiyonu).
+   *
+   * Verilmezse `drizzleAdminPanelDeps()` gerçek DB'ye bağlanır. PGlite
+   * enjekte edilerek giriş → overview → plan değiştir → audit akışı
+   * GERÇEK HTTP üzerinden doğrulanabilir.
+   */
+  adminStore?: import('./admin/panel-store.js').AdminPanelDeps
+  /** Testlerde admin giriş hız sınırını kapatmak için. */
+  adminRateLimit?: boolean
   /**
    * Düğün deposu ve üyelik araması.
    *
@@ -223,6 +234,20 @@ export function createApp(options: CreateAppOptions = {}): Express {
       ...(options.messageStore ? { messageStore: options.messageStore } : {}),
       ...(options.sessionStore ? { sessionStore: options.sessionStore } : {}),
       ...(options.helperRateLimit === false ? { rateLimit: false } : {}),
+    }),
+  )
+
+  // Admin paneli — cookie tabanlı, KULLANICI evreninden tamamen ayrı.
+  //
+  // CORS router'ın İÇİNDE (`corsForAdmin`) uygulanır: SPA
+  // `dugunce.com.tr/spa/`, API `api.dugunce.com.tr` — farklı origin.
+  // `credentials: true` olmadan tarayıcı `a_session` çerezini
+  // göndermez ve giriş 200 dönse bile panel boş kalır.
+  app.use(
+    '/api/v1/admin',
+    createAdminRouter({
+      ...(options.adminStore ? { store: options.adminStore } : {}),
+      ...(options.adminRateLimit === false ? { rateLimit: false } : {}),
     }),
   )
 

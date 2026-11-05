@@ -149,4 +149,14 @@ export const RATE_LIMITS = {
   helperSessionByIp: { windowMs: 60 * 1000, max: 10 },
   /** Görev sohbeti — yardımcı tarafı (oturumlu). */
   helperMessageByIp: { windowMs: 60 * 1000, max: 60 },
+  /**
+   * Yönetici girişi — IP başına 10 deneme / 15 dakika (spec §6.1).
+   *
+   * DİKKAT: bu sınır TEK BAŞINA kilitlenme DoS'unu engellemez. Hesap
+   * zaten 5 hatalı denemede kilitleniyor; saldırgan 15 dakikada 5 istek
+   * atarak limitin ALTINDA kalır. Asıl savunma üstel kilit süresi
+   * (`lockDurationFor`, Task 3) ve audit kaydıdır — buradaki sınır
+   * yalnızca kaba kuvvetin HIZINI keser.
+   */
+  adminLogin: { windowMs: 15 * 60 * 1000, max: 10 },
 } as const
