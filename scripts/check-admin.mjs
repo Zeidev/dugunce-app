@@ -558,7 +558,36 @@ function scanTs(fileRel, code, offset = 0, fullSrc = null) {
     return
   }
 
-  const sf = ts.createSourceFile('scan.tsx', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  // SCRIPT KIND UZANTIYA GÖRE — hepsini TSX saymak KÖR BIRAKIR.
+  //
+  // TSX'te `<Row>raw` bir JSX elementi sanılır; ayrıştırıcı kapanış
+  // etiketi arar ve DOSYANIN KALANINI yutar. `.ts` dosyalarında tip
+  // iddiası (`<Record<string,string>>raw`) bu yüzden tamamen geçerli
+  // koddur ama TSX modunda ayrıştırmayı bozar ve sonraki TÜM ihlaller
+  // görünmez olur (ölçüldü: exit=0, "temiz").
+  const kind = fileRel.endsWith('.tsx') || fileRel.endsWith('.jsx')
+    ? ts.ScriptKind.TSX
+    : fileRel.endsWith('.js') || fileRel.endsWith('.mjs')
+      ? ts.ScriptKind.JS
+      : ts.ScriptKind.TS
+
+  const sf = ts.createSourceFile(`scan.${kind === ts.ScriptKind.TSX ? 'tsx' : 'ts'}`, code, ts.ScriptTarget.Latest, true, kind)
+
+  // AYRIŞTIRMA HATASI = TARAMA YAPILAMADI. Kısmi AST ile devam etmek
+  // "yanlış yeşil"dir: hata noktasından SONRAKİ her ihlal görünmez olur.
+  // Sessizce geçmek yerine açıkça raporlanır.
+  const diags = sf.parseDiagnostics ?? []
+  if (diags.length > 0) {
+    const first = diags[0]
+    const pos = first.start ?? 0
+    fail(
+      fileRel,
+      (fullSrc ?? code).slice(0, pos + offset).split('\n').length,
+      `ayrıştırılamadı (${ts.flattenDiagnosticMessageText(first.messageText, ' ')}) — ` +
+        'güvenlik taraması bu dosyada GÜVENİLİR DEĞİL',
+    )
+    return
+  }
 
   const lineOfNode = (node) => {
     const pos = node.getStart(sf) + offset
@@ -578,6 +607,39 @@ function scanTs(fileRel, code, offset = 0, fullSrc = null) {
       }
     }
     return null
+  }
+
+  /**
+   * `document` zincirini çözer: `document`, `window.document`,
+   * `self.document`, `globalThis.document`, `foo.document` → true.
+   * SON ad `document` ise yeterli — hangi nesne üzerinden erişildiği
+   * güvenlik açısından fark etmez.
+   */
+  const isDocumentChain = (node, tsx) => {
+    if (!node) return false
+    if (tsx.isIdentifier(node)) return node.text === 'document'
+    if (tsx.isPropertyAccessExpression(node)) return node.name.text === 'document'
+    if (tsx.isElementAccessExpression(node)) {
+      const a = node.argumentExpression
+      return !!a && (tsx.isStringLiteral(a) || tsx.isNoSubstitutionTemplateLiteral(a)) && a.text === 'document'
+    }
+    return false
+  }
+
+  /**
+   * İfade GLOBAL bir nesneyi mi gösteriyor?
+   *
+   * `window`, `globalThis`, `self`, `this`, `global` → evet.
+   * `document` gibi diğerleri de global sayılır (dolaylı erişim).
+   * `tools` gibi kullanıcı tanımlı bir değişken → HAYIR; `tools.Function`
+   * meşru olabilir ve ihlal sayılmamalı.
+   */
+  const GLOBAL_OWNERS = new Set(['window', 'globalThis', 'self', 'this', 'global', 'document'])
+  const isGlobalOwner = (node, tsx) => {
+    const name = tailName(node)
+    if (name === null) return false
+    // Bilinen global sahipler VEYA hiç çözülemeyen zincir (ör. `a.b.c`).
+    return GLOBAL_OWNERS.has(name)
   }
 
   const STORAGE = new Set(['localStorage', 'sessionStorage'])
@@ -604,8 +666,14 @@ function scanTs(fileRel, code, offset = 0, fullSrc = null) {
         // 6b. innerHTML'e ATAMA `+=` da olabilir; PropertyAccess ile gelir.
         //     `insertAdjacentHTML(...)`, `document.write(...)`, `writeln`.
         if (XSS_CALLS.has(method)) {
-          const isDoc = ts.isIdentifier(callee.expression) && callee.expression.text === 'document'
-          if (method === 'insertAdjacentHTML' || isDoc) {
+          // SAHİPLİK ZİNCİRİ: `document.write`, `window.document.write`,
+          // `self.document.write`, `globalThis.document.write` — hepsi aynı
+          // API. Yalnız çıplak `document` Identifier'ını kabul etmek
+          // `window.document.write`i kaçırıyordu (ölçüldü: regresyon).
+          const isDocCall =
+            method !== 'insertAdjacentHTML' &&
+            isDocumentChain(callee.expression, ts)
+          if (method === 'insertAdjacentHTML' || isDocCall) {
             fail(
               fileRel,
               lineOfNode(node),
@@ -616,7 +684,11 @@ function scanTs(fileRel, code, offset = 0, fullSrc = null) {
 
         // 6c. eval / Function — nokta önekli biçimler de (window.eval,
         //     globalThis.Function) aynı riski taşır.
-        if (DYN_CODE.has(method)) {
+        //
+        // YANLIŞ KIRMIZI KORUMASI: kullanıcı tanımlı bir üye de `Function`
+        // adını taşıyabilir (`const tools = { Function: (s) => s }`).
+        // Yalnız GLOBAL kabul edilen sahipler ihlal sayılır.
+        if (DYN_CODE.has(method) && isGlobalOwner(callee.expression, ts)) {
           fail(
             fileRel,
             lineOfNode(node),
@@ -624,13 +696,16 @@ function scanTs(fileRel, code, offset = 0, fullSrc = null) {
           )
         }
       }
-      // Düz `eval(...)` / `Function(...)` / `(0, eval)(...)`
-      const direct = tailName(callee)
-      if (DYN_CODE.has(direct)) {
+      // Düz `eval(...)` / `Function(...)` — YALNIZ çıplak Identifier.
+      //
+      // `tools.Function("1")` kullanıcı tanımlı bir üye olabilir; onu
+      // yakalamak YANLIŞ KIRMIZI üretiyordu. Nokta-önekli biçimler
+      // (`window.Function`) yukarıdaki sahiplik kontrolünde ele alınır.
+      if (ts.isIdentifier(callee) && DYN_CODE.has(callee.text)) {
         fail(
           fileRel,
           lineOfNode(node),
-          `${direct}() kullanılıyor — dinamik kod çalıştırma (güvenlik riski)`,
+          `${callee.text}() kullanılıyor — dinamik kod çalıştırma (güvenlik riski)`,
         )
       }
     }
@@ -664,19 +739,47 @@ function scanTs(fileRel, code, offset = 0, fullSrc = null) {
       }
     }
 
-    // 6b''. dangerouslySetInnerHTML — JSX attribute adı.
+    // 6b''. dangerouslySetInnerHTML / srcDoc — YALNIZ JSX attribute DEĞİL.
+    //
+    // `React.createElement("div", { dangerouslySetInnerHTML: ... })`,
+    // düz nesne literali ve `{...{dangerouslySetInnerHTML}}` yayması da
+    // aynı riski taşır. Yalnız `JsxAttribute` bakmak üçünü kaçırıyordu.
     if (ts.isJsxAttribute(node)) {
       const attr = node.name.getText(sf)
       if (attr === 'dangerouslySetInnerHTML' || attr === 'srcDoc') {
         fail(fileRel, lineOfNode(node), `${attr} kullanılıyor — XSS riski`)
       }
     }
+    // Nesne literali anahtarı veya string anahtar: `{ dangerouslySetInnerHTML: x }`
+    if (ts.isPropertyAssignment(node)) {
+      const key = tailName(node.name)
+      if (key === 'dangerouslySetInnerHTML' || key === 'srcDoc') {
+        fail(fileRel, lineOfNode(node), `${key} kullanılıyor — XSS riski`)
+      }
+    }
 
-    // 6d. `a_session` bir DİZE LİTERALİ olarak geçmemeli.
-    if (ts.isStringLiteral(node) && node.text === 'a_session') {
+    // 6d. `a_session` kaynak kodda GEÇMEMELİ.
+    //
+    // Yalnız TAM string literal değil: `getItem(`a_session`)` (template),
+    // `<p>a_session</p>` (JSX metni) ve `"cookie=a_session=1"` (alt dize)
+    // de aynı sızıntı sınıfıdır. Eski sürüm `\ba_session\b` ile her yerde
+    // arıyordu; AST'ye geçerken daraltmak REGRESYON oldu.
+    const A_SESSION = /\ba_session\b/
+    let hit = null
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      if (A_SESSION.test(node.text)) hit = node
+    } else if (ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      if (A_SESSION.test(node.text)) hit = node
+    } else if (ts.isJsxText(node)) {
+      if (A_SESSION.test(node.text)) hit = node
+    } else if (ts.isTemplateExpression(node)) {
+      // `a_session` yalnız head/tail'de değil, arada düz metinde de olabilir;
+      // head/middle/tail yukarıda yakalanıyor, burada ek kontrol gerekmez.
+    }
+    if (hit) {
       fail(
         fileRel,
-        lineOfNode(node),
+        lineOfNode(hit),
         "a_session (oturum token'ı) kaynak kodda geçiyor — HttpOnly cookie tarayıcı yönetir, JS dokunmaz",
       )
     }
