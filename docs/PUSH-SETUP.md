@@ -43,8 +43,21 @@ Bu bilinçli bir tasarım.
 
 ## 2. Android uygulamasını ekleyin
 
-1. Proje ana sayfasında platform simgeleri görünür (Android, iOS, Web).
-   **Android**'a tıklayın.
+> **KONSOL ARAYÜZÜ (2025 sonu yeniden tasarım):** Sol menü artık
+> `Build` / `Engage` gibi eski grupları kullanmıyor; ürünler
+> **Databases & Storage / Security / AI services / Hosting & Serverless /
+> DevOps & Engagement / Analytics** kategorilerine dağıtıldı. Menüde
+> kaybolursanız **doğrudan URL** kullanın — arayüz değişse de çalışır.
+> (`_` işareti aktif projeyi otomatik seçer.)
+
+**Doğrudan URL:**
+```
+https://console.firebase.google.com/project/_/settings/general
+```
+Sayfanın altında **"Your apps"** → **Add app** → **Android**.
+
+1. **Project Overview** ekranında da **"Add app"** (veya `+ Add app`)
+   butonu var; **Android** simgesine tıklayın.
 2. **Android package name** alanına **tam olarak** şunu yazın:
 
    ```
@@ -84,7 +97,14 @@ seviyeye. `src/` içine değil.
 
 Firebase Cloud Messaging çoğu projede otomatik açıktır; yine de doğrulayın:
 
-1. Sol menü → **Build** → **Cloud Messaging**.
+1. Sol menü → **DevOps & Engagement** → **Cloud Messaging**
+   (bazı sürümlerde **Engage** adıyla görünür — aynı sayfa).
+
+   **Doğrudan URL** (önerilen, menü değişse de çalışır):
+   ```
+   https://console.firebase.google.com/project/_/notification
+   ```
+
 2. Sayfa açılıyorsa ve bir hata vermiyorsa API etkindir.
 3. Etkin değilse: https://console.cloud.google.com/apis/library/fcm.googleapis.com
    → projenizi seçin → **Enable**.
@@ -96,8 +116,13 @@ Firebase Cloud Messaging çoğu projede otomatik açıktır; yine de doğrulayı
 Sunucu, bildirimi FCM'e **sizin adınıza** gönderecek. Bunun için bir
 "service account" (servis hesabı) ve JSON anahtarı gerekiyor.
 
-1. https://console.firebase.google.com → **⚙️ (dişli)** → **Project settings**.
-2. Sekme: **Service accounts**.
+1. Sol menüde en üstteki **Settings** (⚙️ dişli) → **Project settings**.
+   Sekme: **Service accounts**.
+
+   **Doğrudan URL:**
+   ```
+   https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk
+   ```
 3. **"Generate new private key"** → uyarıyı okuyup **Generate key**.
 4. Bir `.json` dosyası iner. Adı benzer: `dugunce-firebase-adminsdk-xxxxx.json`.
 
@@ -199,8 +224,9 @@ Görmüyorsanız olası nedenler (sırayla kontrol edin):
 
 En hızlı "boru hattı çalışıyor mu" testi:
 
-1. Firebase konsolu → **Cloud Messaging** → **Send your first message**
-   (veya **New campaign** → **Notifications**).
+1. Firebase konsolu → **DevOps & Engagement** → **Cloud Messaging** →
+   **Send your first message** (veya **New campaign** → **Notifications**).
+   Doğrudan URL: `https://console.firebase.google.com/project/_/notification`
 2. **Notification title**: `Test`
 3. **Notification text**: `Boru hattı testi`
 4. **Send test message** → **+ Add an FCM registration token** →
