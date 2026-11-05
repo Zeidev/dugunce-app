@@ -26,5 +26,9 @@ admin/node_modules/
 admin/dist/
 frontend/public/spa/
 
+# Kök `node_modules/` — `npx wrangler` gibi araçlar burada önbellek açar.
+# Depo kökünde package.json YOK, yani burası hiçbir zaman commit edilmemeli.
+/node_modules/
+
 # Wrangler (Cloudflare Pages yerel emülatörü) artığı — commit edilmez
 .wrangler/
