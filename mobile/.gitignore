@@ -25,5 +25,26 @@ DerivedData/
 # Kotlin/Native
 .konan/
 
+# --- Firebase / push kimlik bilgileri ---
+#
+# `google-services.json` proje kimliği TAŞIR (project_id, api_key,
+# mobilesdk_app_id). Herkese açık bir depoda yayınlanması, projeye
+# yetkisiz FCM gönderimi denemelerine kapı açar; ayrıca sızıntı
+# tespit edilirse anahtarı döndürmek gerekir.
+#
+# NEDEN DEPODA DEĞİL: yeni bir geliştirici depoyu klonladığında dosya
+# YOKTUR. Uygulama yine derlenir ve çalışır — push sessizce devre dışı
+# kalır (`PushNotifications.currentToken()` → null). Bu bilinçli:
+# gizli dosya olmadan geliştirme bloklanmamalı.
+google-services.json
+**/google-services.json
+
+# Sunucu tarafı service account (FCM HTTP v1 için) — ASLA depoda.
+service-account*.json
+*-firebase-adminsdk-*.json
+
+# Apple APNs anahtarı (iOS push sonraki iş; yine de kural şimdi).
+*.p8
+
 # OS
 .DS_Store
