@@ -21,6 +21,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // `toBeInTheDocument` / `toHaveFocus` gibi eşleştiriciler burada
+    // yüklenir. `setupFiles` olmadan bileşen testleri ilk `expect`'te
+    // "is not a function" ile patlar.
+    setupFiles: ['src/test-setup.ts'],
     // Ağa ÇIKILMAZ: testler `fetch`'i stub'lar. `restoreMocks` her testten
     // sonra global stub'ları temizler; unutulursa bir sonraki test sahte
     // fetch ile sessizce "geçer".

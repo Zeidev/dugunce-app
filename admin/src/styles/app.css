@@ -650,3 +650,426 @@ a {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Task 11 — liste/detay bileşenleri
+   --------------------------------------------------------------------------- */
+
+/* Bölüm başlığı — `StatCard` ızgarasının veya tablonun üstünde.
+ * Üst çubuk `h1` olduğu için bölüm başlıkları `h2`: seviye atlanmaz. */
+.section-title {
+  margin: var(--s-6) 0 var(--s-4);
+  font-size: 15px;
+}
+
+/* Araç çubuğu — arama + filtre yan yana, dar ekranda alt alta. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+/* ---------------------------------------------------------------------------
+   Arama
+   --------------------------------------------------------------------------- */
+
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  /* Araç çubuğunda esner ama 320px'in altına inmez: daha dar bir arama
+   * alanında yazılan metin görünmez. */
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+.search__box {
+  position: relative;
+}
+
+.search__input {
+  /* Temizleme butonu alanın içinde; metin butonun altına girmesin. */
+  padding-right: var(--s-7);
+}
+
+/* Tarayıcının kendi "x" düğmesi bizimkiyle çakışır — gizlenir. */
+.search__input::-webkit-search-cancel-button,
+.search__input::-webkit-search-decoration {
+  appearance: none;
+}
+
+.search__clear {
+  position: absolute;
+  top: 50%;
+  right: var(--s-2);
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.search__clear:hover {
+  background: var(--sage-soft);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------------
+   Filtre düğmeleri (plan / aksiyon)
+   --------------------------------------------------------------------------- */
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.filter {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.filter:hover {
+  border-color: var(--gold);
+}
+
+/* SEÇİLİ durum yalnız renkle anlatılmaz: `aria-pressed` de var.
+ * Yine de görsel ayrım güçlü olsun diye kenarlık + zemin birlikte. */
+.filter.is-active {
+  border-color: var(--sage);
+  background: var(--sage);
+  color: var(--cream);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+   Tablo ekleri — sıralama, sayı kolonu
+   --------------------------------------------------------------------------- */
+
+.table__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.table__sort:hover {
+  color: var(--ink);
+}
+
+.table__sort-arrow {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+/* Sayı kolonları sağa hizalı: basamaklar alt alta gelsin, karşılaştırma
+ * kolaylaşsın. */
+.table__num {
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------------------
+   Sayfalama
+   --------------------------------------------------------------------------- */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: var(--s-4);
+}
+
+.pagination__total {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------------
+   İskelet — yükleme
+   --------------------------------------------------------------------------- */
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.skeleton__label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.skeleton__row {
+  display: flex;
+  gap: var(--s-3);
+}
+
+.skeleton__bar {
+  height: 12px;
+  flex: 1 1 auto;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--sage-soft), var(--cream), var(--sage-soft));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton__bar--short {
+  flex: 0 0 30%;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Hareket hassasiyeti: animasyon kapalı, çubuklar sabit kalsın. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton__bar {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Boş durum
+   --------------------------------------------------------------------------- */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-6) var(--s-5);
+  text-align: center;
+}
+
+.empty-state__icon {
+  font-size: 22px;
+  color: var(--muted);
+}
+
+.empty-state__title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.empty-state__desc {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Tablo içindeki boş durum hücresi — kendi padding'i var. */
+.table__empty {
+  padding: 0;
+  white-space: normal;
+}
+
+/* ---------------------------------------------------------------------------
+   Onay dialog'u
+   --------------------------------------------------------------------------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  background: rgba(45, 58, 46, 0.42);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--s-6);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+}
+
+.dialog__title {
+  font-size: 18px;
+}
+
+.dialog__desc {
+  margin: var(--s-3) 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+/* ---------------------------------------------------------------------------
+   Toast — sağ altta, 4 sn (spec §9.1)
+   --------------------------------------------------------------------------- */
+
+.toast {
+  position: fixed;
+  right: var(--s-5);
+  bottom: var(--s-5);
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  max-width: 360px;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  font-size: 13px;
+}
+
+.toast--success {
+  border-left-color: var(--ok);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.toast--error {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.toast__message {
+  flex: 1 1 auto;
+}
+
+.toast__close {
+  flex: 0 0 auto;
+  padding: 0 var(--s-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+   Detay sayfası
+   --------------------------------------------------------------------------- */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+}
+
+.page-title {
+  font-size: 22px;
+}
+
+.detail-head__email {
+  margin: var(--s-1) 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.detail-head__meta {
+  margin: var(--s-1) 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.detail-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.detail-card {
+  margin-top: var(--s-5);
+}
+
+.detail-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--s-4);
+  margin: 0;
+}
+
+.detail-list dt {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.detail-list dd {
+  margin: var(--s-1) 0 0;
+  font-size: 14px;
+}
+
+/* Yıkıcı eylem — "Askıya al". Renk tek başına anlatmaz: buton metni
+ * eylemi söyler ("Askıya al"), renk yalnız dikkat çeker. */
+.btn--danger {
+  border-color: rgba(140, 47, 47, 0.4);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--cream);
+}
+
+@media (max-width: 899px) {
+  .toast {
+    right: var(--s-3);
+    bottom: var(--s-3);
+    left: var(--s-3);
+    max-width: none;
+  }
+}

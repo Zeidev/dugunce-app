@@ -2,6 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
+import { Dashboard } from './pages/Dashboard'
+import { Users } from './pages/Users'
+import { UserDetail } from './pages/UserDetail'
+import { Weddings } from './pages/Weddings'
+import { WeddingDetail } from './pages/WeddingDetail'
+import { Audit } from './pages/Audit'
 import { api, ApiError, clearCsrfToken, onSessionExpired } from './api'
 import { AuthProvider } from './auth-context'
 import type { Admin } from './types'
@@ -206,52 +212,62 @@ function AuthGate(): React.JSX.Element {
   }
 
   // --- Oturum var: panel rotaları ---------------------------------------
+  return <PanelRoutes admin={session.admin} signOut={signOut} />
+}
+
+interface PanelRoutesProps {
+  admin: Admin
+  signOut: () => Promise<void>
+}
+
+/**
+ * Panel rota tablosu + oturum sağlayıcısı — AYRI bileşen.
+ *
+ * NEDEN AYRI: `Layout` `useAuth()` çağırıyor ve sağlayıcı olmadan hata
+ * fırlatır. Rota tablosunu (derin bağlantı!) test etmek için
+ * `MemoryRouter` ile sarmalarken sağlayıcıyı da kurmak gerekiyor. Bu
+ * bileşen ikisini bir arada sunduğu için test, `AuthGate`'in oturum
+ * akışını taklit etmek zorunda kalmıyor — sınanan şey GERÇEK rota
+ * tablosu oluyor.
+ *
+ * NEDEN `admin`/`signOut` PROP: sağlayıcı değerini `AuthGate` üretiyor;
+ * burada yeniden üretmek oturum durumunun iki sahibi olması demekti.
+ */
+export function PanelRoutes({ admin, signOut }: PanelRoutesProps): React.JSX.Element {
   return (
-    <AuthProvider value={{ admin: session.admin, signOut }}>
+    <AuthProvider value={{ admin, signOut }}>
       <Routes>
         {/* `/login`'e doğrudan gelen oturumlu kullanıcı panele döner. */}
         <Route path="/login" element={<Navigate to="/" replace />} />
 
+        {/*
+          ROTALAR `Layout` İÇİNDE: menü, üst çubuk ve içerik tek kabuk.
+          `Layout` `Outlet` ile alt rotayı basıyor; düz rota tanımlamak
+          her sayfada kabuğu tekrar etmek demek olurdu.
+
+          DİKKAT — DERİN BAĞLANTI: `/spa/weddings/<uuid>` doğrudan
+          açıldığında bu tablo eşleşmeli. `basename="/spa"` sayesinde
+          React Router `/spa` önekini çıkarıp `/weddings/<uuid>` ile
+          karşılaştırır. `_redirects` içindeki `/spa/* /spa/ 200` kuralı
+          sunucu tarafında index.html'i döndürür; ikisi birlikte
+          yenilemede 404'ü engeller.
+        */}
         <Route element={<Layout />}>
-          <Route index element={<OverviewPlaceholder />} />
-          {/* Bilinmeyen yol: sessiz beyaz ekran yerine genel bakışa dön. */}
+          <Route index element={<Dashboard />} />
+          <Route path="users" element={<Users />} />
+          <Route path="users/:id" element={<UserDetail />} />
+          <Route path="weddings" element={<Weddings />} />
+          <Route path="weddings/:id" element={<WeddingDetail />} />
+          <Route path="audit" element={<Audit />} />
+
+          {/*
+            Bilinmeyen yol: sessiz beyaz ekran yerine genel bakışa dön.
+            NEDEN `<Navigate>`: 404 sayfası yazmak v1'de gereksiz; ama
+            boş ekran bırakmak "panel bozuldu" izlenimi verir.
+          */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </AuthProvider>
-  )
-}
-
-/**
- * Geçici "Genel bakış" yer tutucusu — Task 11'de gerçek dashboard ile
- * değiştirilecek. Burada olmasının nedeni, iskeletin boş bir sayfa değil
- * GERÇEKTEN render eden bir uygulama olduğunu doğrulamak.
- */
-function OverviewPlaceholder(): React.JSX.Element {
-  return (
-    <section>
-      <div className="stat-grid">
-        <article className="stat">
-          <div className="stat__label">Kullanıcı</div>
-          <div className="stat__value">—</div>
-          <div className="stat__delta">Task 11'de bağlanacak</div>
-        </article>
-        <article className="stat">
-          <div className="stat__label">Düğün</div>
-          <div className="stat__value">—</div>
-          <div className="stat__delta">Task 11'de bağlanacak</div>
-        </article>
-        <article className="stat">
-          <div className="stat__label">Premium</div>
-          <div className="stat__value">—</div>
-          <div className="stat__delta">Task 11'de bağlanacak</div>
-        </article>
-        <article className="stat">
-          <div className="stat__label">Davetli</div>
-          <div className="stat__value">—</div>
-          <div className="stat__delta">Task 11'de bağlanacak</div>
-        </article>
-      </div>
-    </section>
   )
 }
