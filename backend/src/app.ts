@@ -1,7 +1,10 @@
 import express, { type Express } from 'express'
 import { createHealthRouter } from './routes/health.js'
-import { pingDb } from './db/client.js'
+import { pingDb, getDb } from './db/client.js'
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js'
+import { createNotificationsRouter } from './notifications/router.js'
+import { drizzleDeviceTokenDeps } from './notifications/store.js'
+import { drizzlePreferencesDeps } from './notifications/preferences.js'
 import { createRequireAuth } from './middleware/require-auth.js'
 import { createRequireWeddingMember } from './middleware/require-member.js'
 import { createAuthRouter } from './routes/auth.js'
@@ -49,6 +52,9 @@ export interface CreateAppOptions {
   inviteStore?: import('./auth/invite.js').InviteDeps
   helperStore?: ReturnType<typeof import('./helpers/store.js').drizzleHelperDeps>
   taskStore?: ReturnType<typeof import('./tasks/store.js').drizzleTaskDeps>
+  /** Push testleri için enjeksiyon. */
+  deviceTokenDeps?: import('./notifications/store.js').DeviceTokenDeps
+  preferencesDeps?: import('./notifications/preferences.js').PreferencesDeps
   messageStore?: ReturnType<typeof import('./messages/store.js').drizzleMessageDeps>
   sessionStore?: ReturnType<typeof import('./helpers/session-store.js').drizzleSessionDeps>
   /** Testlerde IP bazlı sınırları kapatmak için. */
@@ -164,6 +170,19 @@ export function createApp(options: CreateAppOptions = {}): Express {
   })
   app.use('/api/v1/weddings/:weddingId/invites', invites.weddingInvites)
   app.use('/api/v1/invites', invites.publicInvites)
+
+  /*
+    Mobil push — cihaz token'ı ve bildirim tercihleri.
+    iOS kapsam dışı (spec §0); platform doğrulaması router'da.
+  */
+  app.use(
+    '/api/v1/notifications',
+    createNotificationsRouter({
+      requireAuth,
+      tokens: options.deviceTokenDeps ?? drizzleDeviceTokenDeps(getDb()),
+      preferences: options.preferencesDeps ?? drizzlePreferencesDeps(getDb()),
+    }),
+  )
 
   // Bütçe
   app.use('/api/v1/weddings/:weddingId/expenses', createExpensesRouter({ requireAuth, requireMember }))
