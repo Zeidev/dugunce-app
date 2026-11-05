@@ -45,14 +45,52 @@ const CORE_SYMBOLS = [
   { name: 'MaterialTheme', pkg: 'androidx.compose.material3' },
 ]
 
+/**
+ * Projenin kendi kök paketi — TEK KAYNAKTAN okunur.
+ *
+ * NEDEN SABİT YAZILMIYOR (canlıda YAŞANDI): paket adı
+ * `com.dugunce.app` → `com.lumibyte.dugunce` olarak değiştiğinde bu
+ * dosyada sabit yazılı yol güncellenmedi ve CI KIRMIZI verdi:
+ *
+ *   "Money kullanılıyor ama 'import com.dugunce.app.data.Money' yok"
+ *
+ * Oysa import VARDI — yalnız adı değişmişti. Sabit bir yol, yeniden
+ * adlandırmayı SESSİZCE kırar: kontrol, doğru koddan şüphelenir ve
+ * gerçek hatayı gizler.
+ *
+ * Artık kök paket `composeApp/build.gradle.kts` içindeki
+ * `namespace = "..."` satırından okunur. Gradle'ın kendi doğruluk
+ * kaynağı budur; ikisi asla ayrışamaz.
+ */
+function readRootPackage() {
+  const gradle = join(process.cwd(), 'mobile/composeApp/build.gradle.kts')
+  let src
+  try {
+    src = readFileSync(gradle, 'utf8')
+  } catch {
+    // Gradle dosyası yoksa kontrol sessizce yanlış tarafa düşmesin:
+    // açıkça hata ver, "geçti" deme.
+    console.error(`❌ ${gradle} okunamadı — kök paket belirlenemiyor`)
+    process.exit(1)
+  }
+  const m = /namespace\s*=\s*"([^"]+)"/.exec(src)
+  if (!m) {
+    console.error('❌ build.gradle.kts içinde `namespace = "..."` bulunamadı')
+    process.exit(1)
+  }
+  return m[1]
+}
+
+const ROOT_PACKAGE = readRootPackage()
+
 /** { nesne, paket } — tam nitelikli import yolu. */
 const HELPERS = [
-  { name: 'Money', pkg: 'com.dugunce.app.data' },
-  { name: 'Dates', pkg: 'com.dugunce.app.util' },
-  { name: 'Links', pkg: 'com.dugunce.app.util' },
-  { name: 'OfflineCache', pkg: 'com.dugunce.app.data' },
-  { name: 'TokenStore', pkg: 'com.dugunce.app.data' },
-  { name: 'Repository', pkg: 'com.dugunce.app.data' },
+  { name: 'Money', pkg: `${ROOT_PACKAGE}.data` },
+  { name: 'Dates', pkg: `${ROOT_PACKAGE}.util` },
+  { name: 'Links', pkg: `${ROOT_PACKAGE}.util` },
+  { name: 'OfflineCache', pkg: `${ROOT_PACKAGE}.data` },
+  { name: 'TokenStore', pkg: `${ROOT_PACKAGE}.data` },
+  { name: 'Repository', pkg: `${ROOT_PACKAGE}.data` },
 ]
 
 function walk(dir, out = []) {
