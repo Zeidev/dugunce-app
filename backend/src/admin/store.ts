@@ -15,7 +15,7 @@
  * trigger düşse bile uygulama katmanı yazma yolu açmaz.
  */
 
-import { eq, and, desc, sql, lt, or, ilike, isNull, inArray, type SQL } from 'drizzle-orm'
+import { eq, and, desc, gte, sql, lt, or, ilike, isNull, inArray, type SQL } from 'drizzle-orm'
 import { getDb } from '../db/client.js'
 import { adminAccounts, adminSessions, auditLogs, users, weddings, weddingMembers, guests } from '../db/schema.js'
 import type {
@@ -387,11 +387,19 @@ export function drizzleAdminDeps(dbOverride?: Db): AdminDeps & {
       return Number(rows[0]?.c ?? 0)
     },
 
+    /**
+     * `since`'ten sonra açılan kullanıcılar — overview "son 7 gün" kartı.
+     *
+     * `gte` kullanılır, ham `sql` şablonu DEĞİL: Drizzle ham şablonda
+     * kolon adını tablo niteliği OLMADAN yazabiliyor (bu dosyada
+     * korelasyonlu alt sorguda tam olarak bu tuzağa düşüldü). `gte`
+     * her zaman `"users"."created_at"` üretir.
+     */
     async countUsersSince(since) {
       const rows = await db
         .select({ c: sql<string>`COUNT(*)` })
         .from(users)
-        .where(sql`${users.createdAt} >= ${since}`)
+        .where(gte(users.createdAt, since))
       return Number(rows[0]?.c ?? 0)
     },
 
