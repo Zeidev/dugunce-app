@@ -1287,7 +1287,34 @@ Expected: FAIL — `admin/` dizini yok.
 
 `Layout.tsx` — sol menü (Genel bakış, Kullanıcılar, Düğünler, Denetim) + üst çubuk + `<Outlet />`. Mobilde hamburger.
 
-`_redirects`'e ekle: `/spa/*  /spa/index.html  200`.
+> **DEPLOY UYARISI (Task 12 için):** `frontend/public/spa/` `.gitignore`'da.
+> Cloudflare Pages depodan derlediği için, Pages'in **build command**'ı
+> `cd admin && npm ci && npm run build` yapmıyorsa yayında `/spa/` altında
+> HİÇBİR ŞEY olmaz (404). Pages ayarı depoda değil, panoda — Task 12'de
+> ELLE doğrulanmalı: Pages → Settings → Build configuration.
+
+`_redirects`'e ekle — SIRA HAYATİ:
+
+```
+/spa/assets/*  /spa/assets/:splat  200
+/spa/*.js      /spa/:splat.js      200
+/spa/*.css     /spa/:splat.css     200
+/spa/*.json    /spa/:splat.json    200
+/spa/*.svg     /spa/:splat.svg     200
+/spa/*.png     /spa/:splat.png     200
+/spa/*.ico     /spa/:splat.ico     200
+/spa/*.webmanifest  /spa/:splat.webmanifest  200
+/spa/*  /spa/index.html  200        ← EN SONDA
+```
+
+**NEDEN pass-through kuralları:** Cloudflare belgesi aynen şöyle diyor:
+*"Redirects are always followed, regardless of whether or not an asset
+matches the incoming request."* Yani çıplak bir `/spa/* → index.html 200`
+kuralı, `/spa/assets/index-abc.js` GERÇEK bir dosya olsa bile devreye girer
+ve JavaScript yerine `index.html` (text/html) döndürür → panel beyaz ekran.
+Bu hata sınıfı bu repoda yaşandı: `/d/:token` kuralı `/d/map-link.mjs`i
+yutmuştu (commit `1d54e59`, "canlıda görüldü"). Pass-through hedefi
+KENDİSİDİR; eksik bir varlık 404 döner, index.html'e düşmez (doğrusu bu).
 `_headers`'a ekle: `/spa/*` → `X-Robots-Tag: noindex, nofollow`, `Cache-Control: no-store`.
 `.gitignore`'a ekle: `frontend/public/spa/`.
 
@@ -1418,6 +1445,11 @@ git commit -m "feat: admin SPA sayfalari — dashboard, listeler, plan degistirm
 
 ### Task 12: CI, deploy ve canlı doğrulama
 
+> **ZORUNLU DOĞRULAMA ARACI:** Cloudflare davranışı için `npx wrangler pages dev
+> frontend/public` kullan. Elle yazılmış taklit sunucu KANIT DEĞİLDİR — Task 9'da
+> taklit, Cloudflare'in `/spa/index.html` kuralını reddettiğini gizledi ve hatalı
+> kural commit edildi (bkz. b104fd0 → f945bbf).
+
 **Files:**
 - Modify: `.github/workflows/frontend-ci.yml`
 - Test: yok (operasyon).
@@ -1473,7 +1505,13 @@ Bekle, `success` doğrula.
 - [ ] **Step 7: Provision the first admin**
 
 ```bash
-cd backend && node dist/scripts/create-admin.js --email <SENIN_EPOSTAN> --name "Ürün Sahibi"
+cd backend && node dist/admin/provision-cli.js --email <SENIN_EPOSTAN> --name "Ürün Sahibi"
+
+# DİKKAT: yol `dist/admin/provision-cli.js`, `dist/scripts/create-admin.js` DEĞİL.
+# `tsconfig.json` `scripts/` dizinini exclude ediyor → `dist/scripts/` HİÇ oluşmaz.
+# `scripts/create-admin.ts` yalnız geliştirme sarmalayıcısıdır (`npx tsx`).
+# Üretimde `npm ci --omit=dev` çalıştığı için `tsx` YOK; giriş noktası dist'teki
+# dosyadır ve deploy yalnız `dist/`i rsync'ler.
 ```
 
 Parola sorulur (en az 16 karakter). **Bu adımı senin çalıştırman gerekiyor** — parolayı ben bilmemeliyim.
