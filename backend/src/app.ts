@@ -195,13 +195,37 @@ export function createApp(options: CreateAppOptions = {}): Express {
     `sender` ORTAMDAN üretilir: `PUSH_ENABLED` false veya anahtar yoksa
     `null` döner ve bildirim gönderilmez — sunucu yine çalışır.
   */
+  /*
+    KULLANICI TERCİHLERİ — önbellek YOK, bilinçli.
+
+    İlk sürümde `notifyWeddingMembers` iki kez `preferencesDeps.get`
+    çağırdığı için bir Map önbelleği eklemiştim. YANLIŞTI: `createApp`
+    süreç ömrü boyunca yaşıyor, yani o Map de öyle. Kullanıcı
+    bildirimleri KAPATSA bile sunucu açık kaldığı sürece ESKİ değeri
+    okurdu — "kapattım ama hâlâ bildirim geliyor" hatası.
+
+    Bildirim başına fazladan bir DB turu (indeksli tek satır, ~0.2ms)
+    yanlış tercihi uygulamaktan çok daha ucuz.
+  */
+  const prefOf = (userId: string): ReturnType<typeof preferencesDeps.get> =>
+    preferencesDeps.get(userId)
+
   const notifyDeps: NotifyDeps = {
     tokens: deviceTokenDeps,
     sender: options.fcmSender !== undefined ? options.fcmSender : createFcmSenderFromEnv(env),
     findWedding: (weddingId) => findWeddingForNotify(weddingId),
-    isQuietHoursOverride: async (userId) =>
-      (await preferencesDeps.get(userId)).quietHoursOverride,
-    isEnabled: async (userId) => (await preferencesDeps.get(userId)).enabled,
+    /*
+      Aynı kullanıcının tercihleri TEK bildirimde iki kez soruluyor
+      (`isEnabled` + `isQuietHoursOverride`). Her çağrıda ayrı sorgu
+      atmak, bildirim başına gereksiz bir DB turu demek.
+
+      Kısa ömürlü önbellek: değerler bildirim gönderimi sırasında
+      sabit kabul edilebilir (kullanıcı tam o anda tercih değiştirse
+      bir sonraki bildirimde yansır). `Map` her bildirim çağrısında
+      yeniden kuruluyor — kalıcı bir önbellek değil.
+    */
+    isQuietHoursOverride: (userId) => prefOf(userId).then((p) => p.quietHoursOverride),
+    isEnabled: (userId) => prefOf(userId).then((p) => p.enabled),
   }
 
   app.use(
