@@ -450,7 +450,7 @@ const APP_TSX = join(ADMIN, 'src/App.tsx')
     // YORUMLAR AYIKLANIR: App.tsx `basename="/spa"` ifadesini bir NEDEN
     // yorumunda da anıyor. Yorum taranırsa gerçek prop silindiğinde
     // kontrol yeşil kalır (mutasyon testinde yakalandı).
-    const code = stripComments(src, { file: 'vite.config.ts' })
+    const code = stripComments(src, { file: 'App.tsx' })
 
     // `base: '/spa/'` yalnız varlık yollarını düzeltir. Router basename
     // almazsa /spa/users hiçbir rotaya uymaz ve panel boş açılır.
@@ -471,7 +471,14 @@ const APP_TSX = join(ADMIN, 'src/App.tsx')
  * cookie'de durur, SPA yalnız `credentials: 'include'` ile istek atar.
  * `localStorage`'a yazılan bir token XSS'te doğrudan çalınır.
  */
-const SRC_FILES = walk(ADMIN_SRC).filter((f) => /\.(ts|tsx|js|jsx|mjs|css|html)$/.test(f))
+// `admin/index.html` DE taranır: Vite'ın giriş HTML'i, `<script>` bloğu
+// taşıyabilir ve oradaki bir `localStorage.setItem`/`innerHTML` tam da
+// kaçırmak istemediğimiz sınıftır. Önce yalnız `admin/src/` taranıyordu
+// (re-review'da ölçüldü: index.html'e XSS koymak YEŞİL kalıyordu).
+const SCAN_ROOTS = [ADMIN_SRC, join(ADMIN, 'index.html')]
+const SRC_FILES = SCAN_ROOTS.flatMap((p) =>
+  existsSync(p) && !statSync(p).isDirectory() ? [p] : walk(p),
+).filter((f) => /\.(ts|tsx|js|jsx|mjs|css|html)$/.test(f))
 
 if (existsSync(ADMIN_SRC) && SRC_FILES.length === 0) {
   fail('admin/src/', 0, 'kaynak dosya yok — iskelet kurulmamış')
@@ -521,9 +528,19 @@ for (const file of SRC_FILES) {
     fail(fileRel, lineOf(src, i), 'dangerouslySetInnerHTML kullanılıyor — XSS riski')
   }
 
-  // 6c. eval / new Function
-  if (/\beval\s*\(/.test(src)) {
-    fail(fileRel, lineOf(src, src.search(/\beval\s*\(/)), 'eval() kullanılıyor — güvenlik riski')
+  // 6c. eval / new Function — İKİSİ DE dinamik kod çalıştırır.
+  //
+  // `eval` yasaklanmıştı ama eşdeğeri `new Function(...)` ve
+  // `Function(...)()` serbestti (re-review'da ölçüldü: ikisi de yeşil).
+  for (const [label, re] of [
+    ['eval()', /\beval\s*\(/],
+    ['new Function()', /\bnew\s+Function\s*\(/],
+    ['Function()', /(?<![.\w])Function\s*\(/],
+  ]) {
+    const hit = src.search(re)
+    if (hit !== -1) {
+      fail(fileRel, lineOf(src, hit), `${label} kullanılıyor — dinamik kod çalıştırma (güvenlik riski)`)
+    }
   }
 
   // 6d. Oturum cookie'si JS'ten okunamaz/yazılamaz.
@@ -644,6 +661,7 @@ const REDIRECTS = join(PUBLIC, '_redirects')
       } else {
         note('_redirects: /spa/assets/* pass-through catch-all\'dan önce ✓')
       }
+
     }
   }
 }
@@ -669,6 +687,38 @@ const HEADERS = join(PUBLIC, '_headers')
       }
       if (/x-robots-tag/.test(body) && /cache-control\s*:\s*no-store/.test(body)) {
         note('_headers: /spa/* noindex + no-store ✓')
+      }
+    }
+
+    // VARLIK ÖNBELLEĞİ + DETACH — ikisi birlikte doğru.
+    //
+    // `/spa/*` bloğu `no-store` yazar; `/spa/assets/*` bloğu `immutable`
+    // yazar. Cloudflare `_headers` kurallarını BİRLEŞTİRİP aynı başlığı
+    // virgülle eklediği için, `! Cache-Control` detach satırı olmadan
+    // canlıda `no-store, public, max-age=31536000, immutable` gibi
+    // ÇELİŞKİLİ bir değer oluşur. Satır silinirse kontrol yakalamalı.
+    const assetBlock = blocks.find((b) => b.split('\n')[0]?.trim() === '/spa/assets/*')
+    if (!assetBlock) {
+      fail('frontend/public/_headers', 0, '"/spa/assets/*" bloğu yok — varlık önbelleği ayarlanmamış')
+    } else {
+      const body = assetBlock.toLowerCase()
+      if (!/^\s*!\s*cache-control/m.test(body)) {
+        fail(
+          'frontend/public/_headers',
+          0,
+          '/spa/assets/* bloğunda "! Cache-Control" detach satırı YOK — ' +
+            'üstteki /spa/* bloğunun "no-store" değeri birleşir ve ' +
+            'çelişkili "no-store, public, immutable" başlığı oluşur',
+        )
+      } else if (!/cache-control\s*:\s*public[^\n]*immutable/.test(body)) {
+        fail(
+          'frontend/public/_headers',
+          0,
+          '/spa/assets/* bloğunda "Cache-Control: public, ..., immutable" yok — ' +
+            "hash'li varlıklar her açılışta yeniden iner",
+        )
+      } else {
+        note('_headers: /spa/assets/* immutable + detach ✓')
       }
     }
   }
