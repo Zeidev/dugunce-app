@@ -10,6 +10,22 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
+/*
+  Google Services eklentisi YALNIZ `google-services.json` varsa uygulanır.
+
+  NEDEN KOŞULLU: dosya `.gitignore`'da (Firebase proje kimliği taşır).
+  Depoyu klonlayan herkesde ve CI'da dosya YOKTUR. Eklenti koşulsuz
+  uygulanırsa `processDebugGoogleServices` görevi dosyayı bulamayıp
+  DERLEMEYİ KIRAR — yani push eklemek, push kullanmayan herkesin
+  derlemesini bozar.
+
+  Dosya yoksa: FCM token alınamaz, `PushNotifications.currentToken()`
+  null döner, push sessizce kapalı kalır. Uygulama çalışır.
+*/
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 kotlin {
     androidTarget {
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -64,6 +80,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.firebase.messaging)
         }
 
         iosMain.dependencies {

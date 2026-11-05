@@ -10,6 +10,8 @@ ktor = "3.6.1"
 lifecycle = "2.8.4"
 androidx-activity = "1.13.0"
 androidx-core = "1.19.1"
+firebaseMessaging = "24.1.0"
+googleServices = "4.4.2"
 multiplatform-settings = "1.3.0"
 
 [libraries]
@@ -27,6 +29,7 @@ ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "kto
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatform-settings" }
 multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatform-settings" }
 
@@ -36,3 +39,4 @@ kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", versio
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 androidApplication = { id = "com.android.application", version.ref = "agp" }
+googleServices = { id = "com.google.gms.google-services", version.ref = "googleServices" }

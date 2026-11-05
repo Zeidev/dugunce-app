@@ -24,6 +24,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.lumibyte.dugunce.data.Repository
+import com.lumibyte.dugunce.push.DeviceRegistrar
+import com.lumibyte.dugunce.push.PushNotifications
 import com.lumibyte.dugunce.data.TokenStore
 import com.lumibyte.dugunce.ui.AppState
 import com.lumibyte.dugunce.ui.components.InfoBanner
@@ -155,6 +157,24 @@ fun App(
         // `Repository.onSessionExpired` varsayılan olarak boş lambda;
         // bağlanmazsa token düşer, kullanıcı hiçbir şey görmez, sonraki
         // açılış siyah ekrana düşer (bildirilen hata).
+        /**
+         * Push token TAZELEME — izin İSTEMEZ (spec §6.3).
+         *
+         * NEDEN İZİN İSTEMİYOR: ilk açılışta sorulan izin, ne olduğunu
+         * anlamadan reddediliyor ve Android'de iki red sonrası bir daha
+         * SORULAMIYOR. İzin yalnız ayarlar ekranındaki "Bildirimleri aç"
+         * satırından istenir.
+         *
+         * Burada yalnız: kullanıcı izin vermişse token'ı sunucuya yaz
+         * (upsert → `last_seen_at` tazelenir). Token yoksa (izin yok /
+         * iOS / google-services.json yok) `register` istek ATMADAN döner.
+         */
+        LaunchedEffect(Unit) {
+            if (tokens.isLoggedIn) {
+                DeviceRegistrar.register(PushNotifications.currentToken(), repository)
+            }
+        }
+
         LaunchedEffect(Unit) {
             repository.installSessionExpiredHandler {
                 state.wedding = null

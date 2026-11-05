@@ -32,6 +32,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.lumibyte.dugunce.data.Repository
+import com.lumibyte.dugunce.push.DeviceRegistrar
+import com.lumibyte.dugunce.push.PushNotifications
 import com.lumibyte.dugunce.data.TokenStore
 import com.lumibyte.dugunce.data.WeddingDto
 import com.lumibyte.dugunce.data.WeddingCreateRequest
@@ -382,9 +384,35 @@ fun SettingsScreen(
                         description = "RSVP yanıtı ve görev değişikliklerinde haber verir. " +
                             "İzin vermezsen uygulama çalışmaya devam eder.",
                         checked = notifOn,
-                        onCheckedChange = {
-                            notifOn = it
-                            tokens.notificationsEnabled = it
+                        onCheckedChange = { wanted ->
+                            /*
+                              İZİN BURADAN İSTENİR — spec §6.3: "İlk açılışta
+                              DEĞİL. ... ayarlarda açık bir 'Bildirimleri aç'
+                              satırı + bir kez sorulan nazik istem."
+
+                              NEDEN: ilk açılışta sorulan izin, ne olduğunu
+                              anlamadan reddediliyor ve Android'de iki red
+                              sonrası bir daha SORULAMIYOR.
+
+                              SIRA: izin → token → sunucu kaydı → tercih.
+                              Kullanıcı izin vermezse token null döner,
+                              kayıt atlanır, yalnız tercih yazılır (false).
+                            */
+                            notifOn = wanted
+                            tokens.notificationsEnabled = wanted
+                            scope.launch {
+                                if (wanted) {
+                                    PushNotifications.requestPermission()
+                                    val token = PushNotifications.currentToken()
+                                    DeviceRegistrar.register(token, repository)
+                                } else {
+                                    DeviceRegistrar.unregister(
+                                        PushNotifications.currentToken(),
+                                        repository,
+                                    )
+                                }
+                                repository.setNotificationsEnabled(wanted)
+                            }
                         },
                     )
                     Text(

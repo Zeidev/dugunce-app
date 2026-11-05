@@ -12,7 +12,10 @@ import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.serialization.Serializable
 
 /**
  * API repository'si.
@@ -28,7 +31,7 @@ class Repository(
     private val api: ApiClient,
     private val tokens: TokenStore,
     private val onSessionExpired: () -> Unit = {},
-) {
+) : com.lumibyte.dugunce.push.PushApi {
     private val json = api.json
     private val cache = OfflineCache(tokens, json)
 
@@ -116,10 +119,75 @@ class Repository(
         tokens.refreshToken = body.refreshToken
     }
 
-    suspend fun logout(): Result<Unit> = safeCall {
+    /**
+     * Çıkış.
+     *
+     * `deviceToken` verilirse push token'ı sunucudan da silinir
+     * (spec §5.2). SIRA ÖNEMLİ: `tokens.clear()` sonrası yetkilendirilmiş
+     * istek atılamaz — bu yüzden silme ÖNCE denenir.
+     */
+    suspend fun logout(deviceToken: String? = null): Result<Unit> = safeCall {
+        if (!deviceToken.isNullOrBlank()) {
+            runCatching {
+                api.http.delete("notifications/device") {
+                    contentType(ContentType.Application.Json)
+                    setBody(DeviceTokenBody(deviceToken))
+                }
+            }
+        }
         runCatching { api.http.post("auth/logout") }
         tokens.clear()
     }
+
+    /**
+     * FCM token'ını sunucuya kaydeder (upsert).
+     *
+     * SESSİZ HATA YUTULUR: kayıt başarısız olursa uygulama çalışmaya
+     * devam eder; bir sonraki açılışta tekrar denenir. Kullanıcıya hata
+     * göstermek anlamsız — yapabileceği bir şey yok.
+     */
+    override suspend fun registerDevice(token: String) {
+        // `override`: PushApi sözleşmesi. Hata FIRLATIR (Result değil) —
+        // çağıran `DeviceRegistrar` runCatching ile sarıyor.
+        api.http.post("notifications/device") {
+            contentType(ContentType.Application.Json)
+            setBody(DeviceTokenBody(token))
+        }
+    }
+
+    /** Cihaz token'ını siler (bildirimler kapatılınca). */
+    override suspend fun deleteDevice(token: String) {
+        api.http.delete("notifications/device") {
+            contentType(ContentType.Application.Json)
+            setBody(DeviceTokenBody(token))
+        }
+    }
+
+    /**
+     * Bildirim tercihini sunucuya yazar.
+     *
+     * NEDEN SUNUCUDA DA: gönderim kararı sunucuda veriliyor
+     * (`notifications_enabled`). Yalnız yerel tutmak, kullanıcı
+     * kapattığında sunucunun göndermeye devam etmesi demekti.
+     *
+     * Hata yutulur: tercih bir sonraki açılışta tekrar yazılır.
+     */
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        runCatching {
+            api.http.patch("notifications/preferences") {
+                contentType(ContentType.Application.Json)
+                setBody(NotificationsEnabledBody(enabled))
+            }
+        }
+    }
+
+    /** `PATCH /notifications/preferences` gövdesi. */
+    @Serializable
+    private data class NotificationsEnabledBody(val enabled: Boolean)
+
+    /** `POST /notifications/device` gövdesi. */
+    @Serializable
+    private data class DeviceTokenBody(val token: String, val platform: String = "ANDROID")
 
     private fun storeTokens(auth: AuthResponse) {
         tokens.accessToken = auth.accessToken
