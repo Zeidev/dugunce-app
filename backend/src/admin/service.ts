@@ -551,6 +551,29 @@ export type CreateAdminDeps = Pick<AdminDeps, 'findAdminByEmail' | 'writeAudit'>
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /**
+ * PostgreSQL `unique_violation`.
+ *
+ * Eşzamanlı iki CLI çalışması `findAdminByEmail` kontrolünü İKİSİ de
+ * geçebilir (check-then-insert yarışı). O anda DB'deki UNIQUE kısıtı
+ * devreye girer; ham hata operatöre gösterilmemeli ve — daha önemlisi —
+ * hesap EZİLMEMELİ.
+ *
+ * `cause` zinciri de kontrol edilir: Drizzle bazı sürücülerde ham hatayı
+ * sarmalar ve `code` üst seviyede görünmez.
+ */
+export function isUniqueViolation(err: unknown): boolean {
+  const PG_UNIQUE_VIOLATION = '23505'
+  if (typeof err !== 'object' || err === null) return false
+  if ((err as { code?: unknown }).code === PG_UNIQUE_VIOLATION) return true
+  const cause = (err as { cause?: unknown }).cause
+  return (
+    typeof cause === 'object' &&
+    cause !== null &&
+    (cause as { code?: unknown }).code === PG_UNIQUE_VIOLATION
+  )
+}
+
+/**
  * CLI'dan yeni bir yönetici hesabı oluşturur (spec §6.1, Task 8).
  *
  * SIRA ÖNEMLİ — her adım bir öncekinin ön koşulu:
@@ -612,10 +635,30 @@ export async function createAdminAccount(
   // 4. Hash — düz metin buradan sonra YOK.
   const passwordHash = await hashPassword(params.password)
 
-  // 5. Yaz + audit. Audit yazması patlarsa hata YUTULMAZ (hesap yine de
-  //    açılmış olur; operatör tekrar denerse "zaten var" görür ve durumun
-  //    farkına varır — sessizce denetimsiz hesap bırakmaktan iyidir).
-  const created = await deps.insertAdminAccount({ email, displayName, passwordHash })
+  // 5. Yaz + audit. `findAdminByEmail` "yok" dedikten sonra araya giren
+  //    başka bir süreç aynı e-postayı açmış olabilir (check-then-insert
+  //    yarışı); o anda DB'deki UNIQUE kısıtı 23505 fırlatır. Çeviri BURADA
+  //    yapılır, store'da değil: `CreateAdminDeps` dar bir arayüzdür ve başka
+  //    bir uygulaması (tohumlama betiği, test sahtesi) ham PostgreSQL hatası
+  //    sızdırırsa operatör "neden oluşmadı" sorusunun yanıtını görmez.
+  //
+  //    Audit yazması patlarsa hata YUTULMAZ (hesap yine de açılmış olur;
+  //    operatör tekrar denerse "zaten var" görür ve durumun farkına varır —
+  //    sessizce denetimsiz hesap bırakmaktan iyidir).
+  let created: { id: string }
+  try {
+    created = await deps.insertAdminAccount({ email, displayName, passwordHash })
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      // Mesaj `findAdminByEmail` dalıyla AYNI olmalı: operatör için iki yol
+      // arasında fark yok, ikisi de "hesap korundu" demek.
+      throw AppError.conflict(
+        'Bu e-posta ile bir yönetici hesabı zaten var. Mevcut hesap korunur.',
+        'ADMIN_EMAIL_EXISTS',
+      )
+    }
+    throw err
+  }
 
   await deps.writeAudit({
     action: 'ADMIN_CREATED',

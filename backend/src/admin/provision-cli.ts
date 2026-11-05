@@ -133,7 +133,17 @@ export function parseArgs(argv: readonly string[]): CliArgs {
   return args
 }
 
-/** Terminalden tek satır okur (echo AÇIK — yalnız e-posta/ad için). */
+/**
+ * Terminalden tek satır okur (echo AÇIK — yalnız e-posta/ad için).
+ *
+ * EOF GÜVENLİĞİ: `rl.question()` bir EOF akışında (TTY yok, ör. CI'da
+ * `node ... < /dev/null`) HİÇ ÇÖZÜLMEZ. Node olay döngüsü boşalır ve
+ * süreç **exit 0** ile çıkar — hiçbir hesap oluşturulmadan "başarılı"
+ * görünür. İlk kurulumda tam da en kötü anda sessiz başarısızlık.
+ *
+ * Bu yüzden `close` olayını dinliyoruz: cevap gelmeden akış kapanırsa
+ * hata fırlatırız (çağıran exit 1 yapar).
+ */
 async function readVisibleLine(
   prompt: string,
   io: { input: NodeJS.ReadStream; output: NodeJS.WriteStream },
@@ -141,7 +151,17 @@ async function readVisibleLine(
   const readline = await import('node:readline/promises')
   const rl = readline.createInterface({ input: io.input, output: io.output })
   try {
-    return await rl.question(prompt)
+    const closed = new Promise<never>((_, reject) => {
+      rl.once('close', () => {
+        reject(
+          new CliUsageError(
+            'Girdi akışı beklenmedik şekilde kapandı (TTY yok). ' +
+              'Etkileşimli terminalde çalıştır ya da --password-stdin kullan.',
+          ),
+        )
+      })
+    })
+    return await Promise.race([rl.question(prompt), closed])
   } finally {
     rl.close()
   }

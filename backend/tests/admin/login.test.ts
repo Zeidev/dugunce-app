@@ -154,6 +154,21 @@ describe('sizdirmazlik — TEST EDILMEMIS OLAN KRITIK NOKTALAR', () => {
     expect(called).toBe(called.toLowerCase())
     expect(called).toBe(called.normalize('NFC'))
   })
+
+  it('NFD yazilmis e-postayi NFC ye cevirip ARAR (okuma tarafi)', async () => {
+    // NEDEN AYRI TEST: yukarıdaki test `normalize` çağrısının VAR olduğunu
+    // ölçer ama girdisinde birleşik işaret olmadığı için dönüşümü KANITLAMAZ
+    // (no-op). Yazma tarafı NFC uygulayıp okuma tarafı uygulamasaydı hesap
+    // NFD ile açılır, NFC ile ASLA bulunamazdı — sessiz, teşhisi zor hata.
+    const nfd = 's\u0327eyma@t.local' // s + birleşik çengel
+    const nfc = 'şeyma@t.local' // tek kod noktası
+    expect(nfd).not.toBe(nfc)
+    expect(nfd.normalize('NFC')).toBe(nfc)
+
+    deps.findAdminByEmail.mockResolvedValue(null)
+    await loginAdmin({ email: nfd, password: 'x' }, deps)
+    expect(deps.findAdminByEmail).toHaveBeenCalledWith(nfc)
+  })
 })
 
 describe('zamanlama simetrisi — yazma sayisi esit', () => {

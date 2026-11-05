@@ -22,34 +22,21 @@ import { getDb } from '../db/client.js'
 import { adminAccounts } from '../db/schema.js'
 import { drizzleAdminDeps } from './store.js'
 import { AppError } from '../lib/errors.js'
-import { normalizeAdminEmail } from './service.js'
+import { normalizeAdminEmail, isUniqueViolation } from './service.js'
 import type { CreateAdminDeps } from './service.js'
 
 /** Testlerin PGlite bağlantısı enjekte edebilmesi için. */
 type Db = ReturnType<typeof getDb>
 
 /**
- * PostgreSQL `unique_violation`.
- *
- * Eşzamanlı iki CLI çalışması `findAdminByEmail` kontrolünü İKİSİ de
- * geçebilir (check-then-insert yarışı). O anda DB'deki UNIQUE kısıtı
- * devreye girer; ham hata operatöre gösterilmemeli ve — daha önemlisi —
- * hesap EZİLMEMELİ.
+ * NOT: 23505 (`unique_violation`) çevirisi BURADA DEĞİL, `service.ts`
+ * içindedir — `isUniqueViolation` oradan import edilir. Sebep:
+ * `CreateAdminDeps` dar bir arayüzdür ve bu store onun TEK uygulaması
+ * değildir (test sahtesi, gelecekte bir tohumlama betiği). Çeviri yalnız
+ * burada olsaydı başka bir uygulama ham PostgreSQL hatası sızdırır ve
+ * operatör anlamlı mesajı görmezdi. Buradaki `catch` yalnız erken
+ * yakalayan bir GÜVENLİK AĞIDIR — aynı hatayı üretir, davranış farkı yok.
  */
-const PG_UNIQUE_VIOLATION = '23505'
-
-function isUniqueViolation(err: unknown): boolean {
-  if (typeof err !== 'object' || err === null) return false
-  const code = (err as { code?: unknown }).code
-  if (code === PG_UNIQUE_VIOLATION) return true
-  // Drizzle bazı sürücülerde ham hatayı `cause` içine sarar.
-  const cause = (err as { cause?: unknown }).cause
-  return (
-    typeof cause === 'object' &&
-    cause !== null &&
-    (cause as { code?: unknown }).code === PG_UNIQUE_VIOLATION
-  )
-}
 
 /**
  * Provizyon bağımlılıkları.

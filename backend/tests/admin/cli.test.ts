@@ -708,3 +708,79 @@ describe('create-admin CLI — etkilesimli parola', () => {
     expect(login).not.toBeNull()
   })
 })
+
+describe('non-TTY: SESSIZ basari YOK (gercek hata)', () => {
+  /**
+   * NEDEN BU TEST:
+   * `rl.question()` bir EOF akışında hiç çözülmüyordu; Node olay
+   * döngüsü boşalıp süreç **exit 0** ile çıkıyordu — hiçbir hesap
+   * oluşturulmadan "başarılı" görünüyordu. İlk kurulumda tam da en
+   * kötü anda sessiz başarısızlık.
+   */
+  it('TTY yokken (stdin kapalı) SIFIR-DISI kod dondurur', async () => {
+    const { spawnSync } = await import('node:child_process')
+    const r = spawnSync(
+      process.execPath,
+      ['--import', 'tsx', 'scripts/create-admin.ts'],
+      { input: '', encoding: 'utf8', timeout: 20_000, cwd: process.cwd() },
+    )
+    // Sessiz başarı YASAK: ya hata kodu ya da gerçek bir hesap.
+    expect(r.status).not.toBe(0)
+    expect(String(r.stderr ?? '')).toMatch(/kapand|TTY|stdin/i)
+  }, 25_000)
+})
+
+describe('23505 YARIS korumasi — TOCTOU penceresi', () => {
+  /**
+   * NEDEN: `findAdminByEmail` "yok" dedikten sonra araya giren başka
+   * bir ekleme olursa, INSERT 23505 (unique violation) fırlatır.
+   * Yakalanmazsa kullanıcı ham PostgreSQL hatası görür; yakalanırsa
+   * anlamlı `ADMIN_EMAIL_EXISTS` döner. Bu koruma test edilmiyordu —
+   * silinse tüm testler yeşil kalıyordu.
+   */
+  it('on-kontrol yalan soylese bile unique ihlali ADMIN_EMAIL_EXISTS olur', async () => {
+    const d = makeDeps({
+      // On-kontrol "yok" diyor ama INSERT patlayacak.
+      findAdminByEmail: vi.fn().mockResolvedValue(null),
+      insertAdminAccount: vi.fn().mockRejectedValue(
+        Object.assign(new Error('duplicate key value violates unique constraint'), {
+          code: '23505',
+        }),
+      ),
+    })
+
+    await expect(
+      createAdminAccount(
+        { email: 'a@t.local', displayName: 'A', password: 'guclu-parola-123' },
+        d,
+      ),
+    ).rejects.toMatchObject({ code: 'ADMIN_EMAIL_EXISTS' })
+  })
+
+  it('GERCEK DB: yarisi kaybeden INSERT ADMIN_EMAIL_EXISTS dondurur', async () => {
+    // Yukarıdaki test sahte bir 23505 fırlatır — çevirinin çağıranda
+    // olduğunu kanıtlar. Bu test ise GERÇEK PostgreSQL hatasının
+    // (PGlite) aynı yola düştüğünü kanıtlar: sürücü hatayı `cause`
+    // içine sararsa `isUniqueViolation` onu bulmalı, aksi hâlde
+    // operatör ham "duplicate key value..." metnini görür.
+    await createAdminAccount(
+      { email: 'race@t.local', displayName: 'İlk', password: PASSWORD },
+      createDeps,
+    )
+
+    // On-kontrolü ATLA: doğrudan store'a yaz, UNIQUE kısıtı devreye girsin.
+    const deps: Parameters<typeof createAdminAccount>[1] = {
+      // "Yok" diyen bir okuma — yarış penceresini taklit eder.
+      findAdminByEmail: async () => null,
+      writeAudit: createDeps.writeAudit,
+      insertAdminAccount: createDeps.insertAdminAccount,
+    }
+
+    await expect(
+      createAdminAccount(
+        { email: 'RACE@t.local', displayName: 'İkinci', password: PASSWORD },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: 'ADMIN_EMAIL_EXISTS', statusCode: 409 })
+  })
+})
