@@ -12,6 +12,8 @@
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2'
 import { logger } from '../lib/logger.js'
 import { AppError } from '../lib/errors.js'
+import type { WeddingPlanPatch } from './store.js'
+import type { WeddingView } from './view.js'
 
 /** Yönetim parolası için asgari uzunluk — kullanıcı parolasından daha katı. */
 export const MIN_ADMIN_PASSWORD_LENGTH = 16
@@ -484,4 +486,138 @@ export async function loginAdmin(
     ...(params.ip ? { ip: params.ip } : {}),
   })
   return { admin: toAdminRecord(row, now) }
+}
+
+// ---------------------------------------------------------------------------
+// Plan değiştirme — spec §6.4
+// ---------------------------------------------------------------------------
+
+/**
+ * Geçerli plan değerleri — TEK kaynak.
+ *
+ * `as const` sayesinde `WeddingPlan` tipi de buradan türer; yeni bir plan
+ * eklemek istendiğinde (ör. `TRIAL`) tek yerden eklenir ve `switch`/
+ * karşılaştırmalar derleme zamanında uyarır.
+ */
+export const WEDDING_PLANS = ['FREE', 'PREMIUM'] as const
+
+/** Plan değiştirmede kabul edilen değerler. */
+export type WeddingPlan = (typeof WEDDING_PLANS)[number]
+
+/**
+ * Plan değiştirmenin veri erişim bağımlılıkları — DAR arayüz.
+ *
+ * NEDEN `extends AdminDeps` DEĞİL: `AdminDeps` giriş/oturum akışının
+ * sözleşmesidir (Task 3'te donduruldu, DEĞİŞTİRİLMEZ) ve düğün
+ * okuma/yazma yetkisi o sözleşmeye ait değil — `findWeddingById` /
+ * `updateWeddingPlan` yalnız `drizzleAdminDeps()`'in DÖNÜŞ tipinde var.
+ *
+ * `extends AdminDeps` yazsaydık her çağıran (Task 7 route'u ve bu
+ * dosyanın testleri) kullanmadığı dokuz giriş/oturum metodunu da
+ * sahtelemek zorunda kalırdı; plan testleri "parola doğrulama" yüzeyi
+ * taşırdı.
+ *
+ * `writeAudit` ise `AdminDeps`'ten `Pick` ile alınıyor: imza TEK
+ * kaynaktan gelsin, audit sözleşmesi iki yerde ayrışmasın.
+ *
+ * `drizzleAdminDeps()` dönüşü bu arayüzü YAPISAL olarak karşılar —
+ * üretimde ek bir uyarlama gerekmez.
+ */
+export type WeddingPlanDeps = Pick<AdminDeps, 'writeAudit'> & {
+  findWeddingById(weddingId: string): Promise<WeddingView | null>
+  updateWeddingPlan(weddingId: string, patch: WeddingPlanPatch): Promise<void>
+}
+
+/** Geçersiz plan değeri — 400. */
+export function isWeddingPlan(value: unknown): value is WeddingPlan {
+  return typeof value === 'string' && (WEDDING_PLANS as readonly string[]).includes(value)
+}
+
+/**
+ * Düğünün planını değiştirir ve denetim kaydı yazar (spec §6.4).
+ *
+ * KURALLAR — sıra ÖNEMLİ:
+ *
+ * 1. Plan doğrulaması HER ŞEYDEN ÖNCE. Geçersiz değer (`'VIP'`, `'premium'`)
+ *    okuma bile yapmadan reddedilir: aksi hâlde DB'ye yazılabilir ve
+ *    mobil uygulama `plan === 'PREMIUM'` karşılaştırması yaptığı için
+ *    "premium açıldı ama hiçbir şablon açılmadı" durumu doğardı.
+ *
+ * 2. Düğün yoksa `null` — ve HİÇBİR yazma yapılmaz. Var olmayan bir
+ *    düğün için audit yazmak denetim kaydını yanıltıcı kılar
+ *    ("plan değişti" der ama değişen bir şey yoktur).
+ *
+ * 3. `PREMIUM` → `purchasedAt = new Date()`, `purchasePlatform = 'ADMIN'`,
+ *    `purchaseToken = null`. `purchasePlatform = 'ADMIN'` ŞART: bu düğün
+ *    mağazadan satın alınmadı, dolayısıyla bir Play/App Store makbuzu
+ *    YOKTUR. `null` yerine `'ADMIN'` yazılması "premium nereden geldi"
+ *    sorusunu panelde yanıtlanabilir kılar.
+ *
+ * 4. `FREE` → üçü de `null`. `purchasedAt` temizlenmezse geri alınan bir
+ *    düğün "geçmişte premium olmuş" gibi görünür ve yeniden premium
+ *    açıldığında ESKİ satın alma tarihi raporlanır.
+ *
+ * 5. Audit HER BAŞARILI değişiklikTE yazılır; yazma başarısız olursa
+ *    audit YAZILMAZ (sıra: önce yaz, sonra audit). `metadata` yalnız
+ *    `{ from, to }` taşır: parola/token/secret ASLA (Review Focus #4).
+ *    `purchaseToken` zaten `null` yazılıyor, yine de metadata'ya hiç
+ *    konmuyor.
+ *
+ * DÖNÜŞ: değişiklikten SONRAKİ düğün görünümü. İkinci bir okuma
+ * yapılmıyor: `updateWeddingPlan` yalnız dört plan sütununu yazıyor,
+ * sayımlar (`guestCount`, `memberCount`) ve diğer alanlar değişmiyor.
+ * İkinci okuma PGlite/tek bağlantıda fazladan gidiş-dönüş demek olurdu.
+ */
+export async function setWeddingPlan(
+  params: { weddingId: string; plan: WeddingPlan; actorId: string; ip?: string },
+  deps: WeddingPlanDeps,
+): Promise<WeddingView | null> {
+  // 1. Doğrulama — yazmadan ÖNCE. `params.plan` tip düzeyinde daraltılmış
+  //    olsa da route katmanı `as` ile geçebilir; çalışma zamanı kontrolü
+  //    zorunlu.
+  if (!isWeddingPlan(params.plan)) {
+    throw AppError.badRequest('Geçersiz plan değeri', 'INVALID_PLAN')
+  }
+
+  // 2. Düğün var mı? — yoksa null, HİÇ yazma yok.
+  const wedding = await deps.findWeddingById(params.weddingId)
+  if (!wedding) return null
+
+  const from = wedding.plan
+  const to = params.plan
+
+  // 3./4. Yama — dört alan da AÇIKÇA veriliyor. `undefined` bırakmak
+  //       Drizzle'da kolonu atlar ve eski değer satırda kalır; `FREE`'ye
+  //       geçişte `purchasedAt` temizlenmezdi.
+  const patch: WeddingPlanPatch = {
+    plan: to,
+    purchasedAt: to === 'PREMIUM' ? new Date() : null,
+    purchasePlatform: to === 'PREMIUM' ? 'ADMIN' : null,
+    purchaseToken: null,
+  }
+
+  // 5. ÖNCE yaz, SONRA audit. Ters sırada olsaydı DB yazması patladığında
+  //    "plan değişti" diyen ama değişmemiş bir denetim kaydı kalırdı
+  //    (`plan.test.ts` bunu ayrıca doğrular).
+  //
+  //    Audit yazması patlarsa hata YUTULMAZ, yukarı fırlar: operatör
+  //    "kaydedildi" sanmamalı. Bedeli, planın yazılıp audit'in eksik
+  //    kalabileceği dar bir penceredir; ikisini atomik yapmak için
+  //    transaction gerekir ve `AdminDeps` transaction taşımıyor.
+  //    Bilinçli tercih: DEĞİŞİKLİK > KAYIT (premium gerçekten açılmış
+  //    olur; eksik audit operatörün tekrar denemesiyle tamamlanır).
+  await deps.updateWeddingPlan(params.weddingId, patch)
+
+  await deps.writeAudit({
+    action: 'WEDDING_PLAN_CHANGED',
+    actorType: 'ADMIN',
+    actorId: params.actorId,
+    targetType: 'WEDDING',
+    targetId: params.weddingId,
+    // YALNIZ from/to. `purchaseToken`, parola, oturum bilgisi YOK.
+    metadata: { from, to },
+    ...(params.ip ? { ip: params.ip } : {}),
+  })
+
+  return { ...wedding, plan: to }
 }
