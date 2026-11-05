@@ -455,3 +455,198 @@ a {
     padding: var(--s-4);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Giriş ekranı — Layout DIŞINDA render edilir (menü yok)
+   --------------------------------------------------------------------------- */
+
+.login-shell {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--s-5);
+  /* Giriş ekranı markanın "kapak" yüzü: krem zemin + ince altın çizgi. */
+  background:
+    radial-gradient(circle at 50% 0%, rgba(168, 146, 95, 0.14), transparent 55%),
+    var(--cream);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  padding: var(--s-6);
+}
+
+.login-card__brand {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.02em;
+}
+
+.login-card__brand-sub {
+  display: inline-block;
+  margin-left: var(--s-2);
+  padding: 1px var(--s-2);
+  border-radius: 999px;
+  background: var(--sage-soft);
+  color: var(--sage);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.login-card__title {
+  margin-top: var(--s-5);
+  font-size: 20px;
+}
+
+.login-card__hint {
+  margin: var(--s-2) 0 var(--s-5);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.login-form__submit {
+  margin-top: var(--s-2);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+}
+
+.login-card__back {
+  margin-top: var(--s-4);
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Form alanı — etiket + girdi + hata
+   --------------------------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.field__label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.field__input {
+  width: 100%;
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.field__input:disabled {
+  background: var(--cream);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* Hatalı alan: kenarlık kırmızı. Tek başına renk anlatmaz — hata metni
+ * de `role="alert"` ile her zaman yazılır (renk körlüğü kuralı). */
+.field__input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+/* Satır içi hata — `alert()` yerine (spec §9.1). */
+.form-error {
+  margin: 0;
+  padding: var(--s-3);
+  border: 1px solid rgba(140, 47, 47, 0.28);
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------------------
+   Guard durumları — yükleniyor / hata
+   --------------------------------------------------------------------------- */
+
+.guard-state {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--s-5);
+}
+
+.guard-state__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  max-width: 420px;
+  text-align: center;
+}
+
+.guard-state__title {
+  font-size: 20px;
+}
+
+.guard-state__text {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+/* Dönen gösterge — `prefers-reduced-motion` altında durur. */
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* Üst çubukta oturumdaki kullanıcı adı. */
+.topbar__user {
+  font-size: 13px;
+  color: var(--ink-soft);
+  /* Dar ekranda uzun ad taşmasın. */
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 899px) {
+  /* Mobilde ad yerine yalnız çıkış butonu kalsın. */
+  .topbar__user {
+    display: none;
+  }
+}

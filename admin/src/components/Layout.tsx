@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useAuth } from '../auth-context'
 
 /**
  * Panelin dış kabuğu: sol menü + üst çubuk + içerik.
@@ -31,6 +32,30 @@ const NAV_ITEMS: readonly NavItem[] = [
 export function Layout(): React.JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const { admin, signOut } = useAuth()
+
+  /**
+   * Çıkış — gerçek iş `AuthContext.signOut`'ta.
+   *
+   * NEDEN BURADA `api.logout()` ÇAĞRILMIYOR: ilk sürüm öyle yapıyordu ve
+   * guard'ın oturum durumu `authenticated` kaldığı için `/login`
+   * rotasındaki `<Navigate to="/" replace />` kullanıcıyı PANELE GERİ
+   * ATIYORDU (tarayıcıda ölçüldü). Oturum durumunun tek sahibi guard;
+   * çıkış da oradan geçer. Buradaki buton yalnız niyeti iletir.
+   */
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  async function handleLogout(): Promise<void> {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await signOut()
+    } finally {
+      // Bileşen büyük olasılıkla sökülür (guard anonimleşince login
+      // render edilir); `finally` yine de durumu tutarlı bırakır.
+      setLoggingOut(false)
+    }
+  }
 
   // Üst çubuk başlığı rota tablosundan türetilir — sayfa başlığını her
   // sayfa kendisi yazsaydı menüyle başlık zamanla ayrışırdı.
@@ -129,20 +154,22 @@ export function Layout(): React.JSX.Element {
           <h1 className="topbar__title">{title}</h1>
 
           {/*
-            ÇIKIŞ — Task 10'da gerçek çıkışa bağlanacak.
-            Task 10 `api.logout()` çağrısını ve ardından `/login`'e
-            yönlendirmeyi bu butona bağlayacak. Şimdilik yalnız yer
-            tutucu: auth guard bu görevde YOK, bu yüzden buton devre dışı
-            ve nedeni `title` ile açıklanıyor. Boş bir onClick bırakmak
-            "bastım, bir şey olmadı" sessiz hatası üretirdi.
+            ÇIKIŞ — gerçek. `api.logout()` → CSRF temizliği → `/login`.
+            Hata olsa bile kullanıcı çıkarılır (yukarıdaki `handleLogout`).
           */}
+          <span className="topbar__user" title={admin.email}>
+            {admin.displayName}
+          </span>
           <button
             type="button"
             className="btn btn--ghost"
-            disabled
-            title="Çıkış Task 10'da bağlanacak"
+            onClick={() => {
+              void handleLogout()
+            }}
+            disabled={loggingOut}
+            aria-busy={loggingOut}
           >
-            Çıkış
+            {loggingOut ? 'Çıkılıyor…' : 'Çıkış'}
           </button>
         </header>
 

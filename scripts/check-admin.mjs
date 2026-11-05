@@ -1023,6 +1023,390 @@ const HEADERS = join(PUBLIC, '_headers')
 }
 
 // ---------------------------------------------------------------------------
+// 9. Task 10 — API istemcisi ve giriş sayfası sözleşmesi
+// ---------------------------------------------------------------------------
+
+/**
+ * NEDEN AYRI BÖLÜM: bu kurallar Task 9'daki iskelet kontrollerinden farklı
+ * bir şeyi korur — SPA'nın backend ile KONUŞMA sözleşmesini. Hepsi "panel
+ * çalışıyor gibi görünürken sessizce bozulur" sınıfındandır:
+ *
+ *  - `credentials: 'include'` yoksa üretimde (farklı origin) çerez gitmez,
+ *    her istek 401 döner. Geliştirmede proxy yüzünden GÖRÜNMEZ.
+ *  - `X-CSRF-Token` yoksa tüm yazmalar 403 olur; panel salt-okunur kalır.
+ *  - `alert(` kullanılırsa hata satır içi gösterilmez (spec §9.1 ihlali) ve
+ *    modal formu kapatır.
+ *  - `: any` / `as any` backend sözleşmesi değiştiğinde panelin
+ *    `undefined` alanlarla çökmesine yol açar; tip kaçışı doğrulamayı
+ *    sessizce kaldırır.
+ *
+ * KURALLAR AST ÜZERİNDEN — metin regex'i DEĞİL. `role="alert"` bir JSX
+ * niteliğidir, `alert()` çağrısı değildir; regex ikisini ayıramaz ve
+ * yanlış kırmızı üretirdi.
+ */
+{
+  const API_TS = join(ADMIN_SRC, 'api.ts')
+  const LOGIN_TSX = join(ADMIN_SRC, 'pages/Login.tsx')
+
+  const apiSrc = readText(API_TS)
+  const loginSrc = readText(LOGIN_TSX)
+
+  // --- 9a. Dosyalar var mı -------------------------------------------------
+  if (apiSrc === null) {
+    fail('admin/src/api.ts', 0, 'api.ts yok — panel backend ile konuşamaz')
+  }
+  if (loginSrc === null) {
+    fail('admin/src/pages/Login.tsx', 0, 'Login.tsx yok — giriş ekranı eksik')
+  }
+
+  /** Bir dosyayı AST'ye çevirir; ayrıştırılamazsa KIRMIZI (sessiz geçme). */
+  function parseFile(fileRel, src) {
+    let ts
+    try {
+      ts = loadTypeScript()
+    } catch (err) {
+      fail(
+        'admin/',
+        0,
+        'typescript ayrıştırıcısı yüklenemedi — sözleşme taraması yapılamaz ' +
+          `(${err instanceof Error ? err.message : String(err)}).`,
+      )
+      return null
+    }
+    const kind = fileRel.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+    const sf = ts.createSourceFile(fileRel, src, ts.ScriptTarget.Latest, true, kind)
+    const diags = sf.parseDiagnostics ?? []
+    if (diags.length > 0) {
+      const first = diags[0]
+      fail(
+        fileRel,
+        src.slice(0, first.start ?? 0).split('\n').length,
+        `ayrıştırılamadı (${ts.flattenDiagnosticMessageText(first.messageText, ' ')}) — ` +
+          'sözleşme taraması bu dosyada GÜVENİLİR DEĞİL',
+      )
+      return null
+    }
+    return { ts, sf }
+  }
+
+  const lineAt = (src, node, ts, sf) => src.slice(0, node.getStart(sf)).split('\n').length
+
+  // --- 9b. api.ts sözleşmesi ----------------------------------------------
+  if (apiSrc !== null) {
+    const parsed = parseFile('admin/src/api.ts', apiSrc)
+    if (parsed !== null) {
+      const { ts, sf } = parsed
+
+      let hasApiBase = false
+      let hasCredentialsInclude = false
+      /** `credentials` ataması VAR ama değeri 'include' değilse buraya düşer. */
+      let credentialsWrong = null
+      let anyNode = null
+      let localStorageNode = null
+      let alertNode = null
+
+      const visit = (node) => {
+        // `API_BASE` tanımlı mı (const/let, adı tam olarak API_BASE).
+        if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+          if (node.name.text === 'API_BASE') hasApiBase = true
+        }
+
+        // `credentials: 'include'` — fetch seçenekleri NESNE LİTERALİNDE.
+        if (ts.isPropertyAssignment(node)) {
+          const key = ts.isIdentifier(node.name)
+            ? node.name.text
+            : ts.isStringLiteral(node.name)
+              ? node.name.text
+              : null
+          if (key === 'credentials') {
+            const init = node.initializer
+            if (ts.isStringLiteral(init) && init.text === 'include') {
+              hasCredentialsInclude = true
+            } else {
+              credentialsWrong = node
+            }
+          }
+        }
+
+        // `any` tipi — `AnyKeyword` düğümü hem `: any` hem `as any` hem
+        // `<any>` biçimini yakalar. Metin araması `anyone` gibi
+        // tanımlayıcılarda yanlış kırmızı üretirdi.
+        if (node.kind === ts.SyntaxKind.AnyKeyword) {
+          anyNode = node
+        }
+
+        // `localStorage` — HER kullanımı yasak (api.ts için). Kalıcı depo;
+        // token XSS'te kalıcı çalınır. CSRF için `sessionStorage` kullanılır.
+        if (ts.isIdentifier(node) && node.text === 'localStorage') {
+          localStorageNode = node
+        }
+
+        // `alert(...)` / `window.alert(...)` — YALNIZ çağrı. `role="alert"`
+        // bir JSX niteliği, `alert` düz bir string; ikisi de çağrı değil.
+        if (ts.isCallExpression(node)) {
+          const callee = node.expression
+          const name = ts.isIdentifier(callee)
+            ? callee.text
+            : ts.isPropertyAccessExpression(callee)
+              ? callee.name.text
+              : null
+          if (name === 'alert') alertNode = node
+        }
+
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+
+      if (!hasApiBase) {
+        fail('admin/src/api.ts', 0, 'API_BASE tanımlı değil — üretimde mutlak API kökü şart')
+      }
+      if (credentialsWrong !== null) {
+        fail(
+          'admin/src/api.ts',
+          lineAt(apiSrc, credentialsWrong, ts, sf),
+          "credentials değeri 'include' değil — üretimde FARKLI ORIGIN'de çerez " +
+            'gönderilmez ve her istek 401 döner (geliştirmede proxy yüzünden görünmez)',
+        )
+      } else if (!hasCredentialsInclude) {
+        fail(
+          'admin/src/api.ts',
+          0,
+          "credentials: 'include' YOK — üretimde SPA (dugunce.com.tr/spa/) ile API " +
+            '(api.dugunce.com.tr) farklı origin; çerez gönderilmez',
+        )
+      }
+      if (localStorageNode !== null) {
+        fail(
+          'admin/src/api.ts',
+          lineAt(apiSrc, localStorageNode, ts, sf),
+          'localStorage kullanılıyor — kalıcı depo; CSRF token\'ı `sessionStorage`\'da ' +
+            'tutulmalı (sekmeyle ölür)',
+        )
+      }
+      if (alertNode !== null) {
+        fail(
+          'admin/src/api.ts',
+          lineAt(apiSrc, alertNode, ts, sf),
+          'alert() kullanılıyor — hata SATIR İÇİ gösterilmeli (spec §9.1)',
+        )
+      }
+      if (anyNode !== null) {
+        fail(
+          'admin/src/api.ts',
+          lineAt(apiSrc, anyNode, ts, sf),
+          '`any` tipi kullanılıyor — tip kaçışı backend sözleşmesi doğrulamasını ' +
+            'sessizce kaldırır (`unknown` + çalışma zamanı doğrulaması kullanılmalı)',
+        )
+      }
+    }
+  }
+
+  // --- 9c. `any` tipi TÜM admin/src içinde yasak --------------------------
+  //
+  // NEDEN api.ts İLE SINIRLI DEĞİL: bir sayfa bileşeninde `as any` yazmak,
+  // backend alanı yeniden adlandırıldığında derleyicinin susmasına yol açar.
+  // Tarama zaten `SRC_FILES` üzerinde dönüyor; burada yalnız `any` düğümüne
+  // bakılır (diğer kurallar yukarıdaki genel taramada).
+  for (const file of SRC_FILES) {
+    if (!/\.(ts|tsx)$/.test(file)) continue
+    // api.ts yukarıda ayrıntılı raporlandı — çift hata üretme.
+    if (file === API_TS) continue
+
+    const src = readFileSync(file, 'utf8')
+    const fileRel = rel(file)
+    const parsed = parseFile(fileRel, src)
+    if (parsed === null) continue
+    const { ts, sf } = parsed
+
+    let anyNode = null
+    const visit = (node) => {
+      if (node.kind === ts.SyntaxKind.AnyKeyword) anyNode = node
+      ts.forEachChild(node, visit)
+    }
+    visit(sf)
+
+    if (anyNode !== null) {
+      fail(
+        fileRel,
+        src.slice(0, anyNode.getStart(sf)).split('\n').length,
+        '`any` tipi kullanılıyor — admin/src genelinde yasak ' +
+          '(backend alan şekilleri `types.ts`te birebir tanımlı)',
+      )
+    }
+  }
+
+  // --- 9d. Login.tsx — autocomplete ve satır içi hata ---------------------
+  if (loginSrc !== null) {
+    const parsed = parseFile('admin/src/pages/Login.tsx', loginSrc)
+    if (parsed !== null) {
+      const { ts, sf } = parsed
+
+      const autoCompleteValues = new Set()
+      let alertNode = null
+      let hasForm = false
+
+      const visit = (node) => {
+        if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+          if (ts.isIdentifier(node.tagName) && node.tagName.text === 'form') hasForm = true
+        }
+
+        if (ts.isJsxAttribute(node) && ts.isIdentifier(node.name)) {
+          if (node.name.text === 'autoComplete') {
+            const init = node.initializer
+            // `autoComplete="email"` → StringLiteral
+            if (init !== undefined && ts.isStringLiteral(init)) {
+              autoCompleteValues.add(init.text)
+            }
+          }
+        }
+
+        if (ts.isCallExpression(node)) {
+          const callee = node.expression
+          const name = ts.isIdentifier(callee)
+            ? callee.text
+            : ts.isPropertyAccessExpression(callee)
+              ? callee.name.text
+              : null
+          if (name === 'alert') alertNode = node
+        }
+
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+
+      // Parola yöneticisinin formu tanıması bu iki değere bağlı.
+      if (!autoCompleteValues.has('email')) {
+        fail(
+          'admin/src/pages/Login.tsx',
+          0,
+          'autoComplete="email" yok — tarayıcı/parola yöneticisi e-posta alanını tanımaz',
+        )
+      }
+      if (!autoCompleteValues.has('current-password')) {
+        fail(
+          'admin/src/pages/Login.tsx',
+          0,
+          'autoComplete="current-password" yok — parola yöneticisi parolayı dolduramaz',
+        )
+      }
+      if (!hasForm) {
+        fail(
+          'admin/src/pages/Login.tsx',
+          0,
+          '<form> yok — Enter ile gönderim çalışmaz (yalnız butona onClick bağlanmış olur)',
+        )
+      }
+      if (alertNode !== null) {
+        fail(
+          'admin/src/pages/Login.tsx',
+          loginSrc.slice(0, alertNode.getStart(sf)).split('\n').length,
+          'alert() kullanılıyor — hata SATIR İÇİ gösterilmeli (spec §9.1)',
+        )
+      }
+    }
+  }
+
+  // --- 9f. sessionStorage anahtarı TAM OLARAK "csrfToken" ----------------
+  //
+  // NEDEN EK KURAL: mevcut tarama (bölüm 6a) yalnız "oturum token'ı gibi
+  // GÖRÜNEN" anahtarları (`/session|token|auth|jwt|bearer/`) reddediyor.
+  // Ölçüldü: `sessionStorage.setItem("csrf", token)` bu kuraldan GEÇİYOR
+  // (yeşil) — çünkü "csrf" o desene uymuyor. Oysa brief ve controller
+  // tablosu yalnız `"csrfToken"` anahtarını serbest bırakıyor; başka ad
+  // seçilirse kontrol KIRMIZI vermeli.
+  //
+  // NEDEN MEVCUT KURALI SIKILAŞTIRMADIM: bölüm 6a Task 9'da 5 turda
+  // dondurulmuş bir matrise sahip (progress.md "bir daha dokunulmamalı").
+  // Onu değiştirmek yerine AYNI dosyada EK kural konuluyor; ikisi birlikte
+  // çalışır, mevcut davranış regresyona uğramaz.
+  for (const file of SRC_FILES) {
+    if (!/\.(ts|tsx)$/.test(file)) continue
+
+    const src = readFileSync(file, 'utf8')
+    const fileRel = rel(file)
+    const parsed = parseFile(fileRel, src)
+    if (parsed === null) continue
+    const { ts, sf } = parsed
+
+    const visit = (node) => {
+      if (ts.isCallExpression(node)) {
+        const callee = node.expression
+        if (ts.isPropertyAccessExpression(callee) || ts.isElementAccessExpression(callee)) {
+          const method = ts.isPropertyAccessExpression(callee) ? callee.name.text : null
+          const owner = ts.isPropertyAccessExpression(callee) ? callee.expression : null
+          const ownerName =
+            owner !== null && ts.isIdentifier(owner)
+              ? owner.text
+              : owner !== null && ts.isPropertyAccessExpression(owner)
+                ? owner.name.text
+                : null
+
+          if (method === 'setItem' && ownerName === 'sessionStorage') {
+            const keyNode = node.arguments[0]
+            const key =
+              keyNode !== undefined &&
+              (ts.isStringLiteral(keyNode) || ts.isNoSubstitutionTemplateLiteral(keyNode))
+                ? keyNode.text
+                : null
+
+            // `key === null` → değişken anahtar. Bölüm 6a bunu zaten
+            // yakalıyor; burada TEKRAR raporlamamak için atlanır.
+            if (key !== null && key !== 'csrfToken') {
+              fail(
+                fileRel,
+                lineAt(src, node, ts, sf),
+                `sessionStorage anahtarı "${key}" — yalnız "csrfToken" serbest. ` +
+                  'Başka bir ad, oturum token\'ı saklandığı izlenimini verir ve ' +
+                  'backend sözleşmesiyle (login/`me` gövdesindeki `csrfToken`) uyuşmaz.',
+              )
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sf)
+  }
+
+  // --- 9e. Test altyapısı kurulu mu --------------------------------------
+  //
+  // NEDEN: `api.ts` sözleşmesi (credentials / CSRF / 401 ayrımı) YALNIZ
+  // testle korunabilir; bu davranışların hepsi üretimde sessizce bozulur.
+  // `npm test` script'i veya vitest bağımlılığı silinirse CI yeşil kalır
+  // ama sözleşme korumasız kalır.
+  {
+    const pkgSrc = readText(PKG)
+    if (pkgSrc !== null) {
+      let pkg = null
+      try {
+        pkg = JSON.parse(pkgSrc)
+      } catch {
+        // Ayrıştırma hatası yukarıda (bölüm 1) raporlandı — burada tekrar etme.
+      }
+      if (pkg !== null) {
+        const testScript = pkg.scripts?.test
+        if (typeof testScript !== 'string' || !/\bvitest\b/.test(testScript)) {
+          fail(
+            'admin/package.json',
+            0,
+            '"scripts.test" yok veya vitest çağırmıyor — api.ts sözleşme testleri çalışmaz',
+          )
+        }
+        const dev = pkg.devDependencies ?? {}
+        for (const dep of ['vitest', 'jsdom']) {
+          if (typeof dev[dep] !== 'string') {
+            fail('admin/package.json', 0, `"${dep}" devDependencies'te yok — testler çalışmaz`)
+          }
+        }
+      }
+    }
+    if (!existsSync(join(ADMIN_SRC, 'api.test.ts'))) {
+      fail('admin/src/api.test.ts', 0, 'api.test.ts yok — API sözleşmesi korumasız')
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Rapor
 // ---------------------------------------------------------------------------
 
