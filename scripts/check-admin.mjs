@@ -114,8 +114,18 @@ function stripComments(src, { file = '' } = {}) {
   let ts
   try {
     ts = loadTypeScript()
-  } catch {
-    // Ayrıştırıcı yok — hiçbir şeyi silme, çağıran uyarı yazsın.
+  } catch (err) {
+    // Ayrıştırıcı yok — SESSİZCE bozulma. Yorum ayıklanamazsa güvenlik
+    // taraması yorum içindeki metni ihlal sanar (yanlış kırmızı) ya da
+    // tersi. İkisi de kabul edilemez: CI'da `npm ci` bu adımdan ÖNCE
+    // çalıştığı için buraya normalde düşülmez; düşülürse ortam bozuktur.
+    fail(
+      'admin/',
+      0,
+      'typescript ayrıştırıcısı yüklenemedi — güvenlik taraması yapılamaz ' +
+        `(${err instanceof Error ? err.message : String(err)}). ` +
+        'Önce `cd admin && npm ci` çalıştırın.',
+    )
     return src
   }
 
