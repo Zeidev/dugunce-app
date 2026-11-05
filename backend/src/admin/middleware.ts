@@ -173,13 +173,25 @@ export function createRequireAdmin(deps: RequireAdminDeps): RequestHandler {
         return
       }
 
-      // 8. Kayan pencere — yalnızca eşik geçildiyse yaz (yazma yükü).
+      // 8. Kayan pencere — BOŞTA KALMA penceresini tazele.
+      //
+      //    EŞİK "GEÇEN süre" DEĞİL, "KALAN süre" üzerinden ölçülür.
+      //
+      //    NEDEN: ilk yazımda eşik `now - lastUsedAt > 25dk` idi. Ama
+      //    oturum 30dk boşta kalınca ölüyor; yani tazeleme yalnızca
+      //    25–30 dk arasındaki dar bantta çalışıyordu. 5/10/15 dakikada
+      //    bir istek atan kullanıcının oturumu HİÇ tazelenmiyor ve tam
+      //    30. dakikada ölüyordu — yoğun kullanımda bile.
+      //
+      //    Doğrusu: kalan boşta kalma süresi eşiğin altına inince tazele.
+      //    `helpers/session.ts` de böyle yapıyor (`expiresAt - now < eşik`).
       //
       //    `expiresAt` MUTLAK TAVANDIR ve DEĞİŞTİRİLMEZ: `now + IDLE` ile
       //    ileri taşınsaydı oturum 8 saatten sonra da yaşardı (sınırsız
       //    yenilenen oturum). Bu yüzden `touchSession`'a tavanın KENDİSİ
       //    verilir; tazelenen şey `lastUsedAt`'tır (store yazar).
-      if (now - session.lastUsedAt.getTime() > SESSION_SLIDE_THRESHOLD_MS) {
+      const idleRemainingMs = session.lastUsedAt.getTime() + SESSION_IDLE_MS - now
+      if (idleRemainingMs < SESSION_SLIDE_THRESHOLD_MS) {
         await deps.touchSession(session.id, session.expiresAt)
       }
 

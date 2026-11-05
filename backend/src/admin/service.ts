@@ -254,9 +254,23 @@ export interface AuditEntry {
  */
 export interface AdminDeps {
   findAdminByEmail(email: string): Promise<AdminAccountRow | null>
+  /**
+   * Oturum middleware'i her istekte hesabın GÜNCEL durumunu okur
+   * (askıya alınmış admin'in mevcut oturumu da reddedilmeli).
+   */
+  findAdminById(adminId: string): Promise<AdminAccountRow | null>
   recordFailedAttempt(
     adminId: string,
-    state: { failedAttempts: number; lockedUntil: Date | null },
+    state: {
+      failedAttempts: number
+      lockedUntil: Date | null
+      /**
+       * Ardışık kilit sayısı — üstel geri çekilme için ZORUNLU.
+       * Tip dışı bırakılırsa store onu yazamaz ve kilit süresi hep
+       * 15 dakikada kalır (DoS koruması sessizce kaybolur).
+       */
+      lockoutCount?: number
+    },
   ): Promise<void>
   /** failedAttempts=0, lockedUntil=null, lastLoginAt=now yazar. */
   recordSuccess(adminId: string): Promise<void>
