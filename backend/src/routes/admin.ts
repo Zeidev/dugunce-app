@@ -286,8 +286,24 @@ export function createAdminRouter(deps: CreateAdminRouterDeps = {}): Router {
           csrfCookie(csrf, maxAgeSec, cookieBase),
         ])
 
-        // Gövdede token YOK — `toAdminView` beyaz listesi.
-        res.status(200).json({ admin: toAdminView(result.admin) })
+        // GÖVDEDE `csrfToken` VAR — oturum token'ı YOK.
+        //
+        // NEDEN: `a_csrf` çerezi `Path=/api/v1/admin` ile ve HOST-ONLY
+        // yazılıyor; SPA `dugunce.com.tr/spa/` altında. `document.cookie`
+        // o çerezi GÖREMEZ (yol ve host uyuşmuyor), dolayısıyla SPA
+        // `X-CSRF-Token` başlığını dolduramaz ve TÜM yazmalar 403 olurdu
+        // (plan değiştirme ve çıkış dahil — panel salt-okunur kalırdı).
+        //
+        // Çözüm: CSRF token'ını gövdede ver; SPA sessionStorage'da tutup
+        // her yazmada başlığa koysun. Çerezdeki değer DEĞİŞMEZ, doğrulama
+        // aynı kalır (double-submit bozulmaz). Aynı desen yardımcı
+        // uygulamasında üretimde çalışıyor (`helper-app.ts:155`).
+        //
+        // Oturum token'ı (`a_session`) GÖVDEDE ASLA — yalnız HttpOnly çerez.
+        res.status(200).json({
+          admin: toAdminView(result.admin),
+          csrfToken: csrf,
+        })
       } catch (err) {
         // `AccountLockedError` (423) ve `AccountSuspendedError` (403)
         // `AppError`'dan türer; merkezi yakalayıcı doğru kodu üretir.
@@ -310,7 +326,21 @@ export function createAdminRouter(deps: CreateAdminRouterDeps = {}): Router {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         await requireCsrf(req)
-        if (req.admin) await store.deleteSession(req.admin.sessionId)
+        if (req.admin) {
+          await store.deleteSession(req.admin.sessionId)
+          // Çıkış da denetim kaydına girer (spec §5.3 `ADMIN_LOGOUT`).
+          // Oturum silindikten SONRA yazılır: kayıt başarısız olsa bile
+          // kullanıcı çıkmış olur, ama operasyon izi kalır.
+          await store.writeAudit({
+            action: 'ADMIN_LOGOUT',
+            actorType: 'ADMIN',
+            actorId: req.admin.adminId,
+            targetType: null,
+            targetId: null,
+            metadata: null,
+            ...(req.ip ? { ip: req.ip } : {}),
+          })
+        }
         res.setHeader('Set-Cookie', clearSessionCookies(cookieBase))
         res.status(204).end()
       } catch (err) {
@@ -336,7 +366,18 @@ export function createAdminRouter(deps: CreateAdminRouterDeps = {}): Router {
         next(AppError.unauthorized('Geçersiz veya süresi dolmuş oturum'))
         return
       }
-      res.json({ admin: toAdminView(row) })
+      // CSRF token'ı YENİDEN ver — SPA sayfa yenilendiğinde
+      // sessionStorage boşalır ve yazma yolları 403 olurdu.
+      //
+      // Çerezdeki `a_csrf` hâlâ geçerli olduğu için aynı değer döner;
+      // yeni oturum açılmaz, hiçbir şey yazılmaz.
+      // Çerezdeki `a_csrf` zaten tarayıcıda; burada yalnız SPA'nın
+      // okuyabildiği biçimde (gövdede) geri veriyoruz.
+      const csrfToken = readCookie(req.headers.cookie, ADMIN_CSRF_COOKIE)
+      res.json({
+        admin: toAdminView(row),
+        ...(csrfToken ? { csrfToken } : {}),
+      })
     } catch (err) {
       next(err)
     }

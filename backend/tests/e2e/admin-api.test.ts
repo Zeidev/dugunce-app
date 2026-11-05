@@ -694,3 +694,79 @@ describe('login hız sınırı', () => {
     expect(blocked.status).toBe(429)
   }, 60_000)
 })
+
+describe('CSRF token SPA ya ULASABILMELI (gercek hata)', () => {
+  /**
+   * NEDEN BU TEST:
+   * `a_csrf` çerezi `Path=/api/v1/admin` ile ve host-only yazılıyor;
+   * SPA `dugunce.com.tr/spa/` altında. `document.cookie` o çerezi
+   * GÖREMEZ. Token gövdede de verilmezse SPA `X-CSRF-Token` başlığını
+   * dolduramaz ve TÜM yazmalar 403 olur — panel salt-okunur kalır.
+   */
+  it('login yanitinda csrfToken GOVDEDE doner', async () => {
+    const res = await request(makeApp())
+      .post('/api/v1/admin/auth/login')
+      .send({ email: 'owner@t.local', password: 'guclu-parola-123' })
+    expect(res.status).toBe(200)
+    expect(typeof res.body.csrfToken).toBe('string')
+    expect(res.body.csrfToken.length).toBeGreaterThan(0)
+  })
+
+  it('login yanitinda OTURUM token i govdede YOK', async () => {
+    const res = await request(makeApp())
+      .post('/api/v1/admin/auth/login')
+      .send({ email: 'owner@t.local', password: 'guclu-parola-123' })
+    const body = JSON.stringify(res.body)
+    expect(body).not.toMatch(/a_session/)
+    expect(res.body).not.toHaveProperty('sessionToken')
+    expect(res.body).not.toHaveProperty('session')
+  })
+
+  it('govdedeki csrfToken yazma isleminde CALISIR', async () => {
+    const login = await request(makeApp())
+      .post('/api/v1/admin/auth/login')
+      .send({ email: 'owner@t.local', password: 'guclu-parola-123' })
+    const cookie = readSession(login.headers).cookie
+    const csrfToken = login.body.csrfToken as string
+
+    const res = await request(makeApp())
+      .patch(`/api/v1/admin/weddings/${weddingFreeId}/plan`)
+      .set('Cookie', cookie)
+      .set('X-CSRF-Token', csrfToken)
+      .send({ plan: 'PREMIUM' })
+    expect(res.status).toBe(200)
+  })
+
+  it('/auth/me csrfToken i YENIDEN verir (sayfa yenilenince)', async () => {
+    const login = await request(makeApp())
+      .post('/api/v1/admin/auth/login')
+      .send({ email: 'owner@t.local', password: 'guclu-parola-123' })
+    const cookie = readSession(login.headers).cookie
+
+    const me = await request(makeApp()).get('/api/v1/admin/auth/me').set('Cookie', cookie)
+    expect(me.status).toBe(200)
+    expect(typeof me.body.csrfToken).toBe('string')
+    expect(me.body.csrfToken).toBe(login.body.csrfToken)
+  })
+})
+
+describe('cikis denetim kaydi', () => {
+  it('logout ADMIN_LOGOUT audit yazar', async () => {
+    const login = await request(makeApp())
+      .post('/api/v1/admin/auth/login')
+      .send({ email: 'owner@t.local', password: 'guclu-parola-123' })
+    const cookie = readSession(login.headers).cookie
+    const csrfToken = login.body.csrfToken as string
+
+    const out = await request(makeApp())
+      .post('/api/v1/admin/auth/logout')
+      .set('Cookie', cookie)
+      .set('X-CSRF-Token', csrfToken)
+    expect(out.status).toBe(204)
+
+    const r = await pg.query<{ c: number }>(
+      `SELECT count(*)::int AS c FROM audit_logs WHERE action = 'ADMIN_LOGOUT'`,
+    )
+    expect(r.rows[0]!.c).toBeGreaterThanOrEqual(1)
+  })
+})
