@@ -29,6 +29,7 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ADMIN = join(ROOT, 'admin')
@@ -71,106 +72,128 @@ function rel(file) {
 }
 
 /**
- * Yorumları boşlukla değiştirir, KONUM KORUNUR.
+ * Kaynaktaki YORUMLARI boşlukla değiştirir; KONUM KORUNUR.
  *
- * NEDEN: Kontroller `vite.config.ts` ve `App.tsx` içinde `base: '/spa/'` /
- * `basename="/spa"` DESENİ arıyor. Yorumlar ayıklanmazsa bir NEDEN
- * yorumunda aynı metin geçtiği için gerçek ayar SİLİNDİĞİ hâlde kontrol
- * YEŞİL kalır (yanlış yeşil — mutasyon testinde yakalandı).
+ * NEDEN GEREKLİ: Kontroller `base: '/spa/'`, `basename="/spa"`, `--gold`
+ * gibi DESENLER arıyor. Yorumlar ayıklanmazsa bir NEDEN yorumunda aynı
+ * metin geçtiği için gerçek ayar SİLİNDİĞİ hâlde kontrol YEŞİL kalır.
  *
- * NEDEN BASİT REGEX DEĞİL: ilk sürüm `//` gördüğü her yerde satırın
- * kalanını siliyordu. Ama `//` bir STRING veya JSX ATTRIBUTE içinde de
- * geçebilir:
+ * NEDEN ELLE YAZILMIŞ TARAYICI DEĞİL — iki kez yanlış yaptım:
  *
- *   const junk = "a//b"; localStorage.setItem("a_session", "x")
- *   <div title="x // y" dangerouslySetInnerHTML={h} />
+ *  1. sürüm: saf regex `//` gördüğü her yerde satırı siliyordu. String
+ *     veya JSX attribute içindeki `//` yüzünden GERÇEK ihlal gizlendi
+ *     (`const junk = "a//b"; localStorage.setItem(...)`).
+ *  2. sürüm: string/template farkındalıklı elle yazılmış tarayıcı. Bu
+ *     kez de REGEX LİTERALİNİ bilmiyordu: `.tsx`'te
+ *     `if (/^https?:\/\//.test(u)) el.innerHTML = u` satırında `//`
+ *     regex'in parçası olduğu hâlde yorum sanılıp satır silindi ve
+ *     GERÇEK XSS kaçtı. Ayrıca JSX süslü-parantez yorumları ve apostroflu
+ *     JSX metni yüzünden yanlış kırmızı üretti.
  *
- * Bu durumda gerçek ihlal, "yorum" sanılıp siliniyordu → GÜVENLİK TARAMASI
- * SAKAT çalışıyordu (review'da ölçüldü: dört ayrı yanlış-yeşil sınıfı).
+ * Ders: JS/TS/JSX sözdizimini elle taklit etmek kaybedilen bir savaş.
+ * TypeScript zaten bağımlılık (`admin/node_modules/typescript`), kendi
+ * ayrıştırıcısını kullanıyoruz: `createSourceFile` + `getLeadingCommentRanges`
+ * / `getTrailingCommentRanges` yorumları KESİN olarak bulur.
  *
- * Çözüm: karakter karakter ilerleyen, string/template/JSX-attribute
- * farkındalıklı tarayıcı. Yorumlar boşlukla değiştirilir ki `lineOf()`
- * doğru satırı göstermeye devam etsin.
+ * Ayrıştırıcı yüklenemezse GÜVENLİ tarafa düşeriz: hiçbir şeyi silmeyiz
+ * (yanlış kırmızı üretmek, yanlış yeşilden iyidir — ama ikisi de
+ * raporlanır).
  *
  * @param {string} src
- * @param {{lineComments?: boolean, jsx?: boolean}} [opts]
- *   `lineComments`: `//` yorumları ayıklansın mı (CSS/HTML'de false).
- *   `jsx`: `'` ve `"` içindeki metin attribute sayılsın (TSX için).
+ * @param {{file?: string}} [opts] `file`: uzantıya göre dil seçilir.
  */
-function stripComments(src, { lineComments = true, jsx = false } = {}) {
+function stripComments(src, { file = '' } = {}) {
+  const isCss = file.endsWith('.css')
+  const isHtml = file.endsWith('.html')
+
+  // CSS/HTML: TypeScript ayrıştırıcısı bunları ANLAMAZ. Bu dosyalarda
+  // `//` yorum DEĞİL (CSS'te `url(http://...)` bozulurdu), yalnız
+  // `/* ... */` yorumdur.
+  if (isCss || isHtml) return stripBlockCommentsOnly(src)
+
+  let ts
+  try {
+    ts = loadTypeScript()
+  } catch {
+    // Ayrıştırıcı yok — hiçbir şeyi silme, çağıran uyarı yazsın.
+    return src
+  }
+
+  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX
+    : file.endsWith('.jsx') ? ts.ScriptKind.JSX
+    : file.endsWith('.json') ? ts.ScriptKind.JSON
+    : ts.ScriptKind.TS
+
+  const sf = ts.createSourceFile(file || 'x.ts', src, ts.ScriptTarget.Latest, true, kind)
+
+  // Yorum aralıklarını topla: her düğümün önündeki ve arkasındaki.
+  const ranges = []
+  const collect = (node) => {
+    const leading = ts.getLeadingCommentRanges(src, node.getFullStart()) ?? []
+    const trailing = ts.getTrailingCommentRanges(src, node.getEnd()) ?? []
+    for (const r of [...leading, ...trailing]) ranges.push([r.pos, r.end])
+
+    // JSX SÜSLÜ-PARANTEZ YORUMU: `{/* ... */}` ayrıştırıcı tarafından
+    // `getLeadingCommentRanges` ile RAPORLANMAZ; `expression` alanı
+    // OLMAYAN bir `JsxExpression` düğümü olarak görünür. Bu kontrol
+    // olmadan yorum içindeki `innerHTML` gerçek ihlal sanılıp YANLIŞ
+    // KIRMIZI üretiyordu (re-review'da ölçüldü).
+    if (node.kind === ts.SyntaxKind.JsxExpression && !node.expression) {
+      ranges.push([node.getStart(sf), node.getEnd()])
+    }
+
+    ts.forEachChild(node, collect)
+  }
+  collect(sf)
+
+  // REGEX LİTERALİ: `getLeadingCommentRanges` bir düğümün önündeki
+  // yorumları verir ama regex içindeki `//` yorum SANILMAZ — bu yüzden
+  // regex güvenli. Yine de regex gövdesini AYRIK tutmak için AST'teki
+  // RegularExpressionLiteral düğümlerini not edip, yorum aralıklarıyla
+  // KESİŞENLERİ atarız.
+  const regexRanges = []
+  const collectRegex = (node) => {
+    if (node.kind === ts.SyntaxKind.RegularExpressionLiteral) {
+      regexRanges.push([node.getStart(sf), node.getEnd()])
+    }
+    ts.forEachChild(node, collectRegex)
+  }
+  collectRegex(sf)
+
+  const overlapsRegex = (a, b) => regexRanges.some(([x, y]) => a < y && b > x)
+  const finalRanges = ranges.filter(([a, b]) => !overlapsRegex(a, b))
+  finalRanges.sort((a, b) => a[0] - b[0])
+
   const out = src.split('')
-  const blank = (from, to) => {
-    for (let k = from; k < to && k < out.length; k++) if (out[k] !== '\n') out[k] = ' '
+  for (const [pos, end] of finalRanges) {
+    for (let k = pos; k < end && k < out.length; k++) {
+      if (out[k] !== '\n') out[k] = ' '
+    }
   }
-
-  let i = 0
-  const n = src.length
-  while (i < n) {
-    const c = src[i]
-    const next = src[i + 1]
-
-    // String / template literal: yorum DEĞİL, içindekiler koda aittir.
-    if (c === '"' || c === "'" || c === '`') {
-      const quote = c
-      let j = i + 1
-      while (j < n) {
-        if (src[j] === '\\') { j += 2; continue }
-        if (src[j] === quote) { j++; break }
-        // Template literal içinde satır sonu olabilir; düz string'de olamaz.
-        j++
-      }
-      i = j
-      continue
-    }
-
-    // Blok yorumu: /* ... */
-    if (c === '/' && next === '*') {
-      const end = src.indexOf('*/', i + 2)
-      const stop = end === -1 ? n : end + 2
-      blank(i, stop)
-      i = stop
-      continue
-    }
-
-    // Satır yorumu: //
-    if (lineComments && c === '/' && next === '/') {
-      let end = src.indexOf('\n', i)
-      if (end === -1) end = n
-      blank(i, end)
-      i = end
-      continue
-    }
-
-    // Regex literali: `/.../ ` — `//` ile karışmasın diye atlanır.
-    // Yalnız önceki anlamlı karakter bir operatör/parantez ise regex'tir.
-    if (c === '/' && jsx === false && /[=(,:;[!&|?{};+\-*%<>~^]/.test(prevSignificant(src, i))) {
-      let j = i + 1
-      let inClass = false
-      while (j < n) {
-        const ch = src[j]
-        if (ch === '\\') { j += 2; continue }
-        if (ch === '[') inClass = true
-        else if (ch === ']') inClass = false
-        else if (ch === '/' && !inClass) { j++; break }
-        else if (ch === '\n') break
-        j++
-      }
-      i = j
-      continue
-    }
-
-    i++
-  }
-
   return out.join('')
 }
 
-/** `idx` öncesindeki ilk boşluk-olmayan karakteri döndürür (yoksa ''). */
-function prevSignificant(src, idx) {
-  for (let k = idx - 1; k >= 0; k--) {
-    if (!/\s/.test(src[k])) return src[k]
+/** CSS/HTML için: yalnız blok yorumlarını boşalt (satır konumu korunur). */
+function stripBlockCommentsOnly(src) {
+  const out = src.split('')
+  let i = 0
+  while (i < src.length) {
+    if (src[i] === '/' && src[i + 1] === '*') {
+      const end = src.indexOf('*/', i + 2)
+      const stop = end === -1 ? src.length : end + 2
+      for (let k = i; k < stop; k++) if (out[k] !== '\n') out[k] = ' '
+      i = stop
+      continue
+    }
+    i++
   }
-  return ''
+  return out.join('')
+}
+
+/** TypeScript ayrıştırıcısını `admin/node_modules`ten yükler. */
+function loadTypeScript() {
+  const req = createRequire(join(ADMIN, 'package.json'))
+  return req('typescript')
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +303,7 @@ const VITE_CONFIG = join(ADMIN, 'vite.config.ts')
     // YORUMLAR AYIKLANIR: dosya `base: '/spa/'` ifadesini bir NEDEN
     // yorumunda da geçiriyor. Yorumlar taranırsa ayar silindiğinde bile
     // kontrol yeşil kalır (mutasyon testinde tam olarak bu oldu).
-    const code = stripComments(src)
+    const code = stripComments(src, { file: 'vite.config.ts' })
 
     // Varlık yolları: base olmadan /spa/ altındaki derin bağlantıda
     // /assets/index-xxx.js isteği 404 olur.
@@ -366,7 +389,7 @@ const TOKENS_CSS = join(ADMIN, 'src/styles/tokens.css')
   // YORUMLAR AYIKLANIR: bir token yoruma taşınırsa (ör. `/* --gold */`)
   // ham metinde hâlâ görünür ve kontrol yanlış yeşil verir. Üretilen CSS'te
   // token TANIMSIZ olur, tema çöker.
-  const src = rawTokens === null ? null : stripComments(rawTokens, { lineComments: false })
+  const src = rawTokens === null ? null : stripComments(rawTokens, { file: 'tokens.css' })
   if (src !== null) {
     /** `--ad: deger` çiftlerini topla (ilk tanım geçerli). */
     const declared = new Map()
@@ -417,7 +440,7 @@ const APP_TSX = join(ADMIN, 'src/App.tsx')
     // YORUMLAR AYIKLANIR: App.tsx `basename="/spa"` ifadesini bir NEDEN
     // yorumunda da anıyor. Yorum taranırsa gerçek prop silindiğinde
     // kontrol yeşil kalır (mutasyon testinde yakalandı).
-    const code = stripComments(src)
+    const code = stripComments(src, { file: 'vite.config.ts' })
 
     // `base: '/spa/'` yalnız varlık yollarını düzeltir. Router basename
     // almazsa /spa/users hiçbir rotaya uymaz ve panel boş açılır.
@@ -452,7 +475,7 @@ for (const file of SRC_FILES) {
   const raw = readFileSync(file, 'utf8')
   const isCss = file.endsWith('.css') || file.endsWith('.html')
   // TSX'te `jsx: true`: `'`/`"` içindeki metin attribute'tur, yorum değil.
-  const src = stripComments(raw, { lineComments: !isCss, jsx: file.endsWith('.tsx') })
+  const src = stripComments(raw, { file })
   const fileRel = rel(file)
 
   // 6a. Kalıcı depoya token yazımı

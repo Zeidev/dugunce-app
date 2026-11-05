@@ -323,8 +323,15 @@ if (existsSync(redirectsPath)) {
       return
     }
     // Hedef yol varsa (fragment'siz) gerçekten var mı?
+    //
+    // İSTİSNA: `/spa/*` hedefleri CI'da ÜRETİLİR (`admin/` Vite derlemesi,
+    // `frontend/public/spa/` .gitignore'da). Taze bir checkout'ta dizin
+    // henüz yoktur; bu yüzden "hedef yok" demek YANLIŞ KIRMIZI olur ve
+    // CI'ı build adımından ÖNCE düşürür. Üretilen yollar ayrıca
+    // `scripts/check-admin.mjs` tarafından denetlenir.
     const dest = parts[1]
-    if (dest.startsWith('/') && !dest.includes('#') && !dest.includes(':')) {
+    const isBuildArtifact = dest === '/spa/' || dest.startsWith('/spa/')
+    if (!isBuildArtifact && dest.startsWith('/') && !dest.includes('#') && !dest.includes(':')) {
       const destPath = join(PUBLIC, dest.replace(/^\//, ''))
       const asDir = join(destPath, 'index.html')
       const asFile = destPath.endsWith('.html') ? destPath : `${destPath}.html`
