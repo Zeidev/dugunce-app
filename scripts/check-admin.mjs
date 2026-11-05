@@ -449,6 +449,39 @@ const REDIRECTS = join(PUBLIC, '_redirects')
       } else {
         note('_redirects: /spa/* kuralı en sonda ✓')
       }
+
+      // VARLIK GÖLGELENMESİ — bu kontrol olmadan panel BEYAZ EKRAN açar.
+      //
+      // Cloudflare: "Redirects are always followed, regardless of whether
+      // or not an asset matches". Yani catch-all, `/spa/assets/index-abc.js`
+      // gerçek bir dosya olsa bile devreye girer ve JS yerine index.html
+      // (text/html) döner. Tarayıcı modülü çözemez, uygulama açılmaz.
+      //
+      // Bu hata sınıfı bu repoda YAŞANDI: `/d/:token` kuralı
+      // `/d/map-link.mjs`i yutmuştu (commit 1d54e59).
+      //
+      // Kural: catch-all'dan ÖNCE `/spa/assets/*` için pass-through olmalı
+      // ve hedefi KENDİSİ olmalı (index.html'e düşmemeli).
+      const spaIdx = rules.findIndex((r) => /^\/spa\/\*\s+\/spa\/index\.html\s+200$/.test(r.line))
+      const assetPass = rules.findIndex((r) => /^\/spa\/assets\/\*\s+\/spa\/assets\/:splat\s+200$/.test(r.line))
+
+      if (assetPass === -1) {
+        fail(
+          'frontend/public/_redirects',
+          spaIdx + 1,
+          '/spa/assets/* için pass-through kuralı YOK — catch-all JS/CSS isteklerini ' +
+            'index.html (text/html) olarak döndürür ve panel beyaz ekran açar',
+        )
+      } else if (spaIdx !== -1 && assetPass > spaIdx) {
+        fail(
+          'frontend/public/_redirects',
+          rules[assetPass].no,
+          '/spa/assets/* pass-through kuralı catch-all\'DAN ÖNCE olmalı — ' +
+            'sonra olursa catch-all önce eşleşir ve varlıklar gölgelenir',
+        )
+      } else {
+        note('_redirects: /spa/assets/* pass-through catch-all\'dan önce ✓')
+      }
     }
   }
 }

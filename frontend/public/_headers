@@ -62,8 +62,14 @@
   Content-Type: font/woff2
 
 # Admin SPA: arama motoruna ve önizlemeye kapalı.
-# Cache'lenmez — panel HTML'i derleme hash'i taşır, eski kabuk yeni
-# varlık adlarını ister ve beyaz ekran görünür (canlıda yaşandı).
+#
+# `no-store` bilinçli olarak TÜM `/spa/*` yoluna uygulanır, varlıklara da.
+# Cloudflare `_headers` eşleşmesi İSTEK url'ine göre yapılır; `/spa/users`
+# gibi derin bağlantı de `_redirects` ile `index.html`e düşer. Kuralı
+# yalnız `index.html`e daraltsaydık derin bağlantı önbelleğe alınırdı.
+# Varlıklar hash'li olduğu için `immutable` daha hızlı olurdu, ama tek
+# kullanıcılı bir panelde tazelik hızdan önemli: eski kabuk yeni varlık
+# adlarını isteyip beyaz ekran bırakabilir.
 /spa/*
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-store

@@ -13,7 +13,27 @@
 # bu kural yalnızca eski/link paylaşımları için güvenlik ağı.
 /auth  /auth/  301
 
-# Admin SPA — client-side routing. Gerçek dosyalar önce gelir.
-# EN SONDA olmalı: /spa/* kuralı öne geçerse /d/:token ve /auth
-# kuralları gölgelenir (Cloudflare ilk eşleşeni uygular).
+# Admin SPA — client-side routing.
+#
+# SIRA HAYATİ: Cloudflare "redirects are always followed, regardless of
+# whether or not an asset matches" diyor — yani aşağıdaki catch-all, gerçek
+# bir dosya var olsa bile devreye girer. Tek başına bırakılsaydı
+# `/spa/assets/index-abc.js` isteği `index.html` (text/html) dönerdi ve
+# panel BEYAZ EKRAN açılırdı. Bu hata sınıfı bu repoda daha önce yaşandı:
+# `/d/:token` kuralı `/d/map-link.mjs`i yutmuştu (bkz. 1d54e59).
+#
+# Çözüm: varlık yolları için catch-all'DAN ÖNCE "pass-through" kuralları.
+# Hedef = kaynak; dosya sunulur, yoksa 404 (index.html'e DÜŞMEZ — bu
+# doğru: eksik bir JS parçası HTML olarak dönmemeli).
+/spa/assets/*  /spa/assets/:splat  200
+/spa/*.js      /spa/:splat.js      200
+/spa/*.css     /spa/:splat.css     200
+/spa/*.json    /spa/:splat.json    200
+/spa/*.svg     /spa/:splat.svg     200
+/spa/*.png     /spa/:splat.png     200
+/spa/*.ico     /spa/:splat.ico     200
+/spa/*.webmanifest  /spa/:splat.webmanifest  200
+
+# Catch-all EN SONDA: yalnız yukarıdakilere uymayan yollar (client-side
+# rotalar: /spa/users, /spa/weddings/<id>) index.html alır.
 /spa/*  /spa/index.html  200
