@@ -15,8 +15,25 @@ import { loadEnv } from '../config/env.js'
  * - verify: 10/dakika (IP)
  * - refresh: 30/dakika (IP)
  */
+import type { DeviceTokenDeps } from '../notifications/store.js'
+
 export function createAuthRouter(deps: {
   requireAuth: import('express').RequestHandler
+  /**
+   * Push token temizliği için.
+   *
+   * Opsiyonel: verilmezse çıkış yalnız refresh token'ı iptal eder
+   * (mevcut davranış). Testler push kurmadan çalışabilir.
+   */
+  deviceTokenDeps?: Pick<DeviceTokenDeps, 'deleteDeviceToken' | 'deleteAllForUser'>
+  /**
+   * Test enjeksiyonu: verilmezse gerçek DB'ye bağlanır.
+   *
+   * NEDEN GEREKLİ: `drizzleRefreshDeps` kurulum anında `getDb()` çağırıyor;
+   * DB olmayan bir testte bu 500 üretir. Push testleri refresh akışını
+   * değil token temizliğini sınıyor.
+   */
+  refreshDeps?: import('../auth/tokens.js').RefreshDeps
 }): Router {
   const router = Router()
 
@@ -26,7 +43,7 @@ export function createAuthRouter(deps: {
   const refreshLimit = createRateLimit(RATE_LIMITS.refresh)
 
   const magicDeps = drizzleMagicLinkDeps()
-  const refreshDeps = drizzleRefreshDeps(loadEnv().JWT_SECRET)
+  const refreshDeps = deps.refreshDeps ?? drizzleRefreshDeps(loadEnv().JWT_SECRET)
 
   /**
    * POST /auth/magic-link
@@ -135,10 +152,32 @@ export function createAuthRouter(deps: {
     '/logout',
     async (req: Request, res: Response, next: NextFunction) => {
       try {
-        const body = req.body as { refreshToken?: unknown }
+        const body = req.body as { refreshToken?: unknown; deviceToken?: unknown }
         if (typeof body.refreshToken === 'string' && body.refreshToken) {
           await revokeRefreshToken(body.refreshToken, refreshDeps)
         }
+
+        /*
+          Push token temizliği (spec §5.2). Token GÖVDEDEN alınıyor:
+          bu uç kimlik doğrulaması İSTEMİYOR (yalnız refresh token
+          iptali), dolayısıyla `userId` bilinmiyor. Gövdedeki token
+          doğrudan silinir — doğru cihazı hedefler ve ek yetki gerektirmez.
+
+          HATA YUTULUR: çıkış kullanıcının niyetidir; bildirim
+          temizliği ikincil. DB hatası çıkışı engellememeli.
+        */
+        if (
+          deps.deviceTokenDeps !== undefined &&
+          typeof body.deviceToken === 'string' &&
+          body.deviceToken !== ''
+        ) {
+          try {
+            await deps.deviceTokenDeps.deleteDeviceToken(body.deviceToken)
+          } catch {
+            // Sessizce yut — çıkış başarılı sayılır.
+          }
+        }
+
         res.status(200).json({ ok: true })
       } catch (err) {
         next(err)
@@ -154,6 +193,21 @@ export function createAuthRouter(deps: {
       try {
         const userId = req.auth!.userId
         const count = await revokeAllUserTokens(userId, refreshDeps)
+
+        /*
+          TÜM cihazların push token'ları silinir. Bu uçta `userId`
+          BİLİNİYOR (requireAuth), o yüzden cihaz başına token yerine
+          kullanıcının hepsi siliniyor — istemci listeyi bilmek zorunda
+          kalmıyor.
+        */
+        if (deps.deviceTokenDeps !== undefined) {
+          try {
+            await deps.deviceTokenDeps.deleteAllForUser(userId)
+          } catch {
+            // Çıkış yine başarılı.
+          }
+        }
+
         res.status(200).json({ ok: true, revoked: count })
       } catch (err) {
         next(err)

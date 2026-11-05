@@ -141,6 +141,14 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const requireAuth = createRequireAuth(
     options.authDeps ?? drizzleAuthDeps(env.JWT_SECRET),
   )
+
+  /*
+    Push bağımlılıkları — auth router'dan ÖNCE tanımlanmalı: `/auth/logout`
+    push token'ını da siliyor (spec §5.2), oysa notifications router'ı
+    aşağıda kuruluyor.
+  */
+  const deviceTokenDeps = options.deviceTokenDeps ?? drizzleDeviceTokenDeps(getDb())
+  const preferencesDeps = options.preferencesDeps ?? drizzlePreferencesDeps(getDb())
   const requireMember = createRequireWeddingMember(
     options.membershipDeps ?? drizzleMembershipDeps(),
   )
@@ -159,7 +167,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(
     '/api/v1/auth',
     corsForInvitations({ allowedMethods: ['GET', 'POST', 'OPTIONS'] }),
-    createAuthRouter({ requireAuth }),
+    createAuthRouter({ requireAuth, deviceTokenDeps }),
   )
   app.use(
     '/api/v1/weddings',
@@ -187,8 +195,6 @@ export function createApp(options: CreateAppOptions = {}): Express {
     `sender` ORTAMDAN üretilir: `PUSH_ENABLED` false veya anahtar yoksa
     `null` döner ve bildirim gönderilmez — sunucu yine çalışır.
   */
-  const deviceTokenDeps = options.deviceTokenDeps ?? drizzleDeviceTokenDeps(getDb())
-  const preferencesDeps = options.preferencesDeps ?? drizzlePreferencesDeps(getDb())
   const notifyDeps: NotifyDeps = {
     tokens: deviceTokenDeps,
     sender: options.fcmSender !== undefined ? options.fcmSender : createFcmSenderFromEnv(env),
