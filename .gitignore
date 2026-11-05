@@ -18,3 +18,10 @@ mobile/.kotlin/
 # APK çıktısı — CI artifact olarak saklanır, repo'ya girmez
 /artifacts/
 dist-apk/
+
+# Admin SPA (Vite) — kaynak `admin/`, çıktı `frontend/public/spa/`
+# NEDEN: build çıktısı CI üretir; commit edilirse derleme çıktısı kaynakla
+# karışır ve her `npm run build` sonrası `git status` kirlenir.
+admin/node_modules/
+admin/dist/
+frontend/public/spa/

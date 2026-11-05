@@ -1,0 +1,90 @@
+/*
+ * Tasarım tokenları — kaynak: docs/superpowers/specs/2026-11-05-admin-paneli-design.md §9.1
+ *
+ * NEDEN AYRI DOSYA: `app.css` içinde token tanımlamak, bileşen stilleri
+ * büyüdükçe değerlerin dağılmasına yol açıyor. Tokenlar tek yerde durur ve
+ * `scripts/check-admin.mjs` değerleri spec'e karşı doğrular — biri
+ * "yaklaşık" bir renk uydurursa CI kırmızı olur.
+ *
+ * DEĞERLER UYDURULMAZ. Marka kimliği davetiye sayfasıyla aynı kalmalı;
+ * panel "başka bir ürün" gibi görünmemeli.
+ */
+
+/* Fontlar davetiye sayfasıyla ORTAK — /assets/fonts/ altındaki aynı
+ * .woff2 dosyaları kullanılır. Kopyalamak yerine paylaşmak, font
+ * güncellemesinin iki yerde ayrı ayrı yapılmasını önler. */
+@font-face {
+  font-family: 'Playfair Display';
+  font-weight: 700;
+  src: url('/assets/fonts/playfair-display-latin.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F;
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-weight: 700;
+  src: url('/assets/fonts/playfair-display-latin-ext.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+1E00-1E9F, U+20A0-20AB, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Josefin Sans';
+  font-weight: 400;
+  src: url('/assets/fonts/josefin-sans-latin.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F;
+}
+
+@font-face {
+  font-family: 'Josefin Sans';
+  font-weight: 400;
+  src: url('/assets/fonts/josefin-sans-latin-ext.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+1E00-1E9F, U+20A0-20AB, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Josefin Sans';
+  font-weight: 600;
+  src: url('/assets/fonts/josefin-sans-600-latin.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F;
+}
+
+@font-face {
+  font-family: 'Josefin Sans';
+  font-weight: 600;
+  src: url('/assets/fonts/josefin-sans-600-latin-ext.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+1E00-1E9F, U+20A0-20AB, U+A720-A7FF;
+}
+
+:root {
+  /* Marka */
+  --gold: #a8925f;      --gold-strong: #8a7443;
+  --sage: #4a5f45;      --sage-soft: #eef1ec;
+  --cream: #f4f2ee;     --surface: #ffffff;
+  --ink: #2d3a2e;       --ink-soft: #55604f;
+  --muted: #6a6459;     --line: #e4e0d8;
+
+  /* Durum */
+  --ok: #2f6b46;        --ok-soft: #e8f2ec;
+  --warn: #8a5f1f;      --warn-soft: #f7efe0;
+  --danger: #8c2f2f;    --danger-soft: #f8eaea;
+
+  /* Ölçü — 4px taban */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px;
+
+  --radius: 10px; --radius-lg: 16px;
+  --shadow-1: 0 1px 2px rgba(45,58,46,.06);
+  --shadow-2: 0 4px 16px rgba(45,58,46,.08);
+
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Josefin Sans', sans-serif;
+}
+
+/* Kontrast kuralı (spec §9.1): gövde metni WCAG AA (≥4.5:1).
+ * --muted krem üstünde 5.25:1 — mevcut web yüzeyleriyle aynı değer. */

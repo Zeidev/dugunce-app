@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Panel arama motorlarına kapalı. _headers'taki X-Robots-Tag asıl
+         güvence; bu meta, dosya statik olarak servis edilirse de korur. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Düğünce · Yönetim</title>
+    <!-- Tema rengi: mobil tarayıcı çubuğu marka rengiyle uyumlu kalsın. -->
+    <meta name="theme-color" content="#2d3a2e" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232d3a2e'/%3E%3Ctext x='16' y='23' font-family='serif' font-size='19' fill='%23a8925f' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Vite geliştirme sunucusunda da üretim derlemesinde de modül olarak
+         yüklenir; `base: '/spa/'` sayesinde derleme çıktısında yol
+         /spa/assets/... olur. -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

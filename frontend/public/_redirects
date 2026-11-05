@@ -12,3 +12,8 @@
 # NOT: Backend artık doğrudan /auth/ üretiyor (magic-link.ts) —
 # bu kural yalnızca eski/link paylaşımları için güvenlik ağı.
 /auth  /auth/  301
+
+# Admin SPA — client-side routing. Gerçek dosyalar önce gelir.
+# EN SONDA olmalı: /spa/* kuralı öne geçerse /d/:token ve /auth
+# kuralları gölgelenir (Cloudflare ilk eşleşeni uygular).
+/spa/*  /spa/index.html  200
