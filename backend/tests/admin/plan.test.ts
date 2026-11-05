@@ -74,7 +74,7 @@ describe('setWeddingPlan', () => {
         purchaseToken: null,
       }),
     )
-    expect(d.updateWeddingPlan.mock.calls[0][1].purchasedAt).toBeInstanceOf(Date)
+    expect(d.updateWeddingPlan.mock.calls[0]![1].purchasedAt).toBeInstanceOf(Date)
   })
 
   it('PREMIUM -> FREE purchasedAt temizler', async () => {
@@ -140,7 +140,7 @@ describe('setWeddingPlan', () => {
   it('audit metadata parola/token ICERMEZ (Review Focus #4)', async () => {
     const d = makeDeps()
     await setWeddingPlan({ weddingId: 'w1', plan: 'PREMIUM', actorId: 'a1' }, d)
-    const meta = JSON.stringify(d.writeAudit.mock.calls[0][0].metadata)
+    const meta = JSON.stringify(d.writeAudit.mock.calls[0]![0].metadata)
     expect(meta).not.toMatch(/argon2|password|token|secret/i)
   })
 
@@ -149,7 +149,7 @@ describe('setWeddingPlan', () => {
       findWeddingById: vi.fn().mockResolvedValue(weddingView({ plan: 'PREMIUM' })),
     })
     await setWeddingPlan({ weddingId: 'w1', plan: 'FREE', actorId: 'a1' }, d)
-    const entry = d.writeAudit.mock.calls[0][0]
+    const entry = d.writeAudit.mock.calls[0]![0]
     expect(Object.keys(entry.metadata).sort()).toEqual(['from', 'to'])
     // `from` DB'deki GERÇEK plan olmalı — sabit 'FREE' değil.
     expect(entry.metadata).toEqual({ from: 'PREMIUM', to: 'FREE' })
@@ -158,7 +158,7 @@ describe('setWeddingPlan', () => {
   it('ip verilmezse audit te ip alani bulunmaz', async () => {
     const d = makeDeps()
     await setWeddingPlan({ weddingId: 'w1', plan: 'PREMIUM', actorId: 'a1' }, d)
-    const entry = d.writeAudit.mock.calls[0][0]
+    const entry = d.writeAudit.mock.calls[0]![0]
     expect(entry.ip).toBeUndefined()
   })
 
@@ -174,15 +174,28 @@ describe('setWeddingPlan', () => {
     expect(r!.coupleNames).toBe('Elif & Mert')
   })
 
-  it('purchasedAt SIMDI ye yakin (eski tarih tasinmaz)', async () => {
+  it('FREE -> PREMIUM gecisinde purchasedAt SIMDI olur', async () => {
     const d = makeDeps({
-      findWeddingById: vi.fn().mockResolvedValue(weddingView({ plan: 'PREMIUM' })),
+      findWeddingById: vi.fn().mockResolvedValue(weddingView({ plan: 'FREE' })),
     })
     const before = Date.now()
     await setWeddingPlan({ weddingId: 'w1', plan: 'PREMIUM', actorId: 'a1' }, d)
-    const at = d.updateWeddingPlan.mock.calls[0][1].purchasedAt as Date
+    const at = d.updateWeddingPlan.mock.calls[0]![1].purchasedAt as Date
     expect(at.getTime()).toBeGreaterThanOrEqual(before)
     expect(at.getTime()).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('AYNI plana tekrar gecis HICBIR SEY yazmaz (verilis tarihi korunur)', async () => {
+    // NEDEN: ikinci kez "PREMIUM" demek purchasedAt'i eziyordu — ilk
+    // veriliş tarihi kayboluyordu. Ayrıca {PREMIUM->PREMIUM} gibi
+    // anlamsız bir denetim kaydı ekliyordu.
+    const d = makeDeps({
+      findWeddingById: vi.fn().mockResolvedValue(weddingView({ plan: 'PREMIUM' })),
+    })
+    const r = await setWeddingPlan({ weddingId: 'w1', plan: 'PREMIUM', actorId: 'a1' }, d)
+    expect(d.updateWeddingPlan).not.toHaveBeenCalled()
+    expect(d.writeAudit).not.toHaveBeenCalled()
+    expect(r!.plan).toBe('PREMIUM')
   })
 
   it('yazma BASARISIZ olursa audit YAZILMAZ (olmayan degisiklik kaydi yok)', async () => {
@@ -272,7 +285,7 @@ describe('setWeddingPlan — gerçek DB', () => {
 
     const view = await setWeddingPlan(
       { weddingId: wid, plan: 'PREMIUM', actorId: adminId, ip: '10.0.0.7' },
-      store as unknown as WeddingPlanDeps,
+      store,
     )
 
     const row = await readPlanRow(wid)
@@ -313,13 +326,13 @@ describe('setWeddingPlan — gerçek DB', () => {
 
     await setWeddingPlan(
       { weddingId: wid, plan: 'PREMIUM', actorId: adminId },
-      store as unknown as WeddingPlanDeps,
+      store,
     )
     expect((await readPlanRow(wid)).plan).toBe('PREMIUM')
 
     await setWeddingPlan(
       { weddingId: wid, plan: 'FREE', actorId: adminId },
-      store as unknown as WeddingPlanDeps,
+      store,
     )
 
     const row = await readPlanRow(wid)
@@ -354,7 +367,7 @@ describe('setWeddingPlan — gerçek DB', () => {
         plan: 'PREMIUM',
         actorId: adminId,
       },
-      store as unknown as WeddingPlanDeps,
+      store,
     )
 
     expect(view).toBeNull()
@@ -371,7 +384,7 @@ describe('setWeddingPlan — gerçek DB', () => {
     await expect(
       setWeddingPlan(
         { weddingId: wid, plan: 'VIP' as never, actorId: adminId },
-        store as unknown as WeddingPlanDeps,
+        store,
       ),
     ).rejects.toThrow()
 

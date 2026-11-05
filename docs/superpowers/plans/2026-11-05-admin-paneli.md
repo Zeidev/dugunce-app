@@ -912,6 +912,11 @@ Expected: FAIL — modül yok.
 
 `store.ts` — `drizzleAdminDeps(dbOverride?)`; `findAdminByEmail`, `findAdminById`, `recordFailedAttempt`, `recordSuccess`, `createSession`, `findSessionByHash`, `touchSession`, `deleteSession`, `writeAudit`, `countUsers`, `listUsers`, `listWeddings`, `findWeddingById`, `setWeddingPlan`. **`updateAudit`/`deleteAudit` YOK.**
 
+**`touchSession(id, expiresAt)` SÖZLEŞMESİ — kritik:**
+Middleware `touchSession(id, session.expiresAt)` çağırır: ikinci parametre **mutlak tavanın kendisidir**, ileri kaydırılmış bir değer değil. Bu yüzden store **`lastUsedAt = now` YAZMAK ZORUNDA**. Yalnız `expiresAt` yazarsa boşta kalma penceresi hiç tazelenmez ve oturum 30 dakikada ölür (8 saat değil). Test: kayan pencere sonrası `lastUsedAt` güncellenmiş olmalı.
+
+`deleteSession` **zorunlu** bağımlılıktır (plan ilk taslakta opsiyonel listeliyordu) — askıya alınan admin'in oturumu silinmeli kuralı bunu gerektirir.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd backend && npx vitest run tests/admin/store.test.ts`
@@ -1153,6 +1158,10 @@ v1 için seçilen: **kilit süresi üstel** — `LOCK_DURATION_MS * 2^(ardışı
 
 **Sayfalama — cursor tabanlı** (mevcut `guests` deseniyle aynı):
 - `?limit=50&cursor=<son id>` — `limit` varsayılan 50, azami 100
+- **`limit` TAM SAYI doğrulanmalı** (`Number.isInteger`), aksi hâlde `limit=NaN`
+  `Math.min/Math.max` ikisinde de `NaN` döndürür ve **100 satır tavanı sessizce
+  aşılır** (ölçüldü: 120 satır). `limit=2.5` ise Postgres hatası verir.
+  `backend/src/guests/service.ts` zaten bu korumayı yapıyor — aynısını kopyala.
 - Yanıt: `{ items: [...], nextCursor: string | null }`
 - `nextCursor`, dönen son kaydın `id`'sidir; `items.length < limit` ise `null`
 - Sıralama: `createdAt DESC, id DESC` (kararlı sayfalama)

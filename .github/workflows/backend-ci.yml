@@ -58,6 +58,17 @@ jobs:
         working-directory: backend
         run: npm run typecheck
 
+      # `tsconfig.json` testleri HARİÇ tutuyor (`exclude: tests`), yani
+      # `npm run typecheck` test dosyalarını HİÇ derlemiyor. Sonuç: test
+      # kodundaki tip hataları (ve arayüz daraltmasını gizleyen `as`
+      # cast'leri) CI'dan kaçıyordu. Admin testleri ayrıca sıkı denetlenir.
+      - name: Typecheck admin tests (strict)
+        working-directory: backend
+        run: |
+          npx tsc --noEmit --strict --noUncheckedIndexedAccess --skipLibCheck \
+            --module esnext --moduleResolution bundler --target es2022 \
+            --types node tests/admin/*.test.ts
+
       - name: Verify migration SQL (PGlite — fast feedback)
         working-directory: backend
         run: npm run verify:migrations

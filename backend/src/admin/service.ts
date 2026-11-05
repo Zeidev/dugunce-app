@@ -586,6 +586,19 @@ export async function setWeddingPlan(
   const from = wedding.plan
   const to = params.plan
 
+  // DEĞİŞİKLİK YOKSA HİÇBİR ŞEY YAPMA.
+  //
+  // NEDEN: aynı plana ikinci kez "PREMIUM" demek `purchasedAt`'i EZİYORDU —
+  // ilk veriliş tarihi kayboluyordu (`purchasePlatform='ADMIN'` tam da bu
+  // soruyu yanıtlamak için var). Ayrıca `{from:PREMIUM,to:PREMIUM}` gibi
+  // anlamsız bir denetim kaydı ekliyordu.
+  //
+  // Bu kısa devre, audit yazması başarısız olduğunda operatörün TEKRAR
+  // denemesini de doğru hâle getirir: plan zaten yazılmış olduğu için
+  // ikinci çağrı hiçbir şey yazmaz, dolayısıyla gerçek `FREE→PREMIUM`
+  // geçişi yanlışlıkla `PREMIUM→PREMIUM` olarak kaydedilmez.
+  if (from === to) return { ...wedding, plan: to }
+
   // 3./4. Yama — dört alan da AÇIKÇA veriliyor. `undefined` bırakmak
   //       Drizzle'da kolonu atlar ve eski değer satırda kalır; `FREE`'ye
   //       geçişte `purchasedAt` temizlenmezdi.
