@@ -58,6 +58,14 @@ export interface RsvpResult {
   id: string
   rsvp: RsvpValue
   confirmedPartySize: number | null
+  /**
+   * Yanıtın ait olduğu düğün.
+   *
+   * NEDEN BURADA: push bildirimi `weddingId` olmadan gönderilemez ve
+   * route'un bunu ayrıca sorgulaması ikinci bir DB turu olurdu.
+   * `resolveInvitation` zaten bu bilgiyi taşıyor.
+   */
+  weddingId: string
 }
 
 /**
@@ -99,6 +107,7 @@ export async function submitRsvp(
       id: invitation.id,
       rsvp: params.rsvp,
       confirmedPartySize,
+      weddingId: invitation.weddingId,
     }
   }
 
@@ -121,6 +130,7 @@ export async function submitRsvp(
       id: invitation.id,
       rsvp: params.rsvp,
       confirmedPartySize,
+      weddingId: invitation.weddingId,
     }
   })
 }

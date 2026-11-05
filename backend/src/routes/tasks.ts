@@ -12,6 +12,7 @@ import {
 } from '../tasks/service.js'
 import { drizzleTaskDeps } from '../tasks/store.js'
 import { sendMessage, listMessages, MessageTooLongError } from '../messages/service.js'
+import { notifyWeddingMembers, type NotifyDeps } from '../notifications/service.js'
 import { drizzleMessageDeps } from '../messages/store.js'
 import { createRateLimit, RATE_LIMITS } from '../middleware/rate-limit.js'
 
@@ -23,6 +24,11 @@ export function createTasksRouter(deps: {
   requireMember: (roles?: ('OWNER' | 'CO_OWNER')[]) => import('express').RequestHandler
   taskStore?: ReturnType<typeof drizzleTaskDeps>
   messageStore?: ReturnType<typeof drizzleMessageDeps>
+  /**
+   * Push bildirimi bağımlılıkları. Verilmezse bildirim gönderilmez —
+   * mevcut router testleri push kurmadan çalışmaya devam eder.
+   */
+  notifyDeps?: NotifyDeps
 }): Router {
   const router = Router({ mergeParams: true })
   const taskStore = deps.taskStore ?? drizzleTaskDeps()
@@ -84,6 +90,17 @@ export function createTasksRouter(deps: {
         next(AppError.notFound('Görev bulunamadı'))
         return
       }
+      /*
+        `void` — ana iş akışını BLOKLAMAZ. Görev güncellemesi
+        bildirimden bağımsız başarılı sayılır.
+      */
+      if (deps.notifyDeps !== undefined) {
+        void notifyWeddingMembers(deps.notifyDeps, {
+          weddingId: weddingIdOf(req),
+          event: 'TASK_STATUS_CHANGED',
+          actorUserId: req.auth!.userId,
+        })
+      }
       res.json({ task: updated })
     } catch (err) {
       next(toHttpError(err))
@@ -111,6 +128,13 @@ export function createTasksRouter(deps: {
         if (!assigned) {
           next(AppError.notFound('Görev bulunamadı'))
           return
+        }
+        if (deps.notifyDeps !== undefined) {
+          void notifyWeddingMembers(deps.notifyDeps, {
+            weddingId: weddingIdOf(req),
+            event: 'TASK_ASSIGNED',
+            actorUserId: req.auth!.userId,
+          })
         }
         res.json({ task: assigned })
       } catch (err) {
@@ -188,6 +212,12 @@ export function createTasksRouter(deps: {
           next(AppError.notFound('Görev bulunamadı'))
           return
         }
+        /*
+          BİLDİRİM YOK: bu route'ta gönderen ÇİFT (`sender.kind: 'COUPLE'`).
+          Çift kendi yazdığı mesajın bildirimini almamalı; yardımcının
+          hesabı olmadığı için ona da push gönderilemez (spec §5.3 notu).
+          Yardımcı → çift yönü `helper-app.ts`'te bağlanır.
+        */
         res.status(201).json({ message })
       } catch (err) {
         next(toHttpError(err))

@@ -4,6 +4,7 @@ import { hashToken } from '../lib/crypto.js'
 import { resolveHelperToken } from '../helpers/token.js'
 import { toHelperTaskList } from '../tasks/helper-view.js'
 import { toHelperMessageList, toHelperMessageView } from '../messages/helper-view.js'
+import { notifyWeddingMembers, type NotifyDeps } from '../notifications/service.js'
 import {
   sendMessage,
   listMessages,
@@ -55,6 +56,8 @@ export function createHelperAppRouter(deps?: {
   rateLimit?: boolean
   /** Test için: çerezleri Secure'suz üret. */
   secureCookies?: boolean
+  /** Push bildirimi bağımlılıkları; verilmezse gönderim yok. */
+  notifyDeps?: NotifyDeps
 }): Router {
   const router = Router()
   const helperStore = deps?.helperStore ?? drizzleHelperDeps()
@@ -289,6 +292,19 @@ export function createHelperAppRouter(deps?: {
         if (!message) {
           next(AppError.notFound('Görev bulunamadı'))
           return
+        }
+        /*
+          YALNIZ YARDIMCI yazdığında bildirim gider (bu route'ta
+          `sender.kind: 'HELPER'`). Çift kendi yazdığının bildirimini
+          almamalı; yardımcının hesabı olmadığı için ona push
+          gönderilemez — yani mesaj bildirimi TEK YÖNLÜ (spec §5.3).
+        */
+        if (deps?.notifyDeps !== undefined) {
+          void notifyWeddingMembers(deps.notifyDeps, {
+            weddingId: ctx.weddingId,
+            event: 'TASK_MESSAGE',
+            actorUserId: null,
+          })
         }
         res.status(201).json({ message: toHelperMessageView(message) })
       } catch (err) {

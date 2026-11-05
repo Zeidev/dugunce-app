@@ -3,6 +3,9 @@ import { createHealthRouter } from './routes/health.js'
 import { pingDb, getDb } from './db/client.js'
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js'
 import { createNotificationsRouter } from './notifications/router.js'
+import { createFcmSenderFromEnv, type FcmSender } from './notifications/fcm.js'
+import type { NotifyDeps } from './notifications/service.js'
+import { findWeddingForNotify } from './notifications/find-wedding.js'
 import { drizzleDeviceTokenDeps } from './notifications/store.js'
 import { drizzlePreferencesDeps } from './notifications/preferences.js'
 import { createRequireAuth } from './middleware/require-auth.js'
@@ -55,6 +58,11 @@ export interface CreateAppOptions {
   /** Push testleri için enjeksiyon. */
   deviceTokenDeps?: import('./notifications/store.js').DeviceTokenDeps
   preferencesDeps?: import('./notifications/preferences.js').PreferencesDeps
+  /**
+   * Test için gönderici enjeksiyonu. `null` = push kapalı.
+   * Verilmezse ortamdan üretilir (`PUSH_ENABLED` + anahtar).
+   */
+  fcmSender?: FcmSender | null
   messageStore?: ReturnType<typeof import('./messages/store.js').drizzleMessageDeps>
   sessionStore?: ReturnType<typeof import('./helpers/session-store.js').drizzleSessionDeps>
   /** Testlerde IP bazlı sınırları kapatmak için. */
@@ -172,15 +180,30 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use('/api/v1/invites', invites.publicInvites)
 
   /*
-    Mobil push — cihaz token'ı ve bildirim tercihleri.
+    Mobil push — cihaz token'ı, tercihler ve gönderim bağımlılıkları.
+
     iOS kapsam dışı (spec §0); platform doğrulaması router'da.
+
+    `sender` ORTAMDAN üretilir: `PUSH_ENABLED` false veya anahtar yoksa
+    `null` döner ve bildirim gönderilmez — sunucu yine çalışır.
   */
+  const deviceTokenDeps = options.deviceTokenDeps ?? drizzleDeviceTokenDeps(getDb())
+  const preferencesDeps = options.preferencesDeps ?? drizzlePreferencesDeps(getDb())
+  const notifyDeps: NotifyDeps = {
+    tokens: deviceTokenDeps,
+    sender: options.fcmSender !== undefined ? options.fcmSender : createFcmSenderFromEnv(env),
+    findWedding: (weddingId) => findWeddingForNotify(weddingId),
+    isQuietHoursOverride: async (userId) =>
+      (await preferencesDeps.get(userId)).quietHoursOverride,
+    isEnabled: async (userId) => (await preferencesDeps.get(userId)).enabled,
+  }
+
   app.use(
     '/api/v1/notifications',
     createNotificationsRouter({
       requireAuth,
-      tokens: options.deviceTokenDeps ?? drizzleDeviceTokenDeps(getDb()),
-      preferences: options.preferencesDeps ?? drizzlePreferencesDeps(getDb()),
+      tokens: deviceTokenDeps,
+      preferences: preferencesDeps,
     }),
   )
 
@@ -218,9 +241,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
   // Davetiyeler — davetli tarafı (token tek yetki, auth YOK)
   app.use(
     '/api/v1/invitations',
-    createInvitationsRouter(
-      options.guestStore ? { store: options.guestStore } : {},
-    ),
+    createInvitationsRouter({
+      ...(options.guestStore ? { store: options.guestStore } : {}),
+      notifyDeps,
+    }),
   )
 
   // Yardımcılar — çift tarafı (auth + üyelik)
@@ -241,6 +265,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       requireMember,
       ...(options.taskStore ? { taskStore: options.taskStore } : {}),
       ...(options.messageStore ? { messageStore: options.messageStore } : {}),
+      notifyDeps,
     }),
   )
 
@@ -253,6 +278,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       ...(options.messageStore ? { messageStore: options.messageStore } : {}),
       ...(options.sessionStore ? { sessionStore: options.sessionStore } : {}),
       ...(options.helperRateLimit === false ? { rateLimit: false } : {}),
+      notifyDeps,
     }),
   )
 

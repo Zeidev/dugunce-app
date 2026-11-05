@@ -3,6 +3,7 @@ import { AppError } from '../lib/errors.js'
 import { resolveInvitation } from '../guests/invitation.js'
 import { toPublicInvitation } from '../guests/public-view.js'
 import { submitRsvp, RsvpError, RsvpClosedError } from '../guests/rsvp.js'
+import { notifyWeddingMembers, type NotifyDeps } from '../notifications/service.js'
 import { drizzleGuestDeps } from '../guests/store.js'
 import { createRateLimit, RATE_LIMITS } from '../middleware/rate-limit.js'
 import { corsForInvitations } from '../middleware/cors.js'
@@ -22,6 +23,13 @@ export function createInvitationsRouter(deps?: {
   store?: ReturnType<typeof drizzleGuestDeps>
   /** Test için kapatılabilir — varsayılan açık. */
   rateLimit?: boolean
+  /**
+   * Push bildirimi bağımlılıkları.
+   *
+   * Opsiyonel: verilmezse bildirim gönderilmez. NEDEN: bu router'ın
+   * mevcut testleri (RSVP kaydı) push kurmadan çalışmaya devam etmeli.
+   */
+  notifyDeps?: NotifyDeps
 }): Router {
   const router = Router()
   // Depo enjekte edilebilir — auth katmanı testleri DB olmadan çalışsın.
@@ -95,6 +103,28 @@ export function createInvitationsRouter(deps?: {
         next(AppError.notFound('Davetiye bulunamadı'))
         return
       }
+
+      /*
+        RSVP bildirimi — `void` ile ARKA PLANDA.
+        NEDEN await YOK: FCM yavaşlarsa davetli yanıt ekranında 20 sn
+        bekler. Bildirim ikincil; kayıt çoktan yazıldı.
+      */
+      if (deps?.notifyDeps !== undefined) {
+        /*
+          `void` ile ARKA PLANDA — ana iş akışını BLOKLAMAZ.
+          NEDEN await YOK: FCM yavaşlarsa davetli yanıt ekranında 20 sn
+          bekler. Kayıt çoktan yazıldı; bildirim ikincil.
+
+          `weddingId` `result` içinde geliyor (`submitRsvp` invitation'dan
+          taşıyor) — ikinci bir DB turu gerekmiyor.
+        */
+        void notifyWeddingMembers(deps.notifyDeps, {
+          weddingId: result.weddingId,
+          event: 'RSVP_RECEIVED',
+          actorUserId: null,
+        })
+      }
+
       res.json({ rsvp: result })
     } catch (err) {
       next(toHttpError(err))
