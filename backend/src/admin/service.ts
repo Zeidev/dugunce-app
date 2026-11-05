@@ -11,6 +11,7 @@
 
 import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2'
 import { logger } from '../lib/logger.js'
+import { AppError } from '../lib/errors.js'
 
 /** Yönetim parolası için asgari uzunluk — kullanıcı parolasından daha katı. */
 export const MIN_ADMIN_PASSWORD_LENGTH = 16
@@ -123,4 +124,289 @@ export function nextFailedState(
       ? new Date(now.getTime() + LOCK_DURATION_MS)
       : null
   return { failedAttempts, lockedUntil }
+}
+
+// ---------------------------------------------------------------------------
+// Giriş akışı — spec §6.1
+// ---------------------------------------------------------------------------
+
+/**
+ * Giriş denemesinde dönen admin görünümü.
+ *
+ * SIRF BEYAZ LİSTE: `passwordHash`, `totpSecret`, `recoveryCodes` YOK.
+ * Bu nesne doğrudan HTTP yanıtına yazılır; satırı `...row` ile yaymak
+ * parola hash'ini istemciye sızdırır.
+ */
+export interface AdminRecord {
+  id: string
+  email: string
+  displayName: string
+  role: string
+  status: string
+  failedAttempts: number
+  lockedUntil: Date | null
+  lastLoginAt: Date | null
+}
+
+/**
+ * `admin_accounts` satırı — SADECE servis içinde kullanılır.
+ *
+ * `AdminRecord`'u BİLEREK GENİŞLETMEZ. Genişletseydi "satır = güvenli
+ * görünüm" izlenimi doğar ve `...row` yaymak makul görünürdü; oysa satır
+ * `passwordHash` taşır. Ayrı tip tutmak dönüşümün açıkça yazılmasını
+ * zorunlu kılar (bkz. `toAdminRecord`).
+ */
+export interface AdminAccountRow {
+  id: string
+  email: string
+  displayName: string
+  role: string
+  status: string
+  failedAttempts: number
+  lockedUntil: Date | null
+  lastLoginAt: Date | null
+  passwordHash: string
+  /** v1'de kullanılmaz — 2FA sonraki tur. Okunmaz, sızdırılmaz. */
+  totpSecret?: string | null
+  recoveryCodes?: unknown
+}
+
+/** `findSessionByHash` dönüşü — oturum middleware'i (Task 4) tüketir. */
+export interface AdminSessionRow {
+  id: string
+  adminId: string
+  expiresAt: Date
+  lastUsedAt: Date
+}
+
+/** `createSession` girdisi — HAM token değil, yalnız hash'leri taşır. */
+export interface CreateSessionValues {
+  adminId: string
+  sessionHash: string
+  csrfHash: string
+  ip?: string | null
+  userAgent?: string | null
+  expiresAt: Date
+}
+
+/**
+ * Audit kaydı girdisi.
+ *
+ * `metadata`'ya parola, parola hash'i, oturum token'ı veya TOTP secret
+ * ASLA yazılmaz (Review Focus #4). Parola denemesi zaten hiçbir alana
+ * konmaz — yalnız "kim, hangi e-posta, hangi sebep" yazılır.
+ */
+export interface AuditEntry {
+  action: string
+  actorType: 'ADMIN' | 'USER' | 'SYSTEM'
+  actorId: string | null
+  targetType?: string | null
+  targetId?: string | null
+  metadata?: Record<string, unknown> | null
+  ip?: string | null
+}
+
+/**
+ * Giriş akışının veri erişim bağımlılıkları.
+ *
+ * Store (Task 5) bu arayüzü implement eder; testler sahte nesne geçer.
+ * Servis Drizzle'ı doğrudan görmez — böylece giriş akışı DB olmadan
+ * test edilebilir.
+ */
+export interface AdminDeps {
+  findAdminByEmail(email: string): Promise<AdminAccountRow | null>
+  recordFailedAttempt(
+    adminId: string,
+    state: { failedAttempts: number; lockedUntil: Date | null },
+  ): Promise<void>
+  /** failedAttempts=0, lockedUntil=null, lastLoginAt=now yazar. */
+  recordSuccess(adminId: string): Promise<void>
+  createSession(values: CreateSessionValues): Promise<{ id: string }>
+  findSessionByHash(hash: string): Promise<AdminSessionRow | null>
+  touchSession(id: string, expiresAt: Date): Promise<void>
+  deleteSession(id: string): Promise<void>
+  writeAudit(entry: AuditEntry): Promise<void>
+}
+
+/**
+ * Hesap kilitli — spec §6.1 `423 ACCOUNT_LOCKED`.
+ *
+ * `AppError`'dan türer ki merkezi hata yakalayıcı doğru HTTP kodunu
+ * kendiliğinden üretsin; route katmanı eşleme yapmak zorunda kalmaz.
+ */
+export class AccountLockedError extends AppError {
+  constructor(lockedUntil: Date | null = null, now: Date = new Date()) {
+    const minutes =
+      lockedUntil && lockedUntil.getTime() > now.getTime()
+        ? Math.ceil((lockedUntil.getTime() - now.getTime()) / 60_000)
+        : null
+    super(
+      423,
+      'ACCOUNT_LOCKED',
+      minutes
+        ? `Hesap geçici olarak kilitli. ${minutes} dakika sonra tekrar deneyin.`
+        : 'Hesap geçici olarak kilitli. Lütfen daha sonra tekrar deneyin.',
+    )
+    // DİKKAT: `AppError` yapıcısı `setPrototypeOf(this, AppError.prototype)`
+    // çağırır — alt sınıfın prototipini EZER. Geri kurulmazsa
+    // `instanceof AccountLockedError` false olur ve testler/route'lar
+    // hatayı tanıyamaz.
+    Object.setPrototypeOf(this, AccountLockedError.prototype)
+    this.name = 'AccountLockedError'
+  }
+}
+
+/**
+ * Hesap askıya alınmış — spec §6.1 `403`.
+ *
+ * Kilitli hesaptan ÖNCE kontrol edilir: askıya alınmış hesap, kilit
+ * süresi dolmuş olsa bile giriş yapamaz.
+ */
+export class AccountSuspendedError extends AppError {
+  constructor() {
+    super(403, 'ACCOUNT_SUSPENDED', 'Bu hesap askıya alınmış. Destek ile iletişime geçin.')
+    Object.setPrototypeOf(this, AccountSuspendedError.prototype)
+    this.name = 'AccountSuspendedError'
+  }
+}
+
+/**
+ * Sabit "sahte" parola hash'i — ZAMANLAMA EŞİTLEMESİ için.
+ *
+ * Var olmayan bir e-postayla yapılan deneme, argon2 ÇALIŞTIRMADAN
+ * dönerse yanıt süresi ~0 ms olur; var olan hesapta ~20 ms. Fark
+ * ölçülebilir ve "bu e-posta kayıtlı mı" sorusunu yanıtlar
+ * (kullanıcı sayımı / hedefli saldırı).
+ *
+ * Bu yüzden hesap bulunamadığında da bu hash'e karşı `verifyPassword`
+ * çağrılır. Hash, atılmış rastgele bir değere aittir: hiçbir parola
+ * `true` döndürmez. Gizli DEĞİLDİR — sadece iş yükü üretir.
+ */
+const DUMMY_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$1qftIc8xa+sVJlF5+CVyJQ$nb1xOtpvlhrCS6ysiBdoapAjvMxdmf5qPcVka0zTeHM'
+
+/**
+ * Satırdan istemciye giden görünümü kurar — ALAN ALAN.
+ *
+ * `...row` ASLA: yeni bir gizli sütun eklendiğinde sessizce sızardı.
+ * Giriş başarılı olduğu için sayaç sıfırlanmış, kilit kalkmış ve
+ * `lastLoginAt` şimdi olarak döner — DB'de yazılan durum budur.
+ */
+function toAdminRecord(row: AdminAccountRow, now: Date): AdminRecord {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.displayName,
+    role: row.role,
+    status: row.status,
+    failedAttempts: 0,
+    lockedUntil: null,
+    lastLoginAt: now,
+  }
+}
+
+/**
+ * Başarısız deneme audit'i.
+ *
+ * `actorId` bilinmeyen e-postada `null` — ama denenen e-posta `metadata`'da
+ * kalır, aksi hâlde kaba kuvvet denemesinin HANGİ hesaba yapıldığı
+ * kayıtta görünmezdi. Parola/hash/token yazılmaz.
+ */
+async function writeFailedAudit(
+  deps: AdminDeps,
+  args: { email: string; reason: string; ip?: string | undefined; actorId?: string | null },
+): Promise<void> {
+  await deps.writeAudit({
+    action: 'ADMIN_LOGIN_FAILED',
+    actorType: 'ADMIN',
+    actorId: args.actorId ?? null,
+    metadata: { email: args.email, reason: args.reason },
+    ...(args.ip ? { ip: args.ip } : {}),
+  })
+}
+
+/**
+ * Yönetici girişi.
+ *
+ * Sıra KESİN (spec §6.1) — kilit kontrolü parola doğrulamasından ÖNCE
+ * gelir, aksi hâlde kilitli hesap doğru parolayla giriş yapabilirdi.
+ *
+ * Var olmayan e-posta ile yanlış parola AYIRT EDİLEMEZ: ikisi de `null`
+ * döner, ikisi de aynı audit'i yazar, ikisi de argon2 maliyetini öder.
+ *
+ * Dönüş: `{ admin }` veya `null`. Kilitli/askıya alınmış hesapta
+ * `AccountLockedError` / `AccountSuspendedError` fırlar.
+ *
+ * NOT: oturum (çerez) ÜRETMEZ — `createSession` çağrısı route katmanının
+ * işidir (Task 7), çünkü ham token yalnız orada bilinir ve cookie yazılır.
+ */
+export async function loginAdmin(
+  params: { email: string; password: string; ip?: string },
+  deps: AdminDeps,
+  now: Date = new Date(),
+): Promise<{ admin: AdminRecord } | null> {
+  // 1. E-posta normalizasyonu — parola ile aynı NFC gerekçesi: Türkçe
+  //    karakterler iki farklı kod noktası dizisiyle yazılabilir.
+  const email = params.email.trim().toLowerCase().normalize('NFC')
+
+  const row = await deps.findAdminByEmail(email)
+
+  // 2. Hesap yok → SAHTE doğrulama + audit + null.
+  if (!row) {
+    // Argon2 maliyeti ödenir: yanıt süresi var olan hesapla aynı kalır.
+    await verifyPassword(DUMMY_PASSWORD_HASH, params.password)
+    await writeFailedAudit(deps, {
+      email,
+      reason: 'UNKNOWN_EMAIL',
+      ip: params.ip,
+      actorId: null,
+    })
+    return null
+  }
+
+  // 3. Askıya alınmış hesap — kilit kontrolünden ÖNCE.
+  if (row.status !== 'ACTIVE') {
+    await writeFailedAudit(deps, {
+      email,
+      reason: 'SUSPENDED',
+      ip: params.ip,
+      actorId: row.id,
+    })
+    throw new AccountSuspendedError()
+  }
+
+  // 4. Kilit kontrolü — parola doğrulamasından ÖNCE.
+  if (computeLockState(row, now) === 'LOCKED') {
+    await writeFailedAudit(deps, {
+      email,
+      reason: 'LOCKED',
+      ip: params.ip,
+      actorId: row.id,
+    })
+    throw new AccountLockedError(row.lockedUntil, now)
+  }
+
+  // 5. Parola.
+  const ok = await verifyPassword(row.passwordHash, params.password)
+  if (!ok) {
+    const state = nextFailedState(row.failedAttempts, now)
+    await deps.recordFailedAttempt(row.id, state)
+    await writeFailedAudit(deps, {
+      email,
+      reason: 'BAD_PASSWORD',
+      ip: params.ip,
+      actorId: row.id,
+    })
+    return null
+  }
+
+  // 6. Başarı — sayaç sıfırlanır, audit yazılır, beyaz liste döner.
+  await deps.recordSuccess(row.id)
+  await deps.writeAudit({
+    action: 'ADMIN_LOGIN',
+    actorType: 'ADMIN',
+    actorId: row.id,
+    ...(params.ip ? { ip: params.ip } : {}),
+  })
+  return { admin: toAdminRecord(row, now) }
 }
