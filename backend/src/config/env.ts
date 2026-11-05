@@ -43,6 +43,26 @@ const envSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().optional(),
 
+  // --- Mobil push (FCM) ---
+  /**
+   * Service account JSON'ının base64'ü.
+   *
+   * NEDEN BASE64, DOSYA DEĞİL: serv00 paylaşımlı hosting'te dosya yolu
+   * yönetmek kırılgan; `.env` zaten gizli ve tek yerde duruyor.
+   */
+  FCM_SERVICE_ACCOUNT_BASE64: z.string().optional(),
+  /**
+   * Push gönderimi açık/kapalı.
+   *
+   * `'true'` değilse gönderim yapılmaz ama UÇLAR çalışır (token kaydı
+   * olur). NEDEN: anahtar yokken sunucu çökmemeli; geliştirme
+   * bloklanmamalı.
+   */
+  PUSH_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+
   PLAY_SERVICE_ACCOUNT_JSON: z.string().optional(),
   APPSTORE_KEY_ID: z.string().optional(),
   APPSTORE_ISSUER_ID: z.string().optional(),

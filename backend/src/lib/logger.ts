@@ -39,6 +39,8 @@ const REDACT_PATHS = [
   'VAPID_PRIVATE_KEY',
   'APPSTORE_PRIVATE_KEY',
   'PLAY_SERVICE_ACCOUNT_JSON',
+  // Push anahtarı bir PAROLADIR: eline geçen proje adına bildirim gönderir.
+  'FCM_SERVICE_ACCOUNT_BASE64',
 ]
 
 /**
