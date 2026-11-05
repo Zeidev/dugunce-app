@@ -656,11 +656,47 @@ function scanTs(fileRel, code, offset = 0, fullSrc = null) {
         const method = tailName(callee)
         const owner = tailName(callee.expression)
         if (method === 'setItem' && STORAGE.has(owner)) {
-          fail(
-            fileRel,
-            lineOfNode(node),
-            `${owner}.setItem — token HttpOnly cookie'de tutulur, kalıcı depoya YAZILMAZ`,
-          )
+          // KURAL — iki depo AYNI değil:
+          //
+          //  `localStorage`      → HER ZAMAN yasak. Sekme kapansa da kalır,
+          //                        XSS'te token kalıcı olarak çalınır.
+          //  `sessionStorage`    → yalnız CSRF token'ı için SERBEST.
+          //                        Sekmeyle ölür; CSRF token'ı zaten JS'in
+          //                        okuyabildiği bir değerdir (HttpOnly
+          //                        DEĞİL) ve `a_csrf` çerezi
+          //                        `Path=/api/v1/admin` yüzünden SPA'dan
+          //                        okunamıyor — backend bu yüzden token'ı
+          //                        login yanıt GÖVDESİNDE döndürüyor
+          //                        (commit 8667663). SPA'nın onu bir yerde
+          //                        tutması ZORUNLU.
+          //
+          // Oturum token'ı (`a_session`) ise HİÇBİR depoya yazılmaz:
+          // HttpOnly çerezi tarayıcı yönetir, JS hiç görmez.
+          const keyNode = node.arguments[0]
+          const key =
+            keyNode && (ts.isStringLiteral(keyNode) || ts.isNoSubstitutionTemplateLiteral(keyNode))
+              ? keyNode.text
+              : null
+          const SAFE_SESSION_KEYS = new Set(['csrfToken'])
+          const looksLikeSessionToken =
+            key !== null && /session|token|auth|jwt|bearer/i.test(key) && !SAFE_SESSION_KEYS.has(key)
+
+          if (owner === 'localStorage') {
+            fail(
+              fileRel,
+              lineOfNode(node),
+              'localStorage.setItem — kalıcı depo; token XSS\'te kalıcı çalınır. ' +
+                'CSRF için `sessionStorage` kullanılır (sekmeyle ölür).',
+            )
+          } else if (looksLikeSessionToken || key === null) {
+            fail(
+              fileRel,
+              lineOfNode(node),
+              'sessionStorage.setItem — yalnız CSRF token\'ı saklanabilir. ' +
+                'Oturum token\'ı HttpOnly cookie\'de kalır, JS depolamaz.',
+            )
+          }
+          // `sessionStorage.setItem("csrfToken", ...)` → SERBEST.
         }
 
         // 6b. innerHTML'e ATAMA `+=` da olabilir; PropertyAccess ile gelir.
