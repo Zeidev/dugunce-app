@@ -25,3 +25,6 @@ dist-apk/
 admin/node_modules/
 admin/dist/
 frontend/public/spa/
+
+# Wrangler (Cloudflare Pages yerel emülatörü) artığı — commit edilmez
+.wrangler/

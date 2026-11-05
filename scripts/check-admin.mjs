@@ -73,23 +73,104 @@ function rel(file) {
 /**
  * Yorumları boşlukla değiştirir, KONUM KORUNUR.
  *
- * NEDEN: Bu dosyadaki kontroller `vite.config.ts` ve `App.tsx` içinde
- * `base: '/spa/'` / `basename="/spa"` DESENİ arıyor. İlk sürüm yorumları
- * ayıklamıyordu ve bir NEDEN yorumunda `base: '/spa/'` yazdığı için
- * gerçek ayar SİLİNDİĞİ hâlde kontrol YEŞİL kaldı (yanlış yeşil —
- * mutasyon testinde yakalandı). Artık yalnız çalıştırılabilir kod taranır.
+ * NEDEN: Kontroller `vite.config.ts` ve `App.tsx` içinde `base: '/spa/'` /
+ * `basename="/spa"` DESENİ arıyor. Yorumlar ayıklanmazsa bir NEDEN
+ * yorumunda aynı metin geçtiği için gerçek ayar SİLİNDİĞİ hâlde kontrol
+ * YEŞİL kalır (yanlış yeşil — mutasyon testinde yakalandı).
  *
- * Blok yorumu ve satır yorumu aynı uzunlukta boşlukla değiştirilir ki
- * `lineOf()` doğru satırı göstermeye devam etsin.
+ * NEDEN BASİT REGEX DEĞİL: ilk sürüm `//` gördüğü her yerde satırın
+ * kalanını siliyordu. Ama `//` bir STRING veya JSX ATTRIBUTE içinde de
+ * geçebilir:
+ *
+ *   const junk = "a//b"; localStorage.setItem("a_session", "x")
+ *   <div title="x // y" dangerouslySetInnerHTML={h} />
+ *
+ * Bu durumda gerçek ihlal, "yorum" sanılıp siliniyordu → GÜVENLİK TARAMASI
+ * SAKAT çalışıyordu (review'da ölçüldü: dört ayrı yanlış-yeşil sınıfı).
+ *
+ * Çözüm: karakter karakter ilerleyen, string/template/JSX-attribute
+ * farkındalıklı tarayıcı. Yorumlar boşlukla değiştirilir ki `lineOf()`
+ * doğru satırı göstermeye devam etsin.
+ *
+ * @param {string} src
+ * @param {{lineComments?: boolean, jsx?: boolean}} [opts]
+ *   `lineComments`: `//` yorumları ayıklansın mı (CSS/HTML'de false).
+ *   `jsx`: `'` ve `"` içindeki metin attribute sayılsın (TSX için).
  */
-function stripComments(src, { lineComments = true } = {}) {
-  const blank = (s) => s.replace(/[^\n]/g, ' ')
-  let out = src.replace(/\/\*[\s\S]*?\*\//g, blank)
-  if (lineComments) {
-    // `://` (URL) ve `\//` (kaçışlı bölme) yorum sayılmaz.
-    out = out.replace(/(^|[^:\\])\/\/[^\n]*/g, (m, p1) => p1 + blank(m.slice(p1.length)))
+function stripComments(src, { lineComments = true, jsx = false } = {}) {
+  const out = src.split('')
+  const blank = (from, to) => {
+    for (let k = from; k < to && k < out.length; k++) if (out[k] !== '\n') out[k] = ' '
   }
-  return out
+
+  let i = 0
+  const n = src.length
+  while (i < n) {
+    const c = src[i]
+    const next = src[i + 1]
+
+    // String / template literal: yorum DEĞİL, içindekiler koda aittir.
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c
+      let j = i + 1
+      while (j < n) {
+        if (src[j] === '\\') { j += 2; continue }
+        if (src[j] === quote) { j++; break }
+        // Template literal içinde satır sonu olabilir; düz string'de olamaz.
+        j++
+      }
+      i = j
+      continue
+    }
+
+    // Blok yorumu: /* ... */
+    if (c === '/' && next === '*') {
+      const end = src.indexOf('*/', i + 2)
+      const stop = end === -1 ? n : end + 2
+      blank(i, stop)
+      i = stop
+      continue
+    }
+
+    // Satır yorumu: //
+    if (lineComments && c === '/' && next === '/') {
+      let end = src.indexOf('\n', i)
+      if (end === -1) end = n
+      blank(i, end)
+      i = end
+      continue
+    }
+
+    // Regex literali: `/.../ ` — `//` ile karışmasın diye atlanır.
+    // Yalnız önceki anlamlı karakter bir operatör/parantez ise regex'tir.
+    if (c === '/' && jsx === false && /[=(,:;[!&|?{};+\-*%<>~^]/.test(prevSignificant(src, i))) {
+      let j = i + 1
+      let inClass = false
+      while (j < n) {
+        const ch = src[j]
+        if (ch === '\\') { j += 2; continue }
+        if (ch === '[') inClass = true
+        else if (ch === ']') inClass = false
+        else if (ch === '/' && !inClass) { j++; break }
+        else if (ch === '\n') break
+        j++
+      }
+      i = j
+      continue
+    }
+
+    i++
+  }
+
+  return out.join('')
+}
+
+/** `idx` öncesindeki ilk boşluk-olmayan karakteri döndürür (yoksa ''). */
+function prevSignificant(src, idx) {
+  for (let k = idx - 1; k >= 0; k--) {
+    if (!/\s/.test(src[k])) return src[k]
+  }
+  return ''
 }
 
 // ---------------------------------------------------------------------------
@@ -281,7 +362,11 @@ const EXPECTED_TOKENS = {
 
 const TOKENS_CSS = join(ADMIN, 'src/styles/tokens.css')
 {
-  const src = readText(TOKENS_CSS)
+  const rawTokens = readText(TOKENS_CSS)
+  // YORUMLAR AYIKLANIR: bir token yoruma taşınırsa (ör. `/* --gold */`)
+  // ham metinde hâlâ görünür ve kontrol yanlış yeşil verir. Üretilen CSS'te
+  // token TANIMSIZ olur, tema çöker.
+  const src = rawTokens === null ? null : stripComments(rawTokens, { lineComments: false })
   if (src !== null) {
     /** `--ad: deger` çiftlerini topla (ilk tanım geçerli). */
     const declared = new Map()
@@ -366,7 +451,8 @@ for (const file of SRC_FILES) {
   // `.css`/`.html` için `//` yorumu yok — orada yalnız blok yorumu atılır.
   const raw = readFileSync(file, 'utf8')
   const isCss = file.endsWith('.css') || file.endsWith('.html')
-  const src = stripComments(raw, { lineComments: !isCss })
+  // TSX'te `jsx: true`: `'`/`"` içindeki metin attribute'tur, yorum değil.
+  const src = stripComments(raw, { lineComments: !isCss, jsx: file.endsWith('.tsx') })
   const fileRel = rel(file)
 
   // 6a. Kalıcı depoya token yazımı
@@ -380,9 +466,19 @@ for (const file of SRC_FILES) {
     )
   }
 
-  // 6b. innerHTML ailesi — kullanıcı verisi XSS'e açılır
+  // 6b. innerHTML ailesi — kullanıcı verisi XSS'e açılır.
+  //
+  // DESEN `=` İLE SINIRLI DEĞİL: `el.innerHTML += ...`, `insertAdjacentHTML(...)`
+  // ve `document.write(...)` biçimleri de aynı riski taşır. İlk sürüm yalnız
+  // `=` biçimini yakalıyordu; üç kaçış yolu da review'da ölçüldü.
+  // `.innerHTML` öncesi nokta ZORUNLU DEĞİL (değişkende de olabilir).
   for (const pattern of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write']) {
-    const re = new RegExp(`\\.${pattern}\\s*=`, 'g')
+    // `insertAdjacentHTML` / `document.write` fonksiyon çağrısıdır: `(` arar.
+    // `innerHTML` / `outerHTML` hem atama hem `+=` olabilir.
+    const isCall = pattern === 'insertAdjacentHTML' || pattern === 'document.write'
+    const re = isCall
+      ? new RegExp(`\\b${pattern.replace('.', '\\.')}\\s*\\(`, 'g')
+      : new RegExp(`\\b${pattern}\\s*(?:\\+=|=(?!=))`, 'g')
     while ((m = re.exec(src)) !== null) {
       fail(fileRel, lineOf(src, m.index), `${pattern} kullanılıyor — metin React ile (JSX) basılmalı (XSS)`)
     }
@@ -433,12 +529,48 @@ const REDIRECTS = join(PUBLIC, '_redirects')
       .map((line, i) => ({ line: line.trim(), no: i + 1 }))
       .filter((r) => r.line && !r.line.startsWith('#'))
 
-    const spaRules = rules.filter((r) => /^\/spa\/\*\s+\/spa\/index\.html\s+200$/.test(r.line))
+    // CATCH-ALL HEDEFİ — `/spa/` olmalı, `/spa/index.html` DEĞİL.
+    //
+    // Cloudflare'in `_redirects` ayrıştırıcısı, `from` soneki `/*` olup
+    // `to` değeri `/index(.html)?` ile biten kuralı "Infinite loop"
+    // gerekçesiyle GEÇERSİZ sayar ve SESSİZCE yok sayar:
+    //
+    //   ▲ [WARNING] Found 1 invalid redirect rule:
+    //     ▶︎ Infinite loop detected in this rule and has been ignored.
+    //       at frontend/public/_redirects:39 | /spa/*  /spa/index.html  200
+    //
+    // Kural yok sayılınca `/spa/users` SPA kabuğu yerine KÖK index.html
+    // (pazarlama sayfası) döner. Bu, gerçek `wrangler pages dev` ile
+    // ölçüldü — doküman yorumu değil.
+    //
+    // Doğrusu `/spa/*  /spa/  200`: sondaki `/` HTML-handling ile
+    // uzlaşır, kural KABUL edilir ve derin bağlantı SPA kabuğunu alır.
+    const CATCH_ALL = /^\/spa\/\*\s+\/spa\/\s+200$/
+    // Reddedilme sınıfı: `/*` + `/index(.html)?` ile biten hedef.
+    const LOOPED = /^\/spa\/\*\s+\/spa\/index(?:\.html)?\s+200$/
+
+    const spaRules = rules.filter((r) => CATCH_ALL.test(r.line))
+    const looped = rules.filter((r) => LOOPED.test(r.line))
+
+    if (looped.length > 0) {
+      fail(
+        'frontend/public/_redirects',
+        looped[0].no,
+        `"${looped[0].line}" Cloudflare tarafından REDDEDİLİR (infinite loop) — ` +
+          'kural sessizce yok sayılır ve derin bağlantı pazarlama sayfası döndürür. ' +
+          'Hedef `/spa/` olmalı: "/spa/*  /spa/  200"',
+      )
+    }
+
     if (spaRules.length === 0) {
-      fail('frontend/public/_redirects', 0, '"/spa/*  /spa/index.html  200" kuralı yok — SPA derin bağlantısı 404')
+      fail(
+        'frontend/public/_redirects',
+        0,
+        '"/spa/*  /spa/  200" kuralı yok — SPA derin bağlantısı yanlış sayfa döndürür',
+      )
     } else {
-      // Sıra ÖNEMLİ: /spa/* kuralı öne geçerse /d/:token veya /auth
-      // kuralları gölgelenebilir (Cloudflare ilk eşleşeni uygular).
+      // Sıra ÖNEMLİ: catch-all öne geçerse /d/:token veya /auth kuralları
+      // gölgelenir (Cloudflare'de İLK eşleşen uygulanır).
       const last = rules[rules.length - 1]
       if (last !== undefined && last.line !== spaRules[0].line) {
         fail(
@@ -454,15 +586,12 @@ const REDIRECTS = join(PUBLIC, '_redirects')
       //
       // Cloudflare: "Redirects are always followed, regardless of whether
       // or not an asset matches". Yani catch-all, `/spa/assets/index-abc.js`
-      // gerçek bir dosya olsa bile devreye girer ve JS yerine index.html
+      // gerçek bir dosya olsa bile devreye girer ve JS yerine kabuk
       // (text/html) döner. Tarayıcı modülü çözemez, uygulama açılmaz.
       //
       // Bu hata sınıfı bu repoda YAŞANDI: `/d/:token` kuralı
       // `/d/map-link.mjs`i yutmuştu (commit 1d54e59).
-      //
-      // Kural: catch-all'dan ÖNCE `/spa/assets/*` için pass-through olmalı
-      // ve hedefi KENDİSİ olmalı (index.html'e düşmemeli).
-      const spaIdx = rules.findIndex((r) => /^\/spa\/\*\s+\/spa\/index\.html\s+200$/.test(r.line))
+      const spaIdx = rules.findIndex((r) => CATCH_ALL.test(r.line))
       const assetPass = rules.findIndex((r) => /^\/spa\/assets\/\*\s+\/spa\/assets\/:splat\s+200$/.test(r.line))
 
       if (assetPass === -1) {
@@ -470,7 +599,7 @@ const REDIRECTS = join(PUBLIC, '_redirects')
           'frontend/public/_redirects',
           spaIdx + 1,
           '/spa/assets/* için pass-through kuralı YOK — catch-all JS/CSS isteklerini ' +
-            'index.html (text/html) olarak döndürür ve panel beyaz ekran açar',
+            'HTML olarak döndürür ve panel beyaz ekran açar',
         )
       } else if (spaIdx !== -1 && assetPass > spaIdx) {
         fail(

@@ -19,13 +19,17 @@ on:
   push:
     paths:
       - 'frontend/**'
+      - 'admin/**'
       - 'scripts/check-frontend.mjs'
+      - 'scripts/check-admin.mjs'
       - 'scripts/tests/**'
       - '.github/workflows/frontend-ci.yml'
   pull_request:
     paths:
       - 'frontend/**'
+      - 'admin/**'
       - 'scripts/check-frontend.mjs'
+      - 'scripts/check-admin.mjs'
       - 'scripts/tests/**'
       - '.github/workflows/frontend-ci.yml'
   workflow_dispatch:
@@ -61,6 +65,29 @@ jobs:
         # dizini test dosyası sanıp düşüyor (yerelde Node 26 çalıştığı
         # için bu fark yalnız CI'da görünür).
         run: node --test "scripts/tests/*.test.mjs"
+
+      # Admin SPA — DERLEME KAPISI.
+      #
+      # NEDEN: `admin/` hiçbir CI adımında derlenmiyordu ve
+      # `frontend/public/spa/` gitignore'lu. Yani admin kaynağı bozulsa
+      # (tip hatası, eksik import) kimse fark etmezdi; üstelik SPA
+      # yayınlanacak çıktı CI'da hiç ÜRETİLMİYORDU.
+      - name: Admin SPA bağımlılıkları
+        working-directory: admin
+        run: npm ci
+
+      - name: Admin SPA tip kontrolü
+        working-directory: admin
+        run: npm run typecheck
+
+      - name: Admin SPA derleme
+        working-directory: admin
+        run: npm run build
+
+      # Güvenlik ve yapılandırma kontrolleri (localStorage/innerHTML
+      # yasakları, base/basename, _redirects/_headers, tasarım tokenları).
+      - name: Admin SPA kontrolleri
+        run: node scripts/check-admin.mjs
 
       # Fontların gerçekten indirilebilir olduğunu doğrula.
       # Eksik bir .woff2 sessizce fallback fonta düşer ve tasarım bozulur

@@ -13,18 +13,32 @@
 # bu kural yalnızca eski/link paylaşımları için güvenlik ağı.
 /auth  /auth/  301
 
-# Admin SPA — client-side routing.
+# ---------------------------------------------------------------------------
+# Admin SPA — client-side routing
+# ---------------------------------------------------------------------------
 #
-# SIRA HAYATİ: Cloudflare "redirects are always followed, regardless of
-# whether or not an asset matches" diyor — yani aşağıdaki catch-all, gerçek
-# bir dosya var olsa bile devreye girer. Tek başına bırakılsaydı
-# `/spa/assets/index-abc.js` isteği `index.html` (text/html) dönerdi ve
-# panel BEYAZ EKRAN açılırdı. Bu hata sınıfı bu repoda daha önce yaşandı:
-# `/d/:token` kuralı `/d/map-link.mjs`i yutmuştu (bkz. 1d54e59).
+# İKİ TUZAK, ikisi de gerçek `wrangler pages dev` ile ÖLÇÜLDÜ (tahmin değil):
 #
-# Çözüm: varlık yolları için catch-all'DAN ÖNCE "pass-through" kuralları.
-# Hedef = kaynak; dosya sunulur, yoksa 404 (index.html'e DÜŞMEZ — bu
-# doğru: eksik bir JS parçası HTML olarak dönmemeli).
+# 1) HEDEF `/spa/` OLMALI, `/spa/index.html` DEĞİL.
+#    Cloudflare'in ayrıştırıcısı, `from` soneki `/*` olup `to` değeri
+#    `/index(.html)?` ile biten kuralı "Infinite loop" gerekçesiyle GEÇERSİZ
+#    sayar ve SESSİZCE yok sayar:
+#      ▲ Found 1 invalid redirect rule:
+#        ▶︎ Infinite loop detected in this rule and has been ignored.
+#          at _redirects:39 | /spa/*  /spa/index.html  200
+#    Kural yok sayılınca `/spa/users` SPA kabuğu yerine KÖK index.html
+#    (pazarlama sayfası) döner. Sondaki `/` HTML-handling ile uzlaşır.
+#
+# 2) VARLIKLAR İÇİN PASS-THROUGH ŞART.
+#    Cloudflare "redirects are always followed, regardless of whether or not
+#    an asset matches" diyor — yani catch-all, `/spa/assets/index-abc.js`
+#    GERÇEK bir dosya olsa bile devreye girer ve JS yerine HTML döndürür.
+#    Bu hata sınıfı bu repoda YAŞANDI: `/d/:token` kuralı `/d/map-link.mjs`i
+#    yutmuştu (commit 1d54e59, "canlıda görüldü").
+#
+# SIRA: pass-through kuralları ÖNCE, catch-all EN SONDA.
+# Cloudflare'de İLK eşleşen kural uygulanır.
+
 /spa/assets/*  /spa/assets/:splat  200
 /spa/*.js      /spa/:splat.js      200
 /spa/*.css     /spa/:splat.css     200
@@ -34,6 +48,13 @@
 /spa/*.ico     /spa/:splat.ico     200
 /spa/*.webmanifest  /spa/:splat.webmanifest  200
 
-# Catch-all EN SONDA: yalnız yukarıdakilere uymayan yollar (client-side
-# rotalar: /spa/users, /spa/weddings/<id>) index.html alır.
-/spa/*  /spa/index.html  200
+# Catch-all EN SONDA: yalnız yukarıdakilere uymayan yollar SPA kabuğunu alır
+# (/spa/users, /spa/weddings/<id>).
+#
+# NOT: Eksik bir varlık (`/spa/assets/yok.js`) bu catch-all'a DÜŞMEZ
+# (pass-through önce eşleşir) ama yine de HTML döner — çünkü hedef dosya
+# yoksa Cloudflare kök `index.html`e varsayılan SPA geri dönüşü yapar.
+# Bu kabul edilebilir: hash'li varlık adları derleme başına değişir,
+# "eksik varlık" normalde yalnız eski bir sekmenin yeni derlemeden sonra
+# parça istemesiyle olur ve kullanıcı yenilediğinde düzelir.
+/spa/*  /spa/  200

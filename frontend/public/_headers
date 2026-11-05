@@ -63,13 +63,21 @@
 
 # Admin SPA: arama motoruna ve önizlemeye kapalı.
 #
-# `no-store` bilinçli olarak TÜM `/spa/*` yoluna uygulanır, varlıklara da.
-# Cloudflare `_headers` eşleşmesi İSTEK url'ine göre yapılır; `/spa/users`
-# gibi derin bağlantı de `_redirects` ile `index.html`e düşer. Kuralı
-# yalnız `index.html`e daraltsaydık derin bağlantı önbelleğe alınırdı.
-# Varlıklar hash'li olduğu için `immutable` daha hızlı olurdu, ama tek
-# kullanıcılı bir panelde tazelik hızdan önemli: eski kabuk yeni varlık
-# adlarını isteyip beyaz ekran bırakabilir.
+# `no-store` burada TÜM `/spa/*` yoluna uygulanır — kabuk HTML'i ve derin
+# bağlantılar tazelik ister: eski bir kabuk yeni derlemenin varlık adlarını
+# isteyip beyaz ekran bırakabilir. Hash'li VARLIKLAR bunun istisnasıdır,
+# aşağıdaki `/spa/assets/*` bloğunda `immutable`a çevrilir.
 /spa/*
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-store
+
+# Hash'li varlıklar (Vite `index-abc123.js` üretir) içerik değişince adı
+# da değişir — bu yüzden uzun `immutable` önbellek GÜVENLİ ve doğru.
+#
+# DİKKAT: `_headers` kuralları BİRLEŞİR ve aynı başlık virgülle eklenir.
+# Yukarıdaki `/spa/*` bloğu `Cache-Control: no-store` yazdığı için burada
+# yalnız yeni değer yazmak `no-store, public, ...` gibi ÇELİŞKİLİ bir
+# başlık üretirdi. Önce `!` ile devralınanı DETACH ediyoruz.
+/spa/assets/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
