@@ -485,83 +485,222 @@ if (existsSync(ADMIN_SRC) && SRC_FILES.length === 0) {
 }
 
 for (const file of SRC_FILES) {
-  // Yorumlar ayıklanır: "şunu YAPMA" diye yazılmış bir uyarı yorumu
-  // (`// localStorage.setItem KULLANMA`) ihlal sayılmamalı. Ayrıca
-  // yorumdaki desen yüzünden gerçek ihlalin gözden kaçması da önlenir.
-  // `.css`/`.html` için `//` yorumu yok — orada yalnız blok yorumu atılır.
   const raw = readFileSync(file, 'utf8')
-  const isCss = file.endsWith('.css') || file.endsWith('.html')
-  // TSX'te `jsx: true`: `'`/`"` içindeki metin attribute'tur, yorum değil.
-  const src = stripComments(raw, { file })
   const fileRel = rel(file)
 
-  // 6a. Kalıcı depoya token yazımı
-  const storageRe = /\b(localStorage|sessionStorage)\s*\.\s*setItem\s*\(/g
+  // HTML: ayrı bir yol. `<!-- -->` yorumları ve `<script>` içeriği
+  // ayrıştırıcıyla değil, açık kurallarla işlenir.
+  if (file.endsWith('.html')) {
+    scanHtml(fileRel, raw)
+    continue
+  }
+
+  // CSS: yalnız blok yorumu var; desen taraması CSS'te anlamsız
+  // (innerHTML gibi kavramlar yok). Atla.
+  if (file.endsWith('.css')) continue
+
+  scanTs(fileRel, raw)
+}
+
+/**
+ * HTML dosyası taraması.
+ *
+ * NEDEN AYRI: `<!-- ... -->` HTML yorumudur ama `/* *\/` DEĞİLDİR.
+ * Önceki sürüm `.html` için yalnız blok yorumu ayıklıyordu; bu yüzden
+ * `<!-- el.innerHTML = x yapma -->` gibi bir UYARI yorumu gerçek ihlal
+ * sanılıp YANLIŞ KIRMIZI üretiyordu (doğrulamada ölçüldü).
+ */
+function scanHtml(fileRel, raw) {
+  // HTML yorumlarını boşalt (satır konumu korunur).
+  const noComments = raw.replace(/<!--[\s\S]*?-->/g, (m) =>
+    m.replace(/[^\n]/g, ' '),
+  )
+  // Yalnız `<script>` bloklarının İÇİNİ TS olarak tara: HTML etiketi
+  // içindeki attribute'lar JS değildir.
+  const scriptRe = /<script\b[^>]*>([\s\S]*?)<\/script>/gi
   let m
-  while ((m = storageRe.exec(src)) !== null) {
+  while ((m = scriptRe.exec(noComments)) !== null) {
+    const body = m[1] ?? ''
+    // Boş `<script src="...">` bloğu atlanır.
+    if (body.trim() === '') continue
+    const offset = m.index + m[0].indexOf(body)
+    scanTs(fileRel, body, offset, noComments)
+  }
+}
+
+/**
+ * TS/TSX/JS/JSX taraması — AYRIŞTIRICI TABANLI.
+ *
+ * NEDEN REGEX DEĞİL (dört tur boyunca aynı sınıf hata çıktı):
+ *  - `"Function( ile baslar"` gibi bir UI METNİ yanlış kırmızı üretti.
+ *  - `window.Function(...)`, `globalThis.eval` gibi nokta-öncesi çağrılar
+ *    kaçtı (regex asimetrisi).
+ *  - `el["innerHTML"]` köşeli-parantez erişimi kaçtı.
+ * Her yeni regex bir öncekinin açtığı deliği kapatırken yenisini açtı.
+ *
+ * Çözüm: TypeScript AST'si. `CallExpression` / `NewExpression` /
+ * `PropertyAccessExpression` / `ElementAccessExpression` düğümleri
+ * üzerinden İSİM eşleşmesi yapılır; metin literalleri düğüm DEĞİLDİR,
+ * dolayısıyla yanlış kırmızı üretmez.
+ */
+function scanTs(fileRel, code, offset = 0, fullSrc = null) {
+  let ts
+  try {
+    ts = loadTypeScript()
+  } catch (err) {
     fail(
-      fileRel,
-      lineOf(src, m.index),
-      `${m[1]}.setItem — token HttpOnly cookie'de tutulur, kalıcı depoya YAZILMAZ`,
+      'admin/',
+      0,
+      'typescript ayrıştırıcısı yüklenemedi — güvenlik taraması yapılamaz ' +
+        `(${err instanceof Error ? err.message : String(err)}). ` +
+        'Önce `cd admin && npm ci` çalıştırın.',
     )
+    return
   }
 
-  // 6b. innerHTML ailesi — kullanıcı verisi XSS'e açılır.
-  //
-  // DESEN `=` İLE SINIRLI DEĞİL: `el.innerHTML += ...`, `insertAdjacentHTML(...)`
-  // ve `document.write(...)` biçimleri de aynı riski taşır. İlk sürüm yalnız
-  // `=` biçimini yakalıyordu; üç kaçış yolu da review'da ölçüldü.
-  // `.innerHTML` öncesi nokta ZORUNLU DEĞİL (değişkende de olabilir).
-  for (const pattern of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write']) {
-    // `insertAdjacentHTML` / `document.write` fonksiyon çağrısıdır: `(` arar.
-    // `innerHTML` / `outerHTML` hem atama hem `+=` olabilir.
-    const isCall = pattern === 'insertAdjacentHTML' || pattern === 'document.write'
-    const re = isCall
-      ? new RegExp(`\\b${pattern.replace('.', '\\.')}\\s*\\(`, 'g')
-      : new RegExp(`\\b${pattern}\\s*(?:\\+=|=(?!=))`, 'g')
-    while ((m = re.exec(src)) !== null) {
-      fail(fileRel, lineOf(src, m.index), `${pattern} kullanılıyor — metin React ile (JSX) basılmalı (XSS)`)
+  const sf = ts.createSourceFile('scan.tsx', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+
+  const lineOfNode = (node) => {
+    const pos = node.getStart(sf) + offset
+    const src = fullSrc ?? code
+    return src.slice(0, pos).split('\n').length
+  }
+
+  /** Erişim zincirinin son adını verir: `a.b.c` → 'c'. */
+  const tailName = (node) => {
+    if (!node) return null
+    if (ts.isIdentifier(node)) return node.text
+    if (ts.isPropertyAccessExpression(node)) return node.name.text
+    if (ts.isElementAccessExpression(node)) {
+      const arg = node.argumentExpression
+      if (arg && (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg))) {
+        return arg.text
+      }
     }
-  }
-  if (/dangerouslySetInnerHTML/.test(src)) {
-    const i = src.search(/dangerouslySetInnerHTML/)
-    fail(fileRel, lineOf(src, i), 'dangerouslySetInnerHTML kullanılıyor — XSS riski')
+    return null
   }
 
-  // 6c. eval / new Function — İKİSİ DE dinamik kod çalıştırır.
-  //
-  // `eval` yasaklanmıştı ama eşdeğeri `new Function(...)` ve
-  // `Function(...)()` serbestti (re-review'da ölçüldü: ikisi de yeşil).
-  for (const [label, re] of [
-    ['eval()', /\beval\s*\(/],
-    ['new Function()', /\bnew\s+Function\s*\(/],
-    ['Function()', /(?<![.\w])Function\s*\(/],
-  ]) {
-    const hit = src.search(re)
-    if (hit !== -1) {
-      fail(fileRel, lineOf(src, hit), `${label} kullanılıyor — dinamik kod çalıştırma (güvenlik riski)`)
+  const STORAGE = new Set(['localStorage', 'sessionStorage'])
+  const XSS_PROPS = new Set(['innerHTML', 'outerHTML'])
+  const XSS_CALLS = new Set(['insertAdjacentHTML', 'write', 'writeln'])
+  const DYN_CODE = new Set(['eval', 'Function'])
+
+  const visit = (node) => {
+    // 6a. localStorage.setItem / sessionStorage.setItem
+    //     `["setItem"]` köşeli-parantez biçimi de `tailName` ile yakalanır.
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression
+      if (ts.isPropertyAccessExpression(callee) || ts.isElementAccessExpression(callee)) {
+        const method = tailName(callee)
+        const owner = tailName(callee.expression)
+        if (method === 'setItem' && STORAGE.has(owner)) {
+          fail(
+            fileRel,
+            lineOfNode(node),
+            `${owner}.setItem — token HttpOnly cookie'de tutulur, kalıcı depoya YAZILMAZ`,
+          )
+        }
+
+        // 6b. innerHTML'e ATAMA `+=` da olabilir; PropertyAccess ile gelir.
+        //     `insertAdjacentHTML(...)`, `document.write(...)`, `writeln`.
+        if (XSS_CALLS.has(method)) {
+          const isDoc = ts.isIdentifier(callee.expression) && callee.expression.text === 'document'
+          if (method === 'insertAdjacentHTML' || isDoc) {
+            fail(
+              fileRel,
+              lineOfNode(node),
+              `${method}() kullanılıyor — metin React ile (JSX) basılmalı (XSS)`,
+            )
+          }
+        }
+
+        // 6c. eval / Function — nokta önekli biçimler de (window.eval,
+        //     globalThis.Function) aynı riski taşır.
+        if (DYN_CODE.has(method)) {
+          fail(
+            fileRel,
+            lineOfNode(node),
+            `${method}() kullanılıyor — dinamik kod çalıştırma (güvenlik riski)`,
+          )
+        }
+      }
+      // Düz `eval(...)` / `Function(...)` / `(0, eval)(...)`
+      const direct = tailName(callee)
+      if (DYN_CODE.has(direct)) {
+        fail(
+          fileRel,
+          lineOfNode(node),
+          `${direct}() kullanılıyor — dinamik kod çalıştırma (güvenlik riski)`,
+        )
+      }
     }
-  }
 
-  // 6d. Oturum cookie'si JS'ten okunamaz/yazılamaz.
-  //     `a_csrf` okuması Task 10'da SERBEST (HttpOnly değil), `a_session` ASLA.
-  const sessionRe = /\ba_session\b/g
-  while ((m = sessionRe.exec(src)) !== null) {
-    fail(
-      fileRel,
-      lineOf(src, m.index),
-      'a_session (oturum token\'ı) kaynak kodda geçiyor — HttpOnly cookie tarayıcı yönetir, JS dokunmaz',
-    )
-  }
-
-  // 6e. Token'ı cookie'ye yazma girişimi
-  const cookieWriteRe = /document\.cookie\s*=/g
-  while ((m = cookieWriteRe.exec(src)) !== null) {
-    const line = src.slice(m.index, src.indexOf('\n', m.index) === -1 ? undefined : src.indexOf('\n', m.index))
-    if (/a_session|token|session/i.test(line)) {
-      fail(fileRel, lineOf(src, m.index), 'document.cookie ile oturum token\'ı yazılıyor — token HttpOnly olmalı')
+    // 6c'. `new Function(...)`
+    if (ts.isNewExpression(node)) {
+      const name = tailName(node.expression)
+      if (DYN_CODE.has(name)) {
+        fail(
+          fileRel,
+          lineOfNode(node),
+          `new ${name}() kullanılıyor — dinamik kod çalıştırma (güvenlik riski)`,
+        )
+      }
     }
+
+    // 6b'. innerHTML / outerHTML ATAMASI (düz veya `+=`).
+    if (ts.isBinaryExpression(node)) {
+      const op = node.operatorToken.kind
+      const isAssign =
+        op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.PlusEqualsToken
+      if (isAssign) {
+        const target = tailName(node.left)
+        if (XSS_PROPS.has(target)) {
+          fail(
+            fileRel,
+            lineOfNode(node),
+            `${target} kullanılıyor — metin React ile (JSX) basılmalı (XSS)`,
+          )
+        }
+      }
+    }
+
+    // 6b''. dangerouslySetInnerHTML — JSX attribute adı.
+    if (ts.isJsxAttribute(node)) {
+      const attr = node.name.getText(sf)
+      if (attr === 'dangerouslySetInnerHTML' || attr === 'srcDoc') {
+        fail(fileRel, lineOfNode(node), `${attr} kullanılıyor — XSS riski`)
+      }
+    }
+
+    // 6d. `a_session` bir DİZE LİTERALİ olarak geçmemeli.
+    if (ts.isStringLiteral(node) && node.text === 'a_session') {
+      fail(
+        fileRel,
+        lineOfNode(node),
+        "a_session (oturum token'ı) kaynak kodda geçiyor — HttpOnly cookie tarayıcı yönetir, JS dokunmaz",
+      )
+    }
+
+    // 6e. `document.cookie = ...` yazımı.
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      const target = tailName(node.left)
+      const owner = ts.isPropertyAccessExpression(node.left) ? tailName(node.left.expression) : null
+      if (target === 'cookie' && owner === 'document') {
+        const text = node.getText(sf)
+        if (/a_session|token|session/i.test(text)) {
+          fail(
+            fileRel,
+            lineOfNode(node),
+            "document.cookie ile oturum token'ı yazılıyor — token HttpOnly olmalı",
+          )
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit)
   }
+
+  visit(sf)
 }
 
 // ---------------------------------------------------------------------------
