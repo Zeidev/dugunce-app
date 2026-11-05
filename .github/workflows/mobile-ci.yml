@@ -13,6 +13,15 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
+      # Bu workflow'un çalıştırdığı KONTROL SCRIPT'LERİ. Yalnız
+      # `mobile/**` izlemek, script düzeltmesinin CI'ı hiç tetiklemediği
+      # bir kör nokta bırakıyordu: `check-kotlin-imports.mjs` içindeki
+      # sabit paket adı düzeltildi ama `mobile-ci` çalışmadı, yani
+      # düzeltmenin gerçekten geçtiği DOĞRULANAMADI (2026-11-05'te
+      # yaşandı). Script değişince de çalışmalı.
+      - 'scripts/check-kotlin-imports.mjs'
+      - 'scripts/check-dead-buttons.mjs'
+      - 'scripts/check-compose-conventions.mjs'
   pull_request:
     paths:
       - 'mobile/**'
