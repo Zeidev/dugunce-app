@@ -30,8 +30,9 @@ describe('admin tablolari', () => {
     const cols = r.rows.map((x) => x.column_name)
     expect(cols).toEqual([
       'created_at', 'display_name', 'email', 'failed_attempts', 'id',
-      'last_login_at', 'locked_until', 'password_hash', 'recovery_codes',
-      'role', 'status', 'totp_enabled_at', 'totp_secret', 'updated_at',
+      'last_login_at', 'locked_until', 'lockout_count', 'password_hash',
+      'recovery_codes', 'role', 'status', 'totp_enabled_at', 'totp_secret',
+      'updated_at',
     ])
   })
 

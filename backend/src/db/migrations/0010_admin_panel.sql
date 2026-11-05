@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS "admin_accounts" (
   "role" text NOT NULL DEFAULT 'SUPER_ADMIN',
   "status" text NOT NULL DEFAULT 'ACTIVE',
   "failed_attempts" integer NOT NULL DEFAULT 0,
+  "lockout_count" integer NOT NULL DEFAULT 0,
   "locked_until" timestamptz,
   "last_login_at" timestamptz,
   "totp_secret" text,

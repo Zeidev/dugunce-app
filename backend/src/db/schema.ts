@@ -638,6 +638,8 @@ export const adminAccounts = pgTable(
     /** ACTIVE | SUSPENDED */
     status: text('status').notNull().default('ACTIVE'),
     failedAttempts: integer('failed_attempts').notNull().default(0),
+    /** Ardışık kilit sayısı — kilit süresi üstel artar (DoS koruması). */
+    lockoutCount: integer('lockout_count').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     /** v1'de KULLANILMAZ — 2FA sonraki tur. Sütunlar şimdi eklenir ki

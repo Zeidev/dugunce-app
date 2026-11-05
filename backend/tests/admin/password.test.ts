@@ -8,6 +8,8 @@ import {
   MIN_ADMIN_PASSWORD_LENGTH,
   MAX_FAILED_ATTEMPTS,
   LOCK_DURATION_MS,
+  lockDurationFor,
+  MAX_LOCK_DURATION_MS,
 } from '../../src/admin/service.js'
 
 describe('parola hash', () => {
@@ -113,5 +115,39 @@ describe('kilit sonrasi kalici kilitlenme (gercek hata)', () => {
     const r = nextFailedState(4)
     expect(r.failedAttempts).toBe(5)
     expect(r.lockedUntil).not.toBeNull()
+  })
+})
+
+describe('ustel kilit — DoS korumasi', () => {
+  it('ilk kilit 15 dk', () => {
+    expect(lockDurationFor(0)).toBe(15 * 60 * 1000)
+  })
+
+  it('ikinci kilit 30 dk, ucuncu 60 dk (ustel)', () => {
+    expect(lockDurationFor(1)).toBe(30 * 60 * 1000)
+    expect(lockDurationFor(2)).toBe(60 * 60 * 1000)
+    expect(lockDurationFor(3)).toBe(120 * 60 * 1000)
+  })
+
+  it('tavan 24 saat — sonsuz buyumez', () => {
+    expect(lockDurationFor(10)).toBe(MAX_LOCK_DURATION_MS)
+    expect(lockDurationFor(100)).toBe(MAX_LOCK_DURATION_MS)
+    expect(lockDurationFor(1e9)).toBe(MAX_LOCK_DURATION_MS)
+  })
+
+  it('negatif sayac ilk kilit gibi davranir', () => {
+    expect(lockDurationFor(-5)).toBe(15 * 60 * 1000)
+  })
+
+  it('nextFailedState lockoutCount u artirir', () => {
+    const r = nextFailedState(4, new Date(), 2)
+    expect(r.lockoutCount).toBe(3)
+    expect(r.lockedUntil).not.toBeNull()
+  })
+
+  it('kilit dolmadan lockoutCount DEGISMEZ', () => {
+    const r = nextFailedState(1, new Date(), 3)
+    expect(r.lockoutCount).toBe(3)
+    expect(r.lockedUntil).toBeNull()
   })
 })

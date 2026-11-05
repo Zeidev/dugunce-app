@@ -97,6 +97,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "lockout_count": {
+          "name": "lockout_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         }
       },
       "indexes": {

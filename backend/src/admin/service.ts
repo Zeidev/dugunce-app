@@ -21,6 +21,29 @@ export const MAX_FAILED_ATTEMPTS = 5
 export const LOCK_DURATION_MS = 15 * 60 * 1000
 
 /**
+ * ÜSTEL KİLİT TAVANI — 24 saat.
+ *
+ * Tek admin hesabı olduğu ve parola sıfırlama akışı bulunmadığı için
+ * sabit 15 dk kilit yetersizdi: saldırgan 15 dakikada 5 istek atarak
+ * hesabı sürekli kilitli tutabiliyordu (hız sınırı 10/15dk olduğu için
+ * limitin ALTINDA kalıyordu). Kilit süresi her ardışık kilitte ikiye
+ * katlanır.
+ */
+export const MAX_LOCK_DURATION_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Ardışık kilit sayısına göre kilit süresi.
+ *
+ * @param lockoutCount Bu hesabın daha önce kaç kez kilitlendiği (0 = ilk).
+ */
+export function lockDurationFor(lockoutCount: number): number {
+  const n = Math.max(0, Math.floor(lockoutCount))
+  // 2^n taşmasın: 15dk * 2^10 zaten tavana yakın.
+  const capped = Math.min(n, 10)
+  return Math.min(LOCK_DURATION_MS * 2 ** capped, MAX_LOCK_DURATION_MS)
+}
+
+/**
  * Parolayı Argon2id ile hash'ler.
  *
  * Her çağrıda rastgele tuz üretilir; aynı parola iki farklı hash verir.
@@ -115,15 +138,23 @@ export function computeLockState(
 export function nextFailedState(
   current: number,
   now: Date = new Date(),
-): { failedAttempts: number; lockedUntil: Date | null } {
+  /** Bu hesabın daha önce kaç kez kilitlendiği — üstel geri çekilme için. */
+  lockoutCount: number = 0,
+): { failedAttempts: number; lockedUntil: Date | null; lockoutCount: number } {
   // Önceki kilit dönemi bittiyse sayaç YENİDEN başlar.
   const base = current >= MAX_FAILED_ATTEMPTS ? 0 : current
   const failedAttempts = base + 1
-  const lockedUntil =
-    failedAttempts >= MAX_FAILED_ATTEMPTS
-      ? new Date(now.getTime() + LOCK_DURATION_MS)
-      : null
-  return { failedAttempts, lockedUntil }
+
+  if (failedAttempts < MAX_FAILED_ATTEMPTS) {
+    return { failedAttempts, lockedUntil: null, lockoutCount }
+  }
+
+  // Kilit devreye giriyor — süre ardışık kilit sayısıyla ÜSTEL artar.
+  // Sabit 15 dk, 15 dakikada 5 istek atan bir saldırganın tek admin
+  // hesabını kalıcı kilitlemesine izin veriyordu.
+  const nextCount = lockoutCount + 1
+  const lockedUntil = new Date(now.getTime() + lockDurationFor(lockoutCount))
+  return { failedAttempts, lockedUntil, lockoutCount: nextCount }
 }
 
 // ---------------------------------------------------------------------------
@@ -340,6 +371,22 @@ async function writeFailedAudit(
  * NOT: oturum (çerez) ÜRETMEZ — `createSession` çağrısı route katmanının
  * işidir (Task 7), çünkü ham token yalnız orada bilinir ve cookie yazılır.
  */
+/**
+ * Var olmayan hesap için SAHTE yazma — yalnız zamanlama simetrisi için.
+ *
+ * Hiçbir satır yazmaz; gerçek bir `recordFailedAttempt` çağrısının
+ * gidiş-dönüş maliyetini taklit eder. Amacı "hesap yok" ile "yanlış
+ * parola" yollarının AYNI sayıda DB işlemi yapması.
+ */
+async function dummyFailedAttempt(deps: AdminDeps): Promise<void> {
+  // Sabit bir UUID'ye karşı güncelleme: hiçbir satırla eşleşmez,
+  // dolayısıyla yan etkisi yoktur ama sorgu maliyeti gerçektir.
+  await deps.recordFailedAttempt('00000000-0000-0000-0000-000000000000', {
+    failedAttempts: 1,
+    lockedUntil: null,
+  })
+}
+
 export async function loginAdmin(
   params: { email: string; password: string; ip?: string },
   deps: AdminDeps,
@@ -355,12 +402,18 @@ export async function loginAdmin(
   if (!row) {
     // Argon2 maliyeti ödenir: yanıt süresi var olan hesapla aynı kalır.
     await verifyPassword(DUMMY_PASSWORD_HASH, params.password)
+    // SAHTE YAZMA: yanlış-parola yolu `recordFailedAttempt` + audit olmak
+    // üzere İKİ yazma yapar. Yalnız audit yazarsak "hesap yok" yolu bir
+    // yazma daha hızlı kalır ve zamanlama farkı (gerçekçi 3ms gidiş-dönüş
+    // ile ~1.4ms, örneklemeyle ölçülebilir) hesabın VAR olduğunu sızdırır.
+    // Var olmayan bir kimliğe yazma denemesi aynı maliyeti üretir.
     await writeFailedAudit(deps, {
       email,
       reason: 'UNKNOWN_EMAIL',
       ip: params.ip,
       actorId: null,
     })
+    await dummyFailedAttempt(deps)
     return null
   }
 
@@ -389,7 +442,7 @@ export async function loginAdmin(
   // 5. Parola.
   const ok = await verifyPassword(row.passwordHash, params.password)
   if (!ok) {
-    const state = nextFailedState(row.failedAttempts, now)
+    const state = nextFailedState(row.failedAttempts, now, row.lockoutCount ?? 0)
     await deps.recordFailedAttempt(row.id, state)
     await writeFailedAudit(deps, {
       email,

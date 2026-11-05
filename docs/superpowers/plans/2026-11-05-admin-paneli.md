@@ -1132,6 +1132,25 @@ Expected: FAIL — 404 (route yok).
 
 Uçlar (spec §6): `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `GET /overview`, `GET /users`, `GET /users/:id`, `PATCH /users/:id`, `GET /weddings`, `GET /weddings/:id`, `PATCH /weddings/:id/plan`, `GET /audit-logs`.
 
+**KRİTİK — `POST /auth/login` oturumu KENDİSİ açar:**
+`loginAdmin` (Task 3) yalnız kimliği doğrular ve `{ admin }` döner; **çerez üretmez**. Route şunları yapmak zorunda:
+1. `loginAdmin(...)` → `null` ise `401 INVALID_CREDENTIALS` (tek hata kodu — e-posta sızdırmaz)
+2. Başarılıysa ham token üret (`generateToken()`), SHA-256'sını `createSession({ adminId, sessionHash, csrfHash, ip, userAgent, expiresAt: now + SESSION_MAX_MS })` ile yaz
+3. `Set-Cookie`: `a_session` (HttpOnly) + `a_csrf` (JS okur) — `sessionCookie`/`csrfCookie` (Task 2)
+4. Gövdede `{ admin }` döndür (token gövdede ASLA)
+
+Bu adım atlanırsa giriş 200 döner ama **çerez olmaz** — kullanıcı panele giremez.
+
+**Hız sınırı — kilitlenme DoS'unu ENGELLEMEZ:**
+Plan `10 deneme / 15 dk` diyor ama kilit zaten **5** hatalı denemede devreye giriyor. Yani saldırgan 15 dakikada 5 istek atarak limitin ALTINDA kalır ve tek admin hesabını **kalıcı olarak kilitler** (parola sıfırlama akışı yok). Ek önlem gerekli:
+- Kilitli hesaba gelen denemeler hız sınırından **önce** sayılmaz (kilit zaten koruyor) VEYA
+- Kilit süresi üstel artar (15 dk → 30 dk → 60 dk) VEYA
+- Audit'e `ADMIN_LOCKOUT_ALERT` yazılır ve operasyon görür
+
+v1 için seçilen: **kilit süresi üstel** — `LOCK_DURATION_MS * 2^(ardışık kilit sayısı - 1)`, tavan 24 saat. `admin_accounts`'a `lockout_count` sütunu eklenir (Task 1 migration'ına eklenir, ayrı migration gerekmez).
+
+**E-posta normalizasyonu simetrik olmalı:** yazma (CLI, Task 8) ve okuma (login) **aynı** `.trim().toLowerCase().normalize('NFC')` zincirini kullanmalı. Aksi hâlde `Owner@x.com` ile açılan hesap `owner@x.com` ile bulunamaz.
+
 **Sayfalama — cursor tabanlı** (mevcut `guests` deseniyle aynı):
 - `?limit=50&cursor=<son id>` — `limit` varsayılan 50, azami 100
 - Yanıt: `{ items: [...], nextCursor: string | null }`
