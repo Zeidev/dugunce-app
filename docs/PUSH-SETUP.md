@@ -123,13 +123,25 @@ Sunucu, bildirimi FCM'e **sizin adınıza** gönderecek. Bunun için bir
    ```
    https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk
    ```
-3. **"Generate new private key"** → uyarıyı okuyup **Generate key**.
-4. Bir `.json` dosyası iner. Adı benzer: `dugunce-firebase-adminsdk-xxxxx.json`.
+3. **Sol panelde "Firebase Admin SDK" seçili olmalı** — başka bir şey
+   SEÇMEYİN. `Legacy credentials` (kullanımdan kalkan eski yöntem),
+   `Database secrets` (yalnız eski Realtime Database) ve
+   `All service accounts` (Google Cloud'un genel listesi) bu iş için
+   değil. Sayfa açıldığında Admin SDK zaten seçili gelir.
+4. **"Generate new private key"** → uyarıyı okuyup **Generate key**.
+5. Bir `.json` dosyası iner. Adı benzer: `dugunce-app-firebase-adminsdk-xxxxx.json`.
 
 > ⚠️ **Bu dosya bir paroladır.** İçinde özel anahtar var; eline geçen
 > kişi projeniz adına bildirim gönderebilir. Depoya **asla** koymayın,
 > sohbete yapıştırmayın, ekran görüntüsü almayın. `.gitignore`'da
 > `service-account*.json` ve `*-firebase-adminsdk-*.json` zaten yasaklı.
+
+> **Proje kimliği:** Service account adresi
+> `firebase-adminsdk-xxxxx@PROJE-KIMLIGI.iam.gserviceaccount.com`
+> biçimindedir. `@` ile `.iam` arasındaki kısım sizin **Firebase proje
+> kimliğinizdir** (ör. `dugunce-app`). FCM gönderim adresi bunu kullanır:
+> `https://fcm.googleapis.com/v1/projects/<PROJE-KIMLIGI>/messages:send`.
+> Bu değeri bir yere not edin.
 
 ### 4b. Anahtarı sunucuya tek satır olarak koyun
 
@@ -139,8 +151,12 @@ Sunucu, dosya sistemi yerine `.env` içinde **base64** bir satır okuyacak
 Kendi makinenizde, indirdiğiniz dosyanın bulunduğu dizinde:
 
 ```bash
-base64 -w0 dugunce-firebase-adminsdk-xxxxx.json
+openssl base64 -A -in dugunce-app-firebase-adminsdk-xxxxx.json
 ```
+
+> `-A` tek satır çıktı verir. `base64 -w0` de aynı işi yapar ama `-w`
+> seçeneği her sistemde (özellikle macOS'ta) yok — `openssl` her yerde
+> çalışır.
 
 Çıktı çok uzun tek satır olur (`eyJ0eXAiOiJKV1Qi...` diye başlar).
 Tamamını kopyalayın.
